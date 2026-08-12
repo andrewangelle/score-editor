@@ -102,7 +102,7 @@ export function PDFEditor() {
       // to the open finds them already in place.
       holdDocumentBytes(id, loaded.bytes);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
-      void analyseScore(loaded.bytes);
+      void analyseScore(id, loaded.bytes);
     } catch (cause) {
       setError(
         cause instanceof PdfLoadError
@@ -118,17 +118,24 @@ export function PDFEditor() {
    * Staff detection runs after the document is already on screen: it is a
    * best-effort enrichment, so a score that cannot be parsed leaves the plain
    * page editor perfectly usable.
+   *
+   * Nothing here can be cancelled, so the document it was asked about travels
+   * with it; the score slice drops an answer that has been overtaken.
    */
-  async function analyseScore(source: Uint8Array) {
+  async function analyseScore(id: string, source: Uint8Array) {
     try {
-      dispatch(scoreAnalysed(await analyzeScore(source)));
+      dispatch(
+        scoreAnalysed({ documentId: id, analysis: await analyzeScore(source) }),
+      );
     } catch (cause) {
       dispatch(
-        scoreAnalysisFailed(
-          cause instanceof Error
-            ? cause.message
-            : 'This document could not be analysed as a score.',
-        ),
+        scoreAnalysisFailed({
+          documentId: id,
+          message:
+            cause instanceof Error
+              ? cause.message
+              : 'This document could not be analysed as a score.',
+        }),
       );
     }
   }
@@ -292,6 +299,19 @@ export function PDFEditor() {
           <aside className="w-64 shrink-0 border-slate-200 border-l bg-white p-4">
             <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
             <p className="mt-2 text-slate-500 text-xs">{analysisNote}</p>
+          </aside>
+        )}
+
+        {/*
+          Detection runs after the page is already on screen, and on a dense
+          score it takes a moment. Without this the whole side of the window is
+          simply empty until it lands, which reads as a panel that never arrives
+          rather than one still being worked out.
+        */}
+        {!analysis && !analysisNote && (
+          <aside className="w-64 shrink-0 border-slate-200 border-l bg-white p-4">
+            <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
+            <p className="mt-2 text-slate-500 text-xs">Looking for staves…</p>
           </aside>
         )}
       </main>

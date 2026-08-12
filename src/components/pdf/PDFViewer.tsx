@@ -82,6 +82,20 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
               pageNumber={selected.sourceIndex + 1}
               rotate={selected.rotation}
               width={pageWidth}
+              // The overlays below own this surface, so pdf.js's own text and
+              // annotation layers have nothing left to do here: they cannot be
+              // selected through an overlay, and each page view was paying for a
+              // text-content round trip and a span per text run, thrown away
+              // again on the next page. The page strip has always been rendered
+              // this way.
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              // Those layers carry z-indexes of their own (2 and 3) while
+              // react-pdf's wrapper is `position: relative` with none, so they
+              // used to paint above the overlays and swallow every click meant
+              // for them. `isolate` keeps that from mattering again if either
+              // layer is ever switched back on.
+              className="isolate"
             />
             {overlay ? (
               <>

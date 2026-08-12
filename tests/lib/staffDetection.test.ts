@@ -8,6 +8,7 @@ import {
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createAnnotation } from '#/lib/pdf/annotations';
 import { extractParts, layoutBands, planBands } from '#/lib/pdf/partExtraction';
+import { regionsFromParts } from '#/lib/pdf/regions';
 import {
   detectPageStaves,
   guessPartNames,
@@ -212,6 +213,39 @@ describe('band planning', () => {
     });
   });
 
+  /**
+   * Detected bands arrive in document order, so a system's regions happen to be
+   * adjacent in the list. Editing one by hand breaks that: it re-sorts to
+   * wherever its new geometry puts it, and something from another system can
+   * land in between. Grouping has to follow the key, not the neighbour.
+   */
+  it('keeps a system together when an edit separates it in the list', () => {
+    const band = (id: string, groupKey: string, top: number) => ({
+      id,
+      pageIndex: 0,
+      groupKey,
+      label: id,
+      rect: { left: 0, right: 612, top, bottom: top - 300 },
+    });
+
+    // Sorted top-down, the two halves of "system" now straddle "other".
+    const laid = layoutBands(
+      [
+        band('a', 'system', 700),
+        band('b', 'other', 380),
+        band('c', 'system', 60),
+      ],
+      PAGE_HEIGHT,
+    );
+
+    const pageOf = (id: string) =>
+      laid.findIndex((page) =>
+        page.some((placed) => placed.region.id === id),
+      );
+
+    expect(pageOf('a')).toBe(pageOf('c'));
+  });
+
   it('lays bands out top-down without overlapping', () => {
     const laid = layoutBands(planBands(pages, [2, 3]), PAGE_HEIGHT);
     for (const page of laid) {
@@ -388,5 +422,46 @@ describe('part extraction', () => {
     expect(text).toContain('FINGERING-MARK');
     // The drums annotation belongs to a band that was not extracted.
     expect(text).not.toContain('DRUMS-ONLY-MARK');
+  });
+
+  /**
+   * An extracted part still carries every page it was cut from, clipped out of
+   * sight but whole in the content stream. Read back, that ink must stay
+   * invisible: counted as the staves' own, it drags each band out to meet its
+   * neighbours, and re-extracting then cuts overlapping copies of the music.
+   */
+  describe('read back in', () => {
+    let redetected: PageStaves[];
+
+    beforeAll(async () => {
+      redetected = await analyse(await extractParts(bytes, pages, [1]));
+    });
+
+    it('sees only what the part actually shows', () => {
+      for (const page of redetected) {
+        // One clip per band placed on the page, not one per form in the source.
+        expect(page.clips?.length).toBe(page.systems.length);
+
+        for (const staff of page.systems.flatMap((s) => s.staves)) {
+          const height = staff.top - staff.bottom;
+          expect(staff.contentTop - staff.contentBottom).toBeLessThan(
+            height * 20,
+          );
+        }
+      }
+    });
+
+    it('derives bands that do not overlap one another', () => {
+      for (const page of redetected) {
+        const regions = regionsFromParts([page], [0], []);
+        expect(regions.length).toBe(page.systems.length);
+
+        for (let i = 1; i < regions.length; i++) {
+          expect(regions[i].rect.top).toBeLessThanOrEqual(
+            regions[i - 1].rect.bottom,
+          );
+        }
+      }
+    });
   });
 });

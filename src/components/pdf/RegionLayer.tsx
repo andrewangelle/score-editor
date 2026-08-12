@@ -63,13 +63,39 @@ export function RegionLayer({
   const interactive = useAppSelector(selectIsEditingRegions);
 
   const surface = useRef<HTMLDivElement>(null);
+  /** The surface's screen box, pinned for the length of a gesture. */
+  const surfaceBox = useRef<DOMRect | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
 
   const toPdf = (clientX: number, clientY: number) => {
-    const box = surface.current?.getBoundingClientRect();
+    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
     if (!box) return null;
     return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
   };
+
+  /**
+   * Opens a gesture: pins the surface's geometry, and routes the rest of the
+   * pointer stream here wherever it goes.
+   *
+   * Measuring forces a synchronous layout, and what sits under this surface is a
+   * PDF canvas plus pdf.js's text layer — one absolutely positioned span per
+   * text run, thousands of them on an engraved page. Measuring per pointermove
+   * reflows all of it every frame, which is what makes a drag crawl. The surface
+   * cannot move while a gesture is in flight, so once at the start is enough.
+   *
+   * The capture is what keeps that gesture alive past the page edge: the
+   * geometry clamps for exactly that case, so dragging a rectangle *to* the edge
+   * is ordinary, and without capture the release out there is never heard.
+   */
+  function captureGesture(event: React.PointerEvent) {
+    surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
+    surface.current?.setPointerCapture(event.pointerId);
+  }
+
+  function endGesture() {
+    surfaceBox.current = null;
+    setDrag(null);
+  }
 
   const pageRegions = regions.filter(
     (region) => region.pageIndex === pageIndex,
@@ -132,7 +158,7 @@ export function RegionLayer({
     } else if (drag && drag.region !== drag.origin) {
       dispatch(regionChanged({ visible: regions, region: drag.region }));
     }
-    setDrag(null);
+    endGesture();
   }
 
   const preview =
@@ -152,6 +178,7 @@ export function RegionLayer({
       }`}
       onPointerDown={(event) => {
         if (!interactive || event.target !== event.currentTarget) return;
+        captureGesture(event);
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
         dispatch(regionSelected(null));
@@ -159,7 +186,7 @@ export function RegionLayer({
       }}
       onPointerMove={handleMove}
       onPointerUp={handleUp}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={endGesture}
     >
       {pageRegions.map((stored) => {
         const region = shown(stored);
@@ -183,6 +210,7 @@ export function RegionLayer({
               onPointerDown={(event) => {
                 if (!interactive) return;
                 event.stopPropagation();
+                captureGesture(event);
                 const point = toPdf(event.clientX, event.clientY);
                 if (!point) return;
                 dispatch(regionSelected(region.id));
@@ -222,6 +250,7 @@ export function RegionLayer({
                     aria-label={`Drag ${edge} edge of ${region.label}`}
                     onPointerDown={(event) => {
                       event.stopPropagation();
+                      captureGesture(event);
                       dispatch(regionSelected(region.id));
                       setDrag({
                         kind: 'edge',

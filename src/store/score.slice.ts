@@ -21,12 +21,22 @@ type ScoreState = {
   note: string | null;
   /** Ordinals of the parts currently checked for extraction. */
   selectedOrdinals: number[];
+  /**
+   * The document detection is currently describing, or being run for.
+   *
+   * Analysis is slow enough on a dense score to still be running when the next
+   * document is opened, and nothing cancels it. Both outcomes therefore carry
+   * the document they were asked about, and one that no longer matches this is
+   * dropped rather than attributed to whatever is on screen now.
+   */
+  documentId: string | null;
 };
 
 const initialState: ScoreState = {
   analysis: null,
   note: null,
   selectedOrdinals: [],
+  documentId: null,
 };
 
 const NO_PARTS: Part[] = [];
@@ -36,16 +46,26 @@ export const scoreSlice = createSlice({
   name: 'score',
   initialState,
   reducers: {
-    scoreAnalysed(state, action: PayloadAction<ScoreAnalysis>) {
-      state.analysis = action.payload;
+    scoreAnalysed(
+      state,
+      action: PayloadAction<{ documentId: string; analysis: ScoreAnalysis }>,
+    ) {
+      if (action.payload.documentId !== state.documentId) return;
+      state.analysis = action.payload.analysis;
       state.note = null;
       // Everything detected starts checked; the user narrows from there.
-      state.selectedOrdinals = action.payload.parts.map((part) => part.ordinal);
+      state.selectedOrdinals = action.payload.analysis.parts.map(
+        (part) => part.ordinal,
+      );
     },
 
-    scoreAnalysisFailed(state, action: PayloadAction<string>) {
+    scoreAnalysisFailed(
+      state,
+      action: PayloadAction<{ documentId: string; message: string }>,
+    ) {
+      if (action.payload.documentId !== state.documentId) return;
       state.analysis = null;
-      state.note = action.payload;
+      state.note = action.payload.message;
       state.selectedOrdinals = [];
     },
 
@@ -73,7 +93,10 @@ export const scoreSlice = createSlice({
   extraReducers: (builder) => {
     // Detection describes one specific document, so it cannot outlive it.
     builder
-      .addCase(documentOpened, () => initialState)
+      .addCase(documentOpened, (_state, action) => ({
+        ...initialState,
+        documentId: action.payload.id,
+      }))
       .addCase(documentClosed, () => initialState);
   },
   selectors: {

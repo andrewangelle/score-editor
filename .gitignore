@@ -1,5 +1,7 @@
 node_modules
 .DS_Store
+# Copied from pdfjs-dist at config time; see the pdf-worker plugin.
+public/pdf.worker.min.mjs
 dist
 dist-ssr
 *.local

@@ -8,13 +8,11 @@
  */
 
 /**
- * Vite resolves this to a hashed asset URL and bundles the worker for us. It is
- * plain URL construction, so evaluating it on the server is harmless.
+ * The worker is published as a plain file by the `pdf-worker` plugin in
+ * `vite.config.ts` — see there for why it must not go through Vite's module
+ * pipeline. A root-relative string, so evaluating it on the server is harmless.
  */
-export const WORKER_SRC = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+export const WORKER_SRC = '/pdf.worker.min.mjs';
 
 let configured: Promise<typeof import('react-pdf').pdfjs> | null = null;
 

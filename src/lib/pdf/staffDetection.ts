@@ -329,9 +329,32 @@ export function collectGeometry(
   let clip: Box | null = null;
   const stack: { ctm: Matrix; clip: Box | null }[] = [];
 
+  /**
+   * True once anything has been drawn with no clip at all, which makes the
+   * collected clips useless as a visibility test: an unclipped page shows
+   * everything, so there is nothing for them to rule out.
+   */
+  let unclipped = false;
+  const recorded = new Set<Box>();
+
   const push = (box: Box): void => {
     const visible = clip ? intersect(box, clip) : box;
-    if (visible) boxes.push(visible);
+    if (!visible) return;
+    boxes.push(visible);
+
+    // Record the clip that was actually in force, not every form's bbox. A form
+    // nested inside another is bounded by both, and an outer form often spans
+    // the whole page — collecting those too makes the set cover everything and
+    // rule out nothing, which is how an extracted part ends up counting the
+    // score it was cut from as visible ink.
+    if (!clip) {
+      unclipped = true;
+      return;
+    }
+    if (!recorded.has(clip)) {
+      recorded.add(clip);
+      clips.push(clip);
+    }
   };
 
   for (let i = 0; i < operators.fnArray.length; i++) {
@@ -371,7 +394,6 @@ export function collectGeometry(
           right: Math.max(bbox[0], bbox[2]),
           top: Math.max(bbox[1], bbox[3]),
         });
-        clips.push(region);
         // Nested forms that miss each other clip everything away; `null` would
         // read as "unclipped", so keep an impossible box instead.
         clip = clip ? (intersect(clip, region) ?? EMPTY_CLIP) : region;
@@ -416,7 +438,7 @@ export function collectGeometry(
     );
   }
 
-  return { boxes, clips: clips.length > 0 ? clips : null };
+  return { boxes, clips: unclipped || clips.length === 0 ? null : clips };
 }
 
 /** Horizontal rules: wide, near-zero height. Candidate staff lines. */
@@ -739,8 +761,19 @@ export function attachContentBounds(
     // is allowed to be a little wider than that and no more.
     const reach = (staff.lineSpacing || 1) * 1.5;
 
+    // Both bounds below are clamped to the ceiling and floor, so ink outside
+    // that window cannot change either answer — chaining only ever travels
+    // outwards, so it cannot reach back through the window from beyond it.
+    // Excluding it up front is what keeps this affordable on a page carrying a
+    // whole score's worth of ink: an extracted part still holds all of it,
+    // clipped out of sight but fully present in the content stream, and the
+    // chain would otherwise walk every box of it for every staff.
     const near = claimable.filter(
-      (box) => box.right >= staff.left && box.left <= staff.right,
+      (box) =>
+        box.right >= staff.left &&
+        box.left <= staff.right &&
+        box.bottom <= ceiling &&
+        box.top >= floor,
     );
 
     let top = staff.top;

@@ -51,12 +51,18 @@ export function ScoreOverlay({
   const interactive = !useAppSelector(selectIsEditingRegions);
 
   const surface = useRef<HTMLDivElement>(null);
+  /**
+   * The surface's screen box, pinned while a note is being dragged. Measuring it
+   * reflows the page under it — canvas plus pdf.js's text layer — so doing it
+   * per pointermove costs a full layout every frame. Nothing moves mid-drag.
+   */
+  const surfaceBox = useRef<DOMRect | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
 
   const toPdf = (clientX: number, clientY: number) => {
-    const box = surface.current?.getBoundingClientRect();
+    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
     if (!box) return null;
     return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
   };
@@ -76,6 +82,7 @@ export function ScoreOverlay({
   }
 
   function endDrag() {
+    surfaceBox.current = null;
     if (!drag) return;
     const original = annotations.find(
       (annotation) => annotation.id === drag.id,
@@ -117,7 +124,10 @@ export function ScoreOverlay({
         if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
       }}
       onPointerUp={endDrag}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => {
+        surfaceBox.current = null;
+        setDrag(null);
+      }}
     >
       {systems.map((system) =>
         system.staves.map((staff, ordinal) => {
@@ -191,6 +201,8 @@ export function ScoreOverlay({
                 type="button"
                 onPointerDown={(event) => {
                   event.stopPropagation();
+                  surfaceBox.current =
+                    surface.current?.getBoundingClientRect() ?? null;
                   setDrag({
                     id: annotation.id,
                     x: annotation.x,

@@ -18,7 +18,17 @@ const ANALYSIS: ScoreAnalysis = {
   irregularSystems: [],
 };
 
-const ANALYSED = scoreSlice.reducer(undefined, scoreAnalysed(ANALYSIS));
+const DOC = 'doc-1';
+
+const OPENED = scoreSlice.reducer(
+  undefined,
+  documentOpened({ id: DOC, name: 'score.pdf', pages: [] }),
+);
+
+const ANALYSED = scoreSlice.reducer(
+  OPENED,
+  scoreAnalysed({ documentId: DOC, analysis: ANALYSIS }),
+);
 
 function run(...actions: Parameters<typeof scoreSlice.reducer>[1][]) {
   return actions.reduce(scoreSlice.reducer, ANALYSED);
@@ -33,8 +43,11 @@ describe('scoreAnalysed', () => {
 
   it('clears a note left by an earlier failure', () => {
     const recovered = scoreSlice.reducer(
-      scoreSlice.reducer(undefined, scoreAnalysisFailed('no staves found')),
-      scoreAnalysed(ANALYSIS),
+      scoreSlice.reducer(
+        OPENED,
+        scoreAnalysisFailed({ documentId: DOC, message: 'no staves found' }),
+      ),
+      scoreAnalysed({ documentId: DOC, analysis: ANALYSIS }),
     );
 
     expect(recovered.note).toBeNull();
@@ -44,11 +57,64 @@ describe('scoreAnalysed', () => {
 
 describe('scoreAnalysisFailed', () => {
   it('leaves a note and nothing to extract', () => {
-    const state = run(scoreAnalysisFailed('not an engraved score'));
+    const state = run(
+      scoreAnalysisFailed({
+        documentId: DOC,
+        message: 'not an engraved score',
+      }),
+    );
 
     expect(state.analysis).toBeNull();
     expect(state.note).toBe('not an engraved score');
     expect(state.selectedOrdinals).toEqual([]);
+  });
+});
+
+/**
+ * Detection is slow enough on a dense score to still be running when the next
+ * document is opened, and nothing cancels it.
+ */
+describe('an analysis that has been overtaken', () => {
+  const opened2 = scoreSlice.reducer(
+    ANALYSED,
+    documentOpened({ id: 'doc-2', name: 'other.pdf', pages: [] }),
+  );
+
+  it('does not land on the document that replaced it', () => {
+    const state = scoreSlice.reducer(
+      opened2,
+      scoreAnalysed({ documentId: DOC, analysis: ANALYSIS }),
+    );
+
+    expect(state.analysis).toBeNull();
+    expect(state.selectedOrdinals).toEqual([]);
+  });
+
+  it('does not report its failure against that document either', () => {
+    const state = scoreSlice.reducer(
+      opened2,
+      scoreAnalysisFailed({ documentId: DOC, message: 'no staves found' }),
+    );
+
+    expect(state.note).toBeNull();
+  });
+
+  it('is ignored once the document is closed', () => {
+    const state = scoreSlice.reducer(
+      scoreSlice.reducer(ANALYSED, documentClosed()),
+      scoreAnalysed({ documentId: DOC, analysis: ANALYSIS }),
+    );
+
+    expect(state.analysis).toBeNull();
+  });
+
+  it('still lands when it is the document being waited on', () => {
+    const state = scoreSlice.reducer(
+      opened2,
+      scoreAnalysed({ documentId: 'doc-2', analysis: ANALYSIS }),
+    );
+
+    expect(state.analysis).toEqual(ANALYSIS);
   });
 });
 
@@ -125,7 +191,10 @@ describe('selectors', () => {
   });
 
   it('returns a stable empty list when nothing was detected', () => {
-    const empty = scoreSlice.reducer(undefined, scoreAnalysisFailed('none'));
+    const empty = scoreSlice.reducer(
+      OPENED,
+      scoreAnalysisFailed({ documentId: DOC, message: 'none' }),
+    );
 
     // A fresh array each call would retrigger every subscribed component.
     expect(selectParts({ score: empty })).toBe(selectParts({ score: empty }));

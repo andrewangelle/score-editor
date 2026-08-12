@@ -53,11 +53,21 @@ export function layoutBands(
   const usableTop = pageHeight - options.margin;
   const usableBottom = options.margin;
 
+  // Grouped by key rather than by adjacency: a hand-edited region sorts to
+  // wherever its new geometry puts it, which for a run-length scan would split
+  // its system into several groups and lay them out as if they were unrelated.
+  // Groups keep first-appearance order, so document order still drives the flow.
   const groups: Region[][] = [];
+  const byKey = new Map<string, Region[]>();
   for (const region of regions) {
-    const last = groups.at(-1);
-    if (last && last[0].groupKey === region.groupKey) last.push(region);
-    else groups.push([region]);
+    const group = byKey.get(region.groupKey);
+    if (group) {
+      group.push(region);
+    } else {
+      const started = [region];
+      byKey.set(region.groupKey, started);
+      groups.push(started);
+    }
   }
 
   const pages: PlacedRegion[][] = [];
