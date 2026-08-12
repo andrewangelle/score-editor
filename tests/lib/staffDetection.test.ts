@@ -300,6 +300,43 @@ describe('part extraction', () => {
     expect(text).toContain('Drums');
   });
 
+  /**
+   * The flip side of the test above: the hidden parts are in the file, so a
+   * reader that ignores each form's BBox re-detects the whole original score.
+   * Re-opening an extracted part has to show that part alone.
+   */
+  it('re-reads as only the parts that were extracted', async () => {
+    const out = await extractParts(bytes, pages, [2, 3]);
+    const detected = await analyse(out);
+
+    for (const page of detected) {
+      for (const system of page.systems) {
+        expect(system.staves).toHaveLength(2);
+      }
+    }
+
+    const total = detected.reduce((sum, page) => sum + page.systems.length, 0);
+    expect(total).toBe(
+      FIXTURE_DEFAULTS.pageCount * FIXTURE_DEFAULTS.systemsPerPage,
+    );
+  });
+
+  it('names the re-read parts without picking up hidden labels', async () => {
+    const out = await extractParts(bytes, pages, [2, 3]);
+    const detected = await analyse(out);
+    const doc = await pdfjs.getDocument({
+      data: out.slice(),
+      isEvalSupported: false,
+    }).promise;
+
+    const names = await guessPartNames(
+      await doc.getPage(1),
+      detected[0].systems[0],
+      detected[0].clips,
+    );
+    expect(names).toEqual(['Gtr 1', 'Gtr 2']);
+  });
+
   it('keeps the content vectorial rather than rasterising it', async () => {
     const out = await extractParts(bytes, pages, [2, 3]);
     const doc = await pdfjs.getDocument({

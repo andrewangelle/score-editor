@@ -77,6 +77,12 @@ export type PageStaves = {
   width: number;
   height: number;
   systems: System[];
+  /**
+   * Regions the page's form XObjects clip their content to, when it has any.
+   * Carried so the text layer — which pdf.js reports unclipped — can be read
+   * with the same visibility rules the geometry already respects.
+   */
+  clips?: Rect[] | null;
 };
 
 export type DetectionOptions = {
@@ -260,6 +266,23 @@ function transformBox(ctm: Matrix, box: Box): Box {
   };
 }
 
+/** A clip that admits nothing; `intersect` rejects everything against it. */
+const EMPTY_CLIP: Box = { left: 1, bottom: 1, right: -1, top: -1 };
+
+/**
+ * Overlap of two boxes, or null when they miss each other.
+ *
+ * The bounds are inclusive on purpose: a staff line is a box of (almost) zero
+ * height, and one sitting exactly on the edge of a clip region is still drawn.
+ */
+function intersect(a: Box, b: Box): Box | null {
+  const left = Math.max(a.left, b.left);
+  const bottom = Math.max(a.bottom, b.bottom);
+  const right = Math.min(a.right, b.right);
+  const top = Math.min(a.top, b.top);
+  return left <= right && bottom <= top ? { left, bottom, right, top } : null;
+}
+
 function toMatrix(value: unknown): Matrix | null {
   const m = value as ArrayLike<number> | undefined;
   if (!m || typeof m !== 'object' || m.length < 6) return null;
@@ -269,32 +292,60 @@ function toMatrix(value: unknown): Matrix | null {
     : null;
 }
 
+/** What one pass over the operator list yields. */
+export type PageGeometry = {
+  /** Page-space box per subpath drawn, already clipped to what is visible. */
+  boxes: Box[];
+  /**
+   * Page-space regions the form XObjects on this page clip their content to,
+   * or null when nothing on the page clips. Only meaningful for filtering
+   * things measured outside this pass, i.e. the text layer.
+   */
+  clips: Box[] | null;
+};
+
 /**
  * Walks the operator list and collects a page-space box for every subpath drawn,
  * resolving each through the transform stack in force where it was drawn.
  *
- * Form XObjects matter here: notation software often nests page content inside
- * them, and their matrix has to be composed in or every box lands in the wrong
- * place.
+ * Form XObjects matter twice over. Their matrix has to be composed in or every
+ * box lands in the wrong place — notation software nests page content inside
+ * them routinely. And their `BBox` *clips*: a form may carry a whole source page
+ * while showing only a sliver of it, which is exactly what an extracted part is.
+ * Ignoring the BBox means re-reading an extracted part finds every staff of the
+ * score it came from, so boxes are intersected with the clip in force and boxes
+ * falling wholly outside it are dropped.
  *
  * This is the single geometry pass. Staff lines, barlines and "all the ink near
  * a staff" are all read off the result rather than re-walking the operators.
  */
-export function collectBoxes(operators: OperatorList, ops: PdfOps): Box[] {
+export function collectGeometry(
+  operators: OperatorList,
+  ops: PdfOps,
+): PageGeometry {
   const boxes: Box[] = [];
+  const clips: Box[] = [];
   let ctm: Matrix = IDENTITY;
-  const stack: Matrix[] = [];
+  let clip: Box | null = null;
+  const stack: { ctm: Matrix; clip: Box | null }[] = [];
+
+  const push = (box: Box): void => {
+    const visible = clip ? intersect(box, clip) : box;
+    if (visible) boxes.push(visible);
+  };
 
   for (let i = 0; i < operators.fnArray.length; i++) {
     const fn = operators.fnArray[i];
     const args = operators.argsArray[i];
 
     if (fn === ops.save) {
-      stack.push(ctm);
+      stack.push({ ctm, clip });
       continue;
     }
     if (fn === ops.restore) {
-      ctm = stack.pop() ?? IDENTITY;
+      const previous = stack.pop();
+      ctm = previous?.ctm ?? IDENTITY;
+      clip = previous?.clip ?? null;
       continue;
     }
     if (fn === ops.transform) {
@@ -306,26 +357,47 @@ export function collectBoxes(operators: OperatorList, ops: PdfOps): Box[] {
       ops.paintFormXObjectBegin !== undefined &&
       fn === ops.paintFormXObjectBegin
     ) {
-      stack.push(ctm);
+      stack.push({ ctm, clip });
+      // pdf.js hands us [matrix, bbox]; the bbox is in the form's own space, so
+      // it is measured after the matrix is composed in.
       const m = toMatrix(args?.[0]);
       if (m) ctm = multiply(ctm, m);
+
+      const bbox = args?.[1] as ArrayLike<number> | undefined;
+      if (bbox && bbox.length >= 4) {
+        const region = transformBox(ctm, {
+          left: Math.min(bbox[0], bbox[2]),
+          bottom: Math.min(bbox[1], bbox[3]),
+          right: Math.max(bbox[0], bbox[2]),
+          top: Math.max(bbox[1], bbox[3]),
+        });
+        clips.push(region);
+        // Nested forms that miss each other clip everything away; `null` would
+        // read as "unclipped", so keep an impossible box instead.
+        clip = clip ? (intersect(clip, region) ?? EMPTY_CLIP) : region;
+      }
       continue;
     }
     if (
       ops.paintFormXObjectEnd !== undefined &&
       fn === ops.paintFormXObjectEnd
     ) {
-      ctm = stack.pop() ?? IDENTITY;
+      const previous = stack.pop();
+      ctm = previous?.ctm ?? IDENTITY;
+      clip = previous?.clip ?? null;
       continue;
     }
     if (fn !== ops.constructPath) continue;
+
+    // Nothing inside the clip can be drawn, so skip the path decode entirely.
+    if (clip && clip.left > clip.right) continue;
 
     // pdf.js hands us [drawOp, [pathBuffer], [minX, minY, maxX, maxY]].
     const buffer = pathBuffer(args?.[1]);
     const subpaths = buffer ? subpathBoxes(buffer) : null;
 
     if (subpaths) {
-      for (const box of subpaths) boxes.push(transformBox(ctm, box));
+      for (const box of subpaths) push(transformBox(ctm, box));
       continue;
     }
 
@@ -334,7 +406,7 @@ export function collectBoxes(operators: OperatorList, ops: PdfOps): Box[] {
     const minMax = args?.[2] as ArrayLike<number> | undefined;
     if (!minMax || minMax.length < 4) continue;
 
-    boxes.push(
+    push(
       transformBox(ctm, {
         left: minMax[0],
         bottom: minMax[1],
@@ -344,7 +416,7 @@ export function collectBoxes(operators: OperatorList, ops: PdfOps): Box[] {
     );
   }
 
-  return boxes;
+  return { boxes, clips: clips.length > 0 ? clips : null };
 }
 
 /** Horizontal rules: wide, near-zero height. Candidate staff lines. */
@@ -399,7 +471,7 @@ export function collectRules(
   ops: PdfOps,
   options: DetectionOptions = DEFAULT_DETECTION,
 ): Rule[] {
-  return rulesFromBoxes(collectBoxes(operators, ops), options);
+  return rulesFromBoxes(collectGeometry(operators, ops).boxes, options);
 }
 
 /** Total length covered by a set of possibly overlapping intervals. */
@@ -785,7 +857,10 @@ function systemGapThreshold(gaps: number[], staves: Staff[]): number {
  * staff can claim. Text is a nicety here — a page with no text layer simply
  * contributes nothing.
  */
-async function textBoxes(page: StaffSourcePage): Promise<Box[]> {
+async function textBoxes(
+  page: StaffSourcePage,
+  clips: readonly Rect[] | null | undefined,
+): Promise<Box[]> {
   try {
     const content = await page.getTextContent();
     const boxes: Box[] = [];
@@ -804,17 +879,34 @@ async function textBoxes(page: StaffSourcePage): Promise<Box[]> {
       const height = item.height ?? 0;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
 
-      boxes.push({
+      const box = {
         left: x,
         right: x + width,
         bottom: y,
         top: y + height,
-      });
+      };
+      if (isVisible(box, clips)) boxes.push(box);
     }
     return boxes;
   } catch {
     return [];
   }
+}
+
+/**
+ * Whether a box survives the page's clip regions.
+ *
+ * pdf.js reports the text layer whole, with no record of the form XObject a run
+ * came from, so text hidden by a clipping form still arrives. Anything that
+ * misses every clip region on such a page is invisible ink — most notably the
+ * rest of the score inside an extracted part.
+ */
+function isVisible(
+  box: Box,
+  clips: readonly Rect[] | null | undefined,
+): boolean {
+  if (!clips || clips.length === 0) return true;
+  return clips.some((clip) => intersect(box, clip) !== null);
 }
 
 /** Runs the full pipeline for one page. */
@@ -827,11 +919,11 @@ export async function detectPageStaves(
   const viewport = page.getViewport({ scale: 1 });
   const operators = await page.getOperatorList();
 
-  const boxes = collectBoxes(operators, ops);
+  const { boxes, clips } = collectGeometry(operators, ops);
   const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
   const staves = groupIntoStaves(rules, options);
 
-  const ink = [...boxes, ...(await textBoxes(page))];
+  const ink = [...boxes, ...(await textBoxes(page, clips))];
   const systems = groupIntoSystems(
     attachContentBounds(staves, ink, options),
     verticalsFromBoxes(boxes, options),
@@ -843,10 +935,27 @@ export async function detectPageStaves(
     width: viewport.width,
     height: viewport.height,
     systems,
+    clips,
   };
 }
 
-type TextItem = { str: string; transform: number[] };
+type TextItem = {
+  str: string;
+  transform: number[];
+  width?: number;
+  height?: number;
+};
+
+function textItemBox(item: TextItem): Box {
+  const x = item.transform[4];
+  const y = item.transform[5];
+  return {
+    left: x,
+    right: x + (item.width ?? 0),
+    bottom: y,
+    top: y + (item.height ?? 0),
+  };
+}
 
 /**
  * Guesses part names from the instrument labels printed to the left of the first
@@ -857,6 +966,7 @@ type TextItem = { str: string; transform: number[] };
 export async function guessPartNames(
   page: StaffSourcePage,
   system: System,
+  clips?: readonly Rect[] | null,
 ): Promise<(string | null)[]> {
   let items: TextItem[] = [];
   try {
@@ -864,7 +974,10 @@ export async function guessPartNames(
     items = content.items.filter(
       (item): item is TextItem =>
         typeof (item as TextItem)?.str === 'string' &&
-        Array.isArray((item as TextItem)?.transform),
+        Array.isArray((item as TextItem)?.transform) &&
+        // Labels of parts that were clipped away are still in the text layer;
+        // reading one would name a staff after a part that is not there.
+        isVisible(textItemBox(item as TextItem), clips),
     );
   } catch {
     // Text extraction is a nicety; a scanned score simply has no text layer.
@@ -873,22 +986,54 @@ export async function guessPartNames(
 
   return system.staves.map((staff) => {
     const height = staffHeight(staff);
-    const candidates = items.filter((item) => {
+    const inBand = items.filter((item) => {
       const x = item.transform[4];
       const y = item.transform[5];
       const withinBand = y <= staff.top + height && y >= staff.bottom - height;
       return withinBand && x < staff.left && item.str.trim().length > 0;
     });
 
+    const candidates = nearestLines(inBand, staff);
     if (candidates.length === 0) return null;
-    // Read left-to-right so multi-word labels ("Gtr 1") come back in order.
+    // Read top-to-bottom, then left-to-right, so both a two-line label and a
+    // multi-word one ("Gtr 1") come back in reading order.
     return (
       candidates
-        .sort((a, b) => a.transform[4] - b.transform[4])
+        .sort(
+          (a, b) =>
+            b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4],
+        )
         .map((item) => item.str.trim())
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim() || null
     );
   });
+}
+
+/**
+ * Narrows label candidates to the text line closest to the staff, plus any line
+ * close enough to be a second line of the same label.
+ *
+ * The band a candidate has to fall in is deliberately generous — engravers place
+ * labels above, beside and below the staff — but that generosity also lets a
+ * neighbouring staff's label in. Two things make that worse than it sounds: an
+ * extracted part still carries hidden copies of every label in the score, and
+ * one of those copies can land beside a staff it has nothing to do with. So the
+ * nearest line wins, and only a line within a couple of staff spaces of it — a
+ * wrapped label, never the next staff's — is allowed to join it.
+ */
+function nearestLines(items: TextItem[], staff: Staff): TextItem[] {
+  if (items.length === 0) return [];
+
+  const distance = (item: TextItem): number => {
+    const y = item.transform[5];
+    if (y > staff.top) return y - staff.top;
+    if (y < staff.bottom) return staff.bottom - y;
+    return 0;
+  };
+
+  const nearest = Math.min(...items.map(distance));
+  const reach = Math.max(staff.lineSpacing * 2, 1);
+  return items.filter((item) => distance(item) <= nearest + reach);
 }

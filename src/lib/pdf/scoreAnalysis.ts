@@ -65,6 +65,7 @@ export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
       ? await guessPartNames(
           await doc.getPage(labelPage.pageIndex + 1),
           firstSystem,
+          labelPage.clips,
         )
       : firstSystem.staves.map(() => null);
 
