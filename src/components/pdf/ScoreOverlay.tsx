@@ -101,7 +101,23 @@ export function ScoreOverlay({
       }`}
       // A bare div is the right element here: it is a coordinate surface, not a
       // control, and every actual affordance inside it is a real button.
-      onPointerDown={(event) => {
+      onPointerMove={(event) => {
+        if (!drag) return;
+        const point = toPdf(event.clientX, event.clientY);
+        if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
+      }}
+      // Placement waits for the release, and that is load-bearing rather than a
+      // preference. This surface is not focusable, so the browser's default
+      // handling of the *press* moves focus to the body — which would blur the
+      // editor opened here the moment it mounts, and a blank note that loses
+      // focus deletes itself. By the time the pointer comes up that focus move
+      // has already happened, and nothing afterwards takes focus back.
+      onPointerUp={(event) => {
+        // A note being dragged also releases here; that is not a placement.
+        if (drag) {
+          endDrag();
+          return;
+        }
         if (!placing || event.target !== event.currentTarget) return;
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
@@ -118,12 +134,6 @@ export function ScoreOverlay({
         setEditing(placed.payload.id);
         setDraft('');
       }}
-      onPointerMove={(event) => {
-        if (!drag) return;
-        const point = toPdf(event.clientX, event.clientY);
-        if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
-      }}
-      onPointerUp={endDrag}
       onPointerCancel={() => {
         surfaceBox.current = null;
         setDrag(null);
