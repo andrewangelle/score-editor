@@ -22,6 +22,12 @@ type ScoreState = {
   /** Ordinals of the parts currently checked for extraction. */
   selectedOrdinals: number[];
   /**
+   * Carry each system's measure numbers and tempo marks into the parts cut from
+   * it. On by default: a part without them is hard to rehearse from, and a
+   * score prints them only above its top staff.
+   */
+  keepMarkings: boolean;
+  /**
    * The document detection is currently describing, or being run for.
    *
    * Analysis is slow enough on a dense score to still be running when the next
@@ -36,6 +42,7 @@ const initialState: ScoreState = {
   analysis: null,
   note: null,
   selectedOrdinals: [],
+  keepMarkings: true,
   documentId: null,
 };
 
@@ -80,6 +87,10 @@ export const scoreSlice = createSlice({
       }
     },
 
+    markingsToggled(state) {
+      state.keepMarkings = !state.keepMarkings;
+    },
+
     partRenamed(
       state,
       action: PayloadAction<{ ordinal: number; name: string }>,
@@ -118,6 +129,18 @@ export const scoreSlice = createSlice({
     ),
     selectIrregularSystems: (state) =>
       state.analysis?.irregularSystems ?? NO_IRREGULAR,
+    selectKeepMarkings: (state) => state.keepMarkings,
+    /** How many measure numbers and tempo marks detection found, by kind. */
+    selectMarkingCounts: createSelector(
+      [(state: ScoreState) => state.analysis?.pages],
+      (pages) => {
+        const markings = pages?.flatMap((page) => page.markings) ?? [];
+        return {
+          measure: markings.filter((mark) => mark.kind === 'measure').length,
+          tempo: markings.filter((mark) => mark.kind === 'tempo').length,
+        };
+      },
+    ),
     selectSystemCount: createSelector(
       [(state: ScoreState) => state.analysis?.pages],
       (pages) =>
@@ -126,8 +149,13 @@ export const scoreSlice = createSlice({
   },
 });
 
-export const { scoreAnalysed, scoreAnalysisFailed, partToggled, partRenamed } =
-  scoreSlice.actions;
+export const {
+  scoreAnalysed,
+  scoreAnalysisFailed,
+  partToggled,
+  partRenamed,
+  markingsToggled,
+} = scoreSlice.actions;
 
 export const {
   selectAnalysis,
@@ -137,5 +165,7 @@ export const {
   selectPartNames,
   selectSelectedParts,
   selectIrregularSystems,
+  selectKeepMarkings,
+  selectMarkingCounts,
   selectSystemCount,
 } = scoreSlice.selectors;

@@ -9,7 +9,9 @@ import {
 } from '#/store/score.slice';
 
 const ANALYSIS: ScoreAnalysis = {
-  pages: [{ pageIndex: 0, width: 612, height: 792, systems: [] }],
+  pages: [
+    { pageIndex: 0, width: 612, height: 792, systems: [], markings: [] },
+  ],
   parts: [
     { id: 'part-0', ordinal: 0, name: 'Flute' },
     { id: 'part-1', ordinal: 1, name: 'Guitar' },

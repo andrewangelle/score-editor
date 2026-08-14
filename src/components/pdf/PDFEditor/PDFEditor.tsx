@@ -19,7 +19,7 @@ import {
   releaseDocumentBytes,
 } from '#/lib/pdf/documentBytes';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
-import { sortRegions } from '#/lib/pdf/regions';
+import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
 import { selectAnnotations } from '#/store/annotations.slice';
 import {
@@ -42,6 +42,7 @@ import {
   scoreAnalysisFailed,
   selectAnalysis,
   selectAnalysisNote,
+  selectKeepMarkings,
   selectSelectedParts,
 } from '#/store/score.slice';
 import { selectRegions } from '#/store/selectors';
@@ -80,6 +81,7 @@ export function PDFEditor() {
 
   const regions = useAppSelector(selectRegions);
   const isManual = useAppSelector(selectIsManual);
+  const keepMarkings = useAppSelector(selectKeepMarkings);
   const annotations = useAppSelector(selectAnnotations);
 
   // The store holds the document's identity and edits; the bytes themselves are
@@ -150,7 +152,7 @@ export function PDFEditor() {
         bytes,
         sortRegions(regions),
         analysis.pages[0],
-        { annotations },
+        { annotations, layout: { ...DEFAULT_LAYOUT, keepMarkings } },
       );
       const fileName = partFileName(
         name,

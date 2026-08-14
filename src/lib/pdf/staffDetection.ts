@@ -83,6 +83,21 @@ export type PageStaves = {
    * with the same visibility rules the geometry already respects.
    */
   clips?: Rect[] | null;
+  /**
+   * Every box drawn on the page, for a second reader that needs the geometry
+   * this pass already paid for — see `markings.ts`, which uses it to find the
+   * enclosures engravers draw around measure numbers.
+   *
+   * There are thousands of these on a dense page, so callers holding a page
+   * beyond the read that produced it are expected to drop this first.
+   */
+  ink?: Rect[];
+  /**
+   * The page's visible text, read once here and handed on rather than parsed
+   * again by everything that wants it. Bulky for the same reason `ink` is, and
+   * to be dropped on the same terms.
+   */
+  text?: PageTextItem[];
 };
 
 export type DetectionOptions = {
@@ -886,47 +901,6 @@ function systemGapThreshold(gaps: number[], staves: Staff[]): number {
 }
 
 /**
- * Boxes for the page's text, so lyrics, dynamics and tempo marks count as ink a
- * staff can claim. Text is a nicety here — a page with no text layer simply
- * contributes nothing.
- */
-async function textBoxes(
-  page: StaffSourcePage,
-  clips: readonly Rect[] | null | undefined,
-): Promise<Box[]> {
-  try {
-    const content = await page.getTextContent();
-    const boxes: Box[] = [];
-
-    for (const raw of content.items) {
-      const item = raw as {
-        transform?: number[];
-        width?: number;
-        height?: number;
-      };
-      if (!Array.isArray(item.transform) || item.transform.length < 6) continue;
-
-      const x = item.transform[4];
-      const y = item.transform[5];
-      const width = item.width ?? 0;
-      const height = item.height ?? 0;
-      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-
-      const box = {
-        left: x,
-        right: x + width,
-        bottom: y,
-        top: y + height,
-      };
-      if (isVisible(box, clips)) boxes.push(box);
-    }
-    return boxes;
-  } catch {
-    return [];
-  }
-}
-
-/**
  * Whether a box survives the page's clip regions.
  *
  * pdf.js reports the text layer whole, with no record of the form XObject a run
@@ -956,7 +930,10 @@ export async function detectPageStaves(
   const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
   const staves = groupIntoStaves(rules, options);
 
-  const ink = [...boxes, ...(await textBoxes(page, clips))];
+  // Text counts as ink a staff can claim, so lyrics, dynamics and tempo marks
+  // travel with the music they sit against.
+  const text = await readVisibleText(page, clips);
+  const ink = [...boxes, ...text.map((item) => item.rect)];
   const systems = groupIntoSystems(
     attachContentBounds(staves, ink, options),
     verticalsFromBoxes(boxes, options),
@@ -969,6 +946,8 @@ export async function detectPageStaves(
     height: viewport.height,
     systems,
     clips,
+    ink: boxes,
+    text,
   };
 }
 
@@ -977,6 +956,7 @@ type TextItem = {
   transform: number[];
   width?: number;
   height?: number;
+  fontName?: string;
 };
 
 function textItemBox(item: TextItem): Box {
@@ -988,6 +968,49 @@ function textItemBox(item: TextItem): Box {
     bottom: y,
     top: y + (item.height ?? 0),
   };
+}
+
+/** One piece of the page's text layer, measured in page space. */
+export type PageTextItem = {
+  str: string;
+  rect: Rect;
+  /**
+   * pdf.js's per-page handle for the font. Fonts are subset per page by most
+   * engravers, so this identifies a font *within* a page and nowhere else.
+   */
+  fontName: string;
+};
+
+/**
+ * The page's text, boxed and filtered to what is actually visible.
+ *
+ * Same clip rules the geometry pass applies: pdf.js reports the text layer
+ * whole, so an extracted part still carries every word of the score it was cut
+ * from, hidden behind a form's bbox but present in the content stream.
+ */
+export async function readVisibleText(
+  page: StaffSourcePage,
+  clips?: readonly Rect[] | null,
+): Promise<PageTextItem[]> {
+  let items: TextItem[];
+  try {
+    const content = await page.getTextContent();
+    items = content.items as TextItem[];
+  } catch {
+    // Text extraction is a nicety; a scanned score simply has no text layer.
+    return [];
+  }
+
+  const read: PageTextItem[] = [];
+  for (const item of items) {
+    if (typeof item?.str !== 'string' || !item.str.trim()) continue;
+    if (!Array.isArray(item.transform) || item.transform.length < 6) continue;
+    const rect = textItemBox(item);
+    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.bottom)) continue;
+    if (!isVisible(rect, clips)) continue;
+    read.push({ str: item.str, rect, fontName: item.fontName ?? '' });
+  }
+  return read;
 }
 
 /**

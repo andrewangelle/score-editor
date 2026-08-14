@@ -12,11 +12,13 @@ import { annotationsWithin, type ScoreAnnotation } from '#/lib/pdf/annotations';
 import {
   DEFAULT_LAYOUT,
   type LayoutOptions,
+  markingRows,
+  markingStackHeight,
   type Region,
   regionsFromParts,
   staffBounds,
 } from '#/lib/pdf/regions';
-import type { PageStaves } from '#/lib/pdf/staffDetection';
+import type { PageStaves, Rect } from '#/lib/pdf/staffDetection';
 
 export { DEFAULT_LAYOUT, type LayoutOptions, staffBounds };
 
@@ -74,9 +76,13 @@ export function layoutBands(
   let current: PlacedRegion[] = [];
   let cursor = usableTop;
 
+  /** What a region occupies: its own rectangle plus anything stamped above it. */
+  const occupied = (region: Region): number =>
+    region.rect.top - region.rect.bottom + markingStackHeight(region, options);
+
   for (const group of groups) {
     const groupHeight =
-      group.reduce((sum, r) => sum + (r.rect.top - r.rect.bottom), 0) +
+      group.reduce((sum, region) => sum + occupied(region), 0) +
       options.bandGap * (group.length - 1);
 
     // Start a new page unless the whole group fits, or nothing has been placed
@@ -88,8 +94,14 @@ export function layoutBands(
     }
 
     for (const region of group) {
-      const height = region.rect.top - region.rect.bottom;
-      current.push({ region, x: options.margin, y: cursor - height });
+      // The markings sit above the band, so the band itself starts that much
+      // further down; `y` is where its own rectangle is drawn.
+      const height = occupied(region);
+      current.push({
+        region,
+        x: options.margin,
+        y: cursor - height,
+      });
       cursor -= height + options.bandGap;
     }
     cursor -= options.bandGap;
@@ -134,16 +146,39 @@ export async function extractRegions(
   const pageHeight = options.pageSize?.height ?? fallbackSize.height;
   const laidOut = layoutBands(regions, pageHeight, layout);
 
-  // Embed every region up front: embedPage is async and one call per region
-  // keeps each clip independent.
+  // Embed every rectangle up front, once each. `embedPage` copies the source
+  // page's content stream into the form it makes, and one marking is stamped
+  // onto every band of its system — embedding it per band would multiply the
+  // output's size by the number of parts.
   const sourcePages = source.getPages();
   const flat = laidOut.flat();
-  const embedded = await output.embedPages(
-    flat.map((placed) => sourcePages[placed.region.pageIndex]),
-    flat.map((placed) => placed.region.rect),
+  const clipKey = (pageIndex: number, rect: Rect) =>
+    `${pageIndex}:${rect.left}:${rect.bottom}:${rect.right}:${rect.top}`;
+
+  const clips = new Map<string, { pageIndex: number; rect: Rect }>();
+  const stampsOf = (region: Region) =>
+    layout.keepMarkings
+      ? markingRows(region).flatMap((row) => row.markings)
+      : [];
+
+  for (const placed of flat) {
+    const { pageIndex, rect } = placed.region;
+    clips.set(clipKey(pageIndex, rect), { pageIndex, rect });
+    for (const marking of stampsOf(placed.region)) {
+      clips.set(clipKey(pageIndex, marking.rect), {
+        pageIndex,
+        rect: marking.rect,
+      });
+    }
+  }
+
+  const wanted = [...clips.entries()];
+  const embeddedPages = await output.embedPages(
+    wanted.map(([, clip]) => sourcePages[clip.pageIndex]),
+    wanted.map(([, clip]) => clip.rect),
   );
-  const embeddedByRegion = new Map(
-    flat.map((placed, i) => [placed, embedded[i]]),
+  const embedded = new Map(
+    wanted.map(([key], i) => [key, embeddedPages[i]] as const),
   );
 
   const printableWidth = pageWidth - layout.margin * 2;
@@ -152,7 +187,9 @@ export async function extractRegions(
     const outPage = output.addPage([pageWidth, pageHeight]);
 
     for (const placed of pageRegions) {
-      const embed = embeddedByRegion.get(placed);
+      const embed = embedded.get(
+        clipKey(placed.region.pageIndex, placed.region.rect),
+      );
       if (!embed) continue;
 
       const scale = Math.min(1, printableWidth / embed.width);
@@ -165,6 +202,39 @@ export async function extractRegions(
         width,
         height,
       });
+
+      // Markings are stacked back above the band, nearest line first, each at
+      // the horizontal position it held in the score — a measure number hung in
+      // the left margin stays in the left margin. They are lifted as vector
+      // clips rather than re-typeset, so a metronome mark keeps its note glyph
+      // and a boxed rehearsal letter keeps its box.
+      let stack = placed.y + embed.height + layout.markingGap;
+      const rows = layout.keepMarkings ? markingRows(placed.region) : [];
+      for (const row of rows) {
+        for (const marking of row.markings) {
+          const stamp = embedded.get(
+            clipKey(placed.region.pageIndex, marking.rect),
+          );
+          if (!stamp) continue;
+
+          const stampWidth = stamp.width * scale;
+          const offset = (marking.rect.left - placed.region.rect.left) * scale;
+          outPage.drawPage(stamp, {
+            // A marking engraved outside the band's own width — or one whose
+            // band was scaled down — would otherwise run off the page.
+            x: Math.min(
+              Math.max(layout.margin, placed.x + offset),
+              pageWidth - layout.margin - stampWidth,
+            ),
+            // Within a row, each marking keeps the height it was set at, so a
+            // metronome mark still sits below the caption it belongs under.
+            y: stack + (marking.rect.bottom - row.bottom) * scale,
+            width: stampWidth,
+            height: stamp.height * scale,
+          });
+        }
+        stack += row.height * scale + layout.markingGap;
+      }
 
       // Notes are baked at the same scale so they stay glued to their notehead.
       const inRegion = annotationsWithin(

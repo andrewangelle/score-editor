@@ -6,9 +6,12 @@ import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { regionsReset, selectIsManual } from '#/store/regions.slice';
 import {
+  markingsToggled,
   partRenamed,
   partToggled,
   selectIrregularSystems,
+  selectKeepMarkings,
+  selectMarkingCounts,
   selectParts,
   selectSelectedOrdinals,
   selectSystemCount,
@@ -37,6 +40,8 @@ export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
   const isManual = useAppSelector(selectIsManual);
   const editingRegions = useAppSelector(selectIsEditingRegions);
   const placing = useAppSelector(selectPlacing);
+  const keepMarkings = useAppSelector(selectKeepMarkings);
+  const markings = useAppSelector(selectMarkingCounts);
 
   return (
     <aside className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-l border-slate-200 bg-white p-4">
@@ -77,6 +82,26 @@ export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
         </ul>
 
         {irregularSystems.length > 0 && <IrregularSystemsNote />}
+
+        <label className="mt-4 flex items-start gap-2 text-slate-700 text-xs">
+          <input
+            type="checkbox"
+            checked={keepMarkings}
+            onChange={() => dispatch(markingsToggled())}
+            className="mt-0.5 size-4 shrink-0 accent-blue-600"
+          />
+          <span>
+            Keep measure numbers &amp; tempo marks
+            <span className="block text-slate-500">
+              {markings.measure} measure{' '}
+              {markings.measure === 1 ? 'number' : 'numbers'}
+              {' · '}
+              {markings.tempo} tempo {markings.tempo === 1 ? 'mark' : 'marks'}{' '}
+              found. A score prints these for the system as a whole, so they are
+              stamped above every part cut from it.
+            </span>
+          </span>
+        </label>
 
         <button
           type="button"

@@ -9,6 +9,12 @@
  * All coordinates are PDF user space (origin bottom-left, y upward, points).
  */
 
+import {
+  dedupeMarkings,
+  type Marking,
+  markingKey,
+  markingWithin,
+} from '#/lib/pdf/markings';
 import type { Rect, System } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 
@@ -24,6 +30,12 @@ export type Region = {
   groupKey: string;
   /** Which part ordinals this came from, when derived from detection. */
   ordinals?: number[];
+  /**
+   * Measure numbers and tempo marks that belong to this region's music but are
+   * engraved outside its rectangle, to be stamped back above it. Empty when the
+   * region already contains everything its system says.
+   */
+  markings?: Marking[];
 };
 
 export type LayoutOptions = {
@@ -41,6 +53,14 @@ export type LayoutOptions = {
    * default: nothing else competes for horizontal space on a system.
    */
   fullWidth: boolean;
+  /**
+   * Carry the system's measure numbers and tempo marks into every band cut from
+   * it. A score engraves those once, above the top staff, so without this every
+   * part but the topmost comes out unnumbered and with no tempo.
+   */
+  keepMarkings: boolean;
+  /** Vertical space between a band and the markings stamped above it, in points. */
+  markingGap: number;
 };
 
 export const DEFAULT_LAYOUT: LayoutOptions = {
@@ -49,6 +69,8 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   margin: 36,
   bandGap: 18,
   fullWidth: true,
+  keepMarkings: true,
+  markingGap: 4,
 };
 
 /** Smallest region worth keeping, in points; guards against stray click-drags. */
@@ -208,7 +230,107 @@ export type DerivedSource = {
   width: number;
   height: number;
   systems: System[];
+  /** Markings read off this page, when the document has been analysed for them. */
+  markings?: readonly Marking[];
 };
+
+/** A line of markings, stamped together because they were engraved together. */
+export type MarkingRow = {
+  markings: Marking[];
+  /** Lowest edge in the row, which each marking's own height is measured from. */
+  bottom: number;
+  /** What the row occupies once stamped. */
+  height: number;
+};
+
+function extent(markings: readonly Marking[]): { bottom: number; top: number } {
+  return {
+    bottom: Math.min(...markings.map((marking) => marking.rect.bottom)),
+    top: Math.max(...markings.map((marking) => marking.rect.top)),
+  };
+}
+
+/**
+ * Groups a region's markings into the lines they were engraved on.
+ *
+ * A tempo mark and the measure number beside it share a line in the score and
+ * should share one above the extracted band; a section title set above them both
+ * is a second line. Sharing more than half a height is what makes them one line:
+ * marks that merely graze each other are two lines that happen to sit close, and
+ * stacking those as one is how a title lands on top of a tempo mark.
+ *
+ * Rows come back nearest-first: the line that sat lowest in the score is the one
+ * that sits closest to the music it describes.
+ */
+export function markingRows(region: Region): MarkingRow[] {
+  const markings = [...(region.markings ?? [])].sort(
+    (a, b) => a.rect.bottom - b.rect.bottom,
+  );
+  if (markings.length === 0) return [];
+
+  const rows: Marking[][] = [];
+  for (const marking of markings) {
+    const row = rows.at(-1);
+    if (row) {
+      const held = extent(row);
+      const shared =
+        Math.min(held.top, marking.rect.top) -
+        Math.max(held.bottom, marking.rect.bottom);
+      const shorter = Math.min(
+        held.top - held.bottom,
+        marking.rect.top - marking.rect.bottom,
+      );
+      if (shared > shorter * 0.5) {
+        row.push(marking);
+        continue;
+      }
+    }
+    rows.push([marking]);
+  }
+
+  return rows.map((row) => {
+    const { bottom, top } = extent(row);
+    return { markings: row, bottom, height: top - bottom };
+  });
+}
+
+/** How much taller a region is once its markings are stamped above it. */
+export function markingStackHeight(
+  region: Region,
+  options: LayoutOptions = DEFAULT_LAYOUT,
+): number {
+  if (!options.keepMarkings) return 0;
+  return markingRows(region).reduce(
+    (total, row) => total + row.height + options.markingGap,
+    0,
+  );
+}
+
+/**
+ * The markings a rectangle should carry: everything its system says that the
+ * rectangle does not already contain.
+ *
+ * A repeated marking counts as contained when *any* of its copies falls inside —
+ * a score that numbers every instrumental group puts the same number in seven
+ * places down one system, and a band holding one of them must not have a second
+ * stamped above it.
+ */
+export function markingsFor(
+  rect: Rect,
+  systemIndex: number,
+  markings: readonly Marking[] = [],
+): Marking[] {
+  const system = markings.filter(
+    (marking) => marking.systemIndex === systemIndex,
+  );
+  const held = new Set(
+    system.filter((marking) => markingWithin(marking, rect)).map(markingKey),
+  );
+
+  return dedupeMarkings(
+    system.filter((marking) => !held.has(markingKey(marking))),
+  );
+}
 
 /**
  * Derives regions from detected staves and a part selection.
@@ -236,6 +358,12 @@ export function regionsFromParts(
       for (const run of contiguousRuns([...present])) {
         const top = staffBounds(system, run[0], options).top;
         const bottom = staffBounds(system, run[run.length - 1], options).bottom;
+        const rect = {
+          left: options.fullWidth ? 0 : system.left,
+          right: options.fullWidth ? page.width : system.right,
+          top: Math.min(top, page.height),
+          bottom: Math.max(bottom, 0),
+        };
 
         regions.push({
           id: `band-${page.pageIndex}-${systemIndex}-${run[0]}`,
@@ -243,12 +371,8 @@ export function regionsFromParts(
           groupKey: `${page.pageIndex}:${systemIndex}`,
           ordinals: run,
           label: run.map((o) => names[o] ?? `Staff ${o + 1}`).join(' + '),
-          rect: {
-            left: options.fullWidth ? 0 : system.left,
-            right: options.fullWidth ? page.width : system.right,
-            top: Math.min(top, page.height),
-            bottom: Math.max(bottom, 0),
-          },
+          rect,
+          markings: markingsFor(rect, systemIndex, page.markings),
         });
       }
     });
