@@ -15,7 +15,7 @@ import {
   markingKey,
   markingWithin,
 } from '#/lib/pdf/markings';
-import type { Rect, System } from '#/lib/pdf/staffDetection';
+import type { Rect, Staff, System } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 
 export type Region = {
@@ -85,6 +85,40 @@ const NEIGHBOUR_CLEARANCE = 1;
 
 export type Edge = 'top' | 'bottom' | 'left' | 'right';
 
+/** Halfway between two staves that face each other across a gap. */
+function midpoint(near: number, far: number): number {
+  return (near + far) / 2;
+}
+
+/**
+ * The nearest staff on the page above this one, whatever system it belongs to,
+ * or null at the top of the page. Found by geometry rather than by position in
+ * a list, so it does not depend on how the systems came to be ordered.
+ */
+function staffAbove(staff: Staff, page: readonly System[]): Staff | null {
+  let found: Staff | null = null;
+  for (const system of page) {
+    for (const other of system.staves) {
+      if (other.bottom > staff.top && (!found || other.bottom < found.bottom)) {
+        found = other;
+      }
+    }
+  }
+  return found;
+}
+
+function staffBelow(staff: Staff, page: readonly System[]): Staff | null {
+  let found: Staff | null = null;
+  for (const system of page) {
+    for (const other of system.staves) {
+      if (other.top < staff.bottom && (!found || other.top > found.top)) {
+        found = other;
+      }
+    }
+  }
+  return found;
+}
+
 /**
  * Vertical extent to give each staff.
  *
@@ -95,13 +129,23 @@ export type Edge = 'top' | 'bottom' | 'left' | 'right';
  * to each neighbour, so a slur or fingering sitting in the gap, which detection
  * may have assigned to the staff on the other side, is not sliced in two.
  *
- * So the band is the larger of the two, stopped just short of the neighbouring
- * staff's own lines. The outermost staves have no neighbour to share with and
- * fall back to a multiple of their own height.
+ * So within a system the band is the larger of the two, stopped just short of
+ * the neighbouring staff's own lines. Staves of one system are read together,
+ * and two bands cut from it sharing the ink between them is the point.
+ *
+ * Across systems it is the opposite: the next system is different music, and a
+ * band that reached into it would carry a second line of the score along with
+ * the one it is for. `contentTop`/`contentBottom` cannot be trusted to stop on
+ * their own — they chain outwards through whatever ink they find, and a column
+ * of performance marks written into the gap will bridge one system to the next
+ * quite happily — so the gap between two systems is simply halved. Both sides
+ * compute the same midpoint, so their bands meet there and never overlap.
  */
 export function staffBounds(
   system: System,
   index: number,
+  /** The page's systems, so a staff can see its true neighbours. */
+  page: readonly System[] = [system],
   options: LayoutOptions = DEFAULT_LAYOUT,
 ): { top: number; bottom: number } {
   const staff = system.staves[index];
@@ -110,19 +154,37 @@ export function staffBounds(
   const above = system.staves[index - 1];
   const below = system.staves[index + 1];
 
+  // Only consulted at the edges of a system, where the neighbour — if there is
+  // one at all — belongs to different music.
+  const overhead = above ? null : staffAbove(staff, page);
+  const underfoot = below ? null : staffBelow(staff, page);
+
   return {
     top: above
       ? Math.min(
-          Math.max(staff.contentTop, (staff.top + above.bottom) / 2),
+          Math.max(staff.contentTop, midpoint(staff.top, above.bottom)),
           above.bottom - NEIGHBOUR_CLEARANCE,
         )
-      : Math.max(staff.contentTop, staff.top + height * options.headroom),
+      : Math.min(
+          Math.max(staff.contentTop, staff.top + height * options.headroom),
+          overhead
+            ? midpoint(staff.top, overhead.bottom)
+            : Number.POSITIVE_INFINITY,
+        ),
     bottom: below
       ? Math.max(
-          Math.min(staff.contentBottom, (staff.bottom + below.top) / 2),
+          Math.min(staff.contentBottom, midpoint(staff.bottom, below.top)),
           below.top + NEIGHBOUR_CLEARANCE,
         )
-      : Math.min(staff.contentBottom, staff.bottom - height * options.legroom),
+      : Math.max(
+          Math.min(
+            staff.contentBottom,
+            staff.bottom - height * options.legroom,
+          ),
+          underfoot
+            ? midpoint(staff.bottom, underfoot.top)
+            : Number.NEGATIVE_INFINITY,
+        ),
   };
 }
 
@@ -356,8 +418,13 @@ export function regionsFromParts(
       if (present.length === 0) return;
 
       for (const run of contiguousRuns([...present])) {
-        const top = staffBounds(system, run[0], options).top;
-        const bottom = staffBounds(system, run[run.length - 1], options).bottom;
+        const top = staffBounds(system, run[0], page.systems, options).top;
+        const bottom = staffBounds(
+          system,
+          run[run.length - 1],
+          page.systems,
+          options,
+        ).bottom;
         const rect = {
           left: options.fullWidth ? 0 : system.left,
           right: options.fullWidth ? page.width : system.right,

@@ -7,7 +7,8 @@
  * detection or from the user dragging boxes on the page.
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { stampAnnotation } from '#/lib/pdf/annotationStamp';
 import { annotationsWithin, type ScoreAnnotation } from '#/lib/pdf/annotations';
 import {
   DEFAULT_LAYOUT,
@@ -243,17 +244,19 @@ export async function extractRegions(
         placed.region.rect,
       );
       for (const annotation of inRegion) {
-        if (!annotation.text.trim()) continue;
-        outPage.drawText(annotation.text, {
-          x: placed.x + (annotation.x - placed.region.rect.left) * scale,
-          y:
-            placed.y +
-            (embed.height - height) +
-            (annotation.y - placed.region.rect.bottom) * scale,
-          size: annotation.size * scale,
+        stampAnnotation(
+          outPage,
+          annotation,
+          {
+            x: placed.x + (annotation.x - placed.region.rect.left) * scale,
+            y:
+              placed.y +
+              (embed.height - height) +
+              (annotation.y - placed.region.rect.bottom) * scale,
+            size: annotation.size * scale,
+          },
           font,
-          color: rgb(0.1, 0.2, 0.75),
-        });
+        );
       }
     }
   }

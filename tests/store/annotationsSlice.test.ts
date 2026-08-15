@@ -1,4 +1,4 @@
-import { DEFAULT_SIZE } from '#/lib/pdf/annotations';
+import { type AnnotationKind, DEFAULT_SIZE } from '#/lib/pdf/annotations';
 import {
   annotationMoved,
   annotationPlaced,
@@ -15,7 +15,7 @@ function run(...actions: Parameters<typeof reduce>[1][]) {
   return actions.reduce(reduce, EMPTY);
 }
 
-const place = (kind: 'note' | 'fingering' = 'note') =>
+const place = (kind: AnnotationKind = 'note') =>
   annotationPlaced({ pageIndex: 0, x: 100, y: 400, kind });
 
 describe('annotationPlaced', () => {
@@ -28,12 +28,17 @@ describe('annotationPlaced', () => {
     expect(note.text).toBe('');
   });
 
-  it('sizes a fingering and a performance note differently', () => {
-    const [fingering] = run(place('fingering'));
-    const [note] = run(place('note'));
+  it('sizes each kind of mark from its kind', () => {
+    for (const kind of [
+      'fingering',
+      'string',
+      'position',
+      'note',
+    ] as const satisfies AnnotationKind[]) {
+      const [placed] = run(place(kind));
 
-    expect(fingering.size).toBe(DEFAULT_SIZE.fingering);
-    expect(note.size).toBe(DEFAULT_SIZE.note);
+      expect(placed.size).toBe(DEFAULT_SIZE[kind]);
+    }
   });
 
   it('mints the id outside the reducer, so replaying is stable', () => {
@@ -61,6 +66,19 @@ describe('editing', () => {
     );
 
     expect(state.map((note) => note.text)).toEqual(['', '1 3 2 4']);
+  });
+
+  it('engraves committed text in the form its kind takes', () => {
+    // Whoever dispatches this — the overlay today, anything else later — should
+    // not have to know that a position is roman and a string number is a digit.
+    const retitle = (kind: AnnotationKind, text: string) => {
+      const placed = run(place(kind));
+      return reduce(placed, annotationRetitled({ id: placed[0].id, text }))[0]
+        .text;
+    };
+
+    expect(retitle('position', '7')).toBe('VII');
+    expect(retitle('string', 'string 3')).toBe('3');
   });
 
   it('moves a note without touching its text or kind', () => {

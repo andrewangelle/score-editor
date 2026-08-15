@@ -1,4 +1,5 @@
-import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, StandardFonts } from 'pdf-lib';
+import { stampAnnotation } from '#/lib/pdf/annotationStamp';
 import type { ScoreAnnotation } from '#/lib/pdf/annotations';
 
 /**
@@ -137,14 +138,12 @@ export async function buildEditedPdf(
     // what drawText expects — the page's own rotation carries them along.
     for (const annotation of annotations) {
       if (annotation.pageIndex !== pages[index].sourceIndex) continue;
-      if (!annotation.text.trim()) continue;
-      page.drawText(annotation.text, {
-        x: annotation.x,
-        y: annotation.y,
-        size: annotation.size,
+      stampAnnotation(
+        page,
+        annotation,
+        { x: annotation.x, y: annotation.y, size: annotation.size },
         font,
-        color: rgb(0.1, 0.2, 0.75),
-      });
+      );
     }
   });
 

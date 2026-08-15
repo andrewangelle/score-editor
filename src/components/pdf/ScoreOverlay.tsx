@@ -1,5 +1,9 @@
 import { useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '#/hooks';
+import {
+  type AnnotationKind,
+  normalizeAnnotationText,
+} from '#/lib/pdf/annotations';
 import { toPdfPoint, toScreenPoint } from '#/lib/pdf/pageCoordinates';
 import { type Part, staffBounds } from '#/lib/pdf/partExtraction';
 import type { System } from '#/lib/pdf/staffDetection';
@@ -37,6 +41,13 @@ type ScoreOverlayProps = {
 
 type Drag = { id: string; x: number; y: number };
 
+const PLACEHOLDER: Record<AnnotationKind, string> = {
+  fingering: 'e.g. 1 3 2 4',
+  string: 'String, e.g. 3',
+  position: 'Position, e.g. V or 5',
+  note: 'Performance note',
+};
+
 export function ScoreOverlay({
   pageIndex,
   pageHeight,
@@ -71,9 +82,12 @@ export function ScoreOverlay({
     (annotation) => annotation.pageIndex === pageIndex,
   );
 
-  function commitDraft(id: string) {
-    // A note nobody typed into is not a note; leaving it blank removes it.
-    if (draft.trim()) {
+  function commitDraft(id: string, kind: AnnotationKind) {
+    // A note nobody typed into is not a note; leaving it blank removes it. The
+    // draft is judged after normalizing, so a string number typed as letters —
+    // which has no engravable form — counts as blank rather than becoming an
+    // empty circle.
+    if (normalizeAnnotationText(kind, draft)) {
       dispatch(annotationRetitled({ id, text: draft }));
     } else {
       dispatch(annotationRemoved(id));
@@ -141,7 +155,9 @@ export function ScoreOverlay({
     >
       {systems.map((system) =>
         system.staves.map((staff, ordinal) => {
-          const bounds = staffBounds(system, ordinal);
+          // The page's systems, so the hint agrees with the region drawn over
+          // it: both stop at the halfway line between one system and the next.
+          const bounds = staffBounds(system, ordinal, systems);
           const part = parts[ordinal];
 
           return (
@@ -175,6 +191,10 @@ export function ScoreOverlay({
         // rendered anchor follows the pointer rather than the store.
         const anchor = drag?.id === annotation.id ? drag : annotation;
         const screen = toScreenPoint(anchor, pageHeight, scale);
+        // Below about 9px the shorthand stops being legible on screen, however
+        // small it is engraved; the baked PDF keeps the true size either way.
+        const fontSize = Math.max(9, annotation.size * scale);
+        const circled = annotation.kind === 'string';
 
         return (
           <div
@@ -193,18 +213,14 @@ export function ScoreOverlay({
                 autoFocus
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                onBlur={() => commitDraft(annotation.id)}
+                onBlur={() => commitDraft(annotation.id, annotation.kind)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === 'Escape') {
                     event.currentTarget.blur();
                   }
                 }}
                 className="w-32 rounded border border-blue-400 bg-white px-1 py-0.5 text-xs shadow"
-                placeholder={
-                  annotation.kind === 'fingering'
-                    ? 'e.g. 1 3 2 4'
-                    : 'Performance note'
-                }
+                placeholder={PLACEHOLDER[annotation.kind]}
               />
             ) : (
               <button
@@ -224,8 +240,24 @@ export function ScoreOverlay({
                   setDraft(annotation.text);
                 }}
                 title="Double-click to edit, drag to move"
-                className="cursor-move whitespace-nowrap rounded bg-white/80 px-1 font-medium text-blue-700 leading-none hover:bg-blue-50"
-                style={{ fontSize: Math.max(9, annotation.size * scale) }}
+                // A string number is circled here as it will be when baked, so
+                // the page on screen reads as the page that comes out.
+                className={`cursor-move whitespace-nowrap bg-white/80 font-medium text-blue-700 leading-none hover:bg-blue-50 ${
+                  circled
+                    ? 'flex items-center justify-center rounded-full border border-blue-700'
+                    : 'rounded px-1'
+                }`}
+                style={
+                  circled
+                    ? {
+                        fontSize,
+                        // Round enough to hold two digits without turning into
+                        // an oval on one.
+                        width: fontSize * 1.8,
+                        height: fontSize * 1.8,
+                      }
+                    : { fontSize }
+                }
               >
                 {annotation.text || '…'}
               </button>

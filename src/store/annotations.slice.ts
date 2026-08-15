@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
   type AnnotationKind,
   createAnnotation,
+  normalizeAnnotationText,
   removeAnnotation,
   type ScoreAnnotation,
 } from '#/lib/pdf/annotations';
@@ -50,7 +51,15 @@ export const annotationsSlice = createSlice({
       const annotation = state.find(
         (candidate) => candidate.id === action.payload.id,
       );
-      if (annotation) annotation.text = action.payload.text;
+      // Normalizing here rather than at the keystroke keeps a position readable
+      // as "1" while it is being typed towards "12", and still guarantees that
+      // nothing but an engravable value is ever stored.
+      if (annotation) {
+        annotation.text = normalizeAnnotationText(
+          annotation.kind,
+          action.payload.text,
+        );
+      }
     },
 
     annotationMoved(

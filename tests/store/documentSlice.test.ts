@@ -3,7 +3,9 @@ import {
   allPagesRotated,
   documentClosed,
   documentOpened,
+  documentFileReplaced,
   documentReset,
+  documentSaved,
   documentSlice,
   pageDeleted,
   pageMoved,
@@ -211,6 +213,84 @@ describe('revision', () => {
 
     expect(backAgain.pages).toEqual(OPEN.pages);
     expect(revisionOf(backAgain)).not.toBe(revisionOf(OPEN));
+  });
+});
+
+describe('documentSaved', () => {
+  const { selectHasUnsavedChanges, selectIsDirty } = documentSlice.selectors;
+  const unsaved = (state: ReturnType<typeof documentSlice.reducer>) =>
+    selectHasUnsavedChanges({ document: state });
+
+  it('reports an untouched document as saved', () => {
+    expect(unsaved(OPEN)).toBe(false);
+  });
+
+  it('reports edits made before any save', () => {
+    expect(unsaved(run(pageRotated({ id: 'a', delta: 90 })))).toBe(true);
+  });
+
+  it('settles once those edits are written to the file', () => {
+    const state = run(pageRotated({ id: 'a', delta: 90 }), documentSaved());
+
+    expect(unsaved(state)).toBe(false);
+  });
+
+  it('reports edits made after the save', () => {
+    const state = run(
+      pageRotated({ id: 'a', delta: 90 }),
+      documentSaved(),
+      pageDeleted('b'),
+    );
+
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('still reports a change once it is undone back to the upload', () => {
+    // The file now holds the rotated version, so returning to the *uploaded*
+    // page list is itself an unsaved change — dirtiness alone cannot see this.
+    const state = run(
+      pageRotated({ id: 'a', delta: 90 }),
+      documentSaved(),
+      undone(),
+    );
+
+    expect(selectIsDirty({ document: state })).toBe(false);
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('counts the file as behind once extraction has taken it', () => {
+    // The document is untouched and may even match the upload exactly, but the
+    // file now holds cut regions, which is no version of this document.
+    const state = run(documentSaved(), documentFileReplaced());
+
+    expect(selectIsDirty({ document: state })).toBe(false);
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('lets a save take the file back from extraction', () => {
+    const state = run(documentFileReplaced(), documentSaved());
+
+    expect(unsaved(state)).toBe(false);
+  });
+
+  it('does not carry an extraction over to the next document', () => {
+    const replaced = run(documentFileReplaced());
+    const reopened = documentSlice.reducer(
+      replaced,
+      documentOpened({ id: 'doc-2', name: 'other.pdf', pages: PAGES }),
+    );
+
+    expect(unsaved(reopened)).toBe(false);
+  });
+
+  it('does not carry the saved mark to the next document', () => {
+    const saved = run(pageRotated({ id: 'a', delta: 90 }), documentSaved());
+    const reopened = documentSlice.reducer(
+      saved,
+      documentOpened({ id: 'doc-2', name: 'other.pdf', pages: PAGES }),
+    );
+
+    expect(reopened.savedRevision).toBeNull();
   });
 });
 

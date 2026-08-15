@@ -15,9 +15,11 @@ import {
 } from '#/lib/pdf/document';
 import {
   documentBytes,
+  documentFileHandle,
   holdDocumentBytes,
   releaseDocumentBytes,
 } from '#/lib/pdf/documentBytes';
+import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
 import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
@@ -25,11 +27,14 @@ import { selectAnnotations } from '#/store/annotations.slice';
 import {
   allPagesRotated,
   documentClosed,
+  documentFileReplaced,
   documentOpened,
   documentReset,
+  documentSaved,
   selectCanUndo,
   selectDocumentId,
   selectDocumentName,
+  selectHasUnsavedChanges,
   selectIsDirty,
   selectPageCount,
   selectPages,
@@ -59,7 +64,10 @@ export function PDFEditor() {
   const name = useAppSelector(selectDocumentName);
   const pages = useAppSelector(selectPages);
   const pageCount = useAppSelector(selectPageCount);
+  // Two different questions: whether Reset has anything to undo you back to,
+  // and whether the file on disk is behind what is on screen.
   const dirty = useAppSelector(selectIsDirty);
+  const unsaved = useAppSelector(selectHasUnsavedChanges);
   const canUndo = useAppSelector(selectCanUndo);
   const revision = useAppSelector(selectRevision);
 
@@ -87,13 +95,16 @@ export function PDFEditor() {
   // The store holds the document's identity and edits; the bytes themselves are
   // too large to belong in it, so the id is what fetches them back.
   const bytes = documentBytes(documentId);
+  // Null unless the file was opened through a picker that gave up a handle, in
+  // which case saving over the original is on offer as well as saving a copy.
+  const fileHandle = documentFileHandle(documentId);
 
   /** Reports a finished save against the document version it wrote out. */
   function reportSaved(message: string) {
     setStatus({ message, revision });
   }
 
-  async function handleFile(file: File) {
+  async function handleFile(file: File, handle: PdfFileHandle | null) {
     setIsBusy(true);
     setError(null);
     setStatus(null);
@@ -102,7 +113,7 @@ export function PDFEditor() {
       const id = crypto.randomUUID();
       // Hand off the bytes before announcing the document, so anything reacting
       // to the open finds them already in place.
-      holdDocumentBytes(id, loaded.bytes);
+      holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
       void analyseScore(id, loaded.bytes);
     } catch (cause) {
@@ -142,7 +153,15 @@ export function PDFEditor() {
     }
   }
 
-  async function handleExtract() {
+  /**
+   * Cuts the regions and hands the result to `write`.
+   *
+   * The two destinations — a downloaded copy, or the opened file itself — differ
+   * only in where the finished bytes land, exactly as the two saves do.
+   */
+  async function extractWith(
+    write: (extracted: Uint8Array) => Promise<string> | string,
+  ) {
     if (!bytes || !analysis) return;
 
     setIsBusy(true);
@@ -154,13 +173,7 @@ export function PDFEditor() {
         analysis.pages[0],
         { annotations, layout: { ...DEFAULT_LAYOUT, keepMarkings } },
       );
-      const fileName = partFileName(
-        name,
-        isManual ? [] : selectedParts,
-        'regions',
-      );
-      downloadBytes(extracted, fileName, 'application/pdf');
-      reportSaved(`Saved ${fileName}`);
+      reportSaved(await write(extracted));
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -172,16 +185,55 @@ export function PDFEditor() {
     }
   }
 
-  async function handleSave() {
+  /** Downloads the cut regions, leaving the score where it is. */
+  function handleExtract() {
+    return extractWith((extracted) => {
+      const fileName = partFileName(
+        name,
+        isManual ? [] : selectedParts,
+        'regions',
+      );
+      downloadBytes(extracted, fileName, 'application/pdf');
+      return `Saved ${fileName}`;
+    });
+  }
+
+  /**
+   * Replaces the opened file with the cut regions.
+   *
+   * The score stays open and in memory afterwards, so the regions can be
+   * adjusted and written again — but the file no longer holds it, which is what
+   * `documentFileReplaced` records and what the confirmation in the panel is
+   * for. This is the one action here that destroys something on disk.
+   */
+  function handleExtractToFile() {
+    if (!fileHandle) return;
+
+    return extractWith(async (extracted) => {
+      await writePdfFile(fileHandle, extracted);
+      dispatch(documentFileReplaced());
+      const count = regions.length;
+      return `Replaced ${fileHandle.name} with ${count} ${count === 1 ? 'region' : 'regions'}`;
+    });
+  }
+
+  /**
+   * Writes the edited document out.
+   *
+   * The two destinations differ only in where the finished bytes go, so they
+   * share everything up to that point — and both build from the pristine upload
+   * rather than from whatever was last written, which is what lets the same
+   * file be saved over repeatedly without edits compounding.
+   */
+  async function saveWith(
+    write: (edited: Uint8Array) => Promise<string> | string,
+  ) {
     if (!bytes) return;
 
     setIsBusy(true);
     setError(null);
     try {
-      const edited = await buildEditedPdf(bytes, pages, annotations);
-      const fileName = editedFileName(name);
-      downloadBytes(edited, fileName, 'application/pdf');
-      reportSaved(`Saved ${fileName}`);
+      reportSaved(await write(await buildEditedPdf(bytes, pages, annotations)));
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -191,6 +243,26 @@ export function PDFEditor() {
     } finally {
       setIsBusy(false);
     }
+  }
+
+  /** Overwrites the file that was opened. */
+  function handleSaveToFile() {
+    if (!fileHandle) return;
+
+    return saveWith(async (edited) => {
+      await writePdfFile(fileHandle, edited);
+      dispatch(documentSaved());
+      return `Saved to ${fileHandle.name}`;
+    });
+  }
+
+  /** Leaves the original alone and downloads an edited copy beside it. */
+  function handleSaveCopy() {
+    return saveWith((edited) => {
+      const fileName = editedFileName(name);
+      downloadBytes(edited, fileName, 'application/pdf');
+      return `Saved ${fileName}`;
+    });
   }
 
   /**
@@ -219,10 +291,10 @@ export function PDFEditor() {
         <p className="mt-2 mb-8 text-slate-600">
           Upload a PDF to rotate, reorder, and remove pages. Upload an engraved
           score and you can also split out individual instruments and mark up
-          fingerings and performance notes.
+          fingerings, string numbers, left-hand positions and performance notes.
         </p>
 
-        <PDFDropzone onFile={handleFile} disabled={isBusy} />
+        <PDFDropzone onFile={handleFile} onError={setError} disabled={isBusy} />
 
         {isBusy && <p className="mt-4 text-sm text-slate-500">Reading PDF…</p>}
 
@@ -247,7 +319,7 @@ export function PDFEditor() {
           </h1>
           <p className="text-xs text-slate-500">
             {pageCount} {pageCount === 1 ? 'page' : 'pages'}
-            {dirty ? ' · unsaved changes' : ''}
+            {unsaved ? ' · unsaved changes' : ''}
           </p>
         </div>
 
@@ -268,13 +340,29 @@ export function PDFEditor() {
 
         <ToolbarButton onClick={handleClose}>Close</ToolbarButton>
 
+        {/*
+          With a handle there are two distinct saves and the destructive one is
+          the one being asked for, so it leads; without one, saving a copy is
+          the only save there is and takes the primary button back.
+        */}
+        {fileHandle && (
+          <ToolbarButton onClick={handleSaveCopy} disabled={isBusy}>
+            Save a copy
+          </ToolbarButton>
+        )}
+
         <button
           type="button"
-          onClick={handleSave}
+          onClick={fileHandle ? handleSaveToFile : handleSaveCopy}
           disabled={isBusy}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+          title={
+            fileHandle
+              ? `Overwrite ${fileHandle.name}`
+              : 'Download an edited copy'
+          }
+          className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-sm text-white hover:bg-blue-500 disabled:opacity-50"
         >
-          {isBusy ? 'Saving…' : 'Save PDF'}
+          {isBusy ? 'Saving…' : fileHandle ? 'Save' : 'Save a copy'}
         </button>
       </header>
 
@@ -294,7 +382,15 @@ export function PDFEditor() {
         </ClientOnly>
 
         {analysis && !analysisNote && (
-          <ScorePartsPanel onExtract={handleExtract} isBusy={isBusy} />
+          <ScorePartsPanel
+            onExtract={handleExtract}
+            replaceTarget={
+              fileHandle
+                ? { name: fileHandle.name, onReplace: handleExtractToFile }
+                : null
+            }
+            isBusy={isBusy}
+          />
         )}
 
         {analysisNote && !analysis && (

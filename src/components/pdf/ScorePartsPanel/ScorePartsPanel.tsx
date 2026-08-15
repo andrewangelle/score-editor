@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { IrregularSystemsNote } from '#/components/pdf/ScorePartsPanel/IrregularSystemsNote';
 import { ManualInfo } from '#/components/pdf/ScorePartsPanel/ManualInfo';
 import { PlaceButton } from '#/components/pdf/ScorePartsPanel/PlaceButton';
@@ -26,11 +27,26 @@ import {
 type ScorePartsPanelProps = {
   /** Extraction needs the document bytes, so it stays with the editor. */
   onExtract: () => void;
+  /**
+   * Where the regions can be written in place, if anywhere. Null when the file
+   * was not opened through a picker that gives a writable handle.
+   */
+  replaceTarget: { name: string; onReplace: () => void } | null;
   isBusy: boolean;
 };
 
-export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
+export function ScorePartsPanel({
+  onExtract,
+  replaceTarget,
+  isBusy,
+}: ScorePartsPanelProps) {
   const dispatch = useAppDispatch();
+  /**
+   * Replacing the file is the one thing here that cannot be undone: the score
+   * it held is gone from disk afterwards, and only the copy in this tab can put
+   * it back. So it asks, rather than acting on the click that lands on it.
+   */
+  const [confirmingReplace, setConfirmingReplace] = useState(false);
   const annotationCount = useAppSelector(selectAnnotationCount);
   const parts = useAppSelector(selectParts);
   const selectedOrdinals = useAppSelector(selectSelectedOrdinals);
@@ -113,6 +129,48 @@ export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
             ? 'Extracting…'
             : `Extract ${regionCount} ${regionCount === 1 ? 'region' : 'regions'}`}
         </button>
+
+        {replaceTarget &&
+          (confirmingReplace ? (
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
+              <p className="text-red-800 text-xs">
+                Replace{' '}
+                <span className="font-medium">{replaceTarget.name}</span> with
+                the {regionCount} {regionCount === 1 ? 'region' : 'regions'}?
+                The score in that file is overwritten, and only this tab still
+                has it.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingReplace(false);
+                    replaceTarget.onReplace();
+                  }}
+                  disabled={isBusy}
+                  className="flex-1 rounded-lg bg-red-600 px-2 py-1.5 font-medium text-white text-xs hover:bg-red-500 disabled:opacity-50"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingReplace(false)}
+                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-slate-700 text-xs hover:border-slate-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingReplace(true)}
+              disabled={isBusy || regionCount === 0}
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-700 text-xs hover:border-slate-400 disabled:opacity-40"
+            >
+              Extract into {replaceTarget.name}
+            </button>
+          ))}
       </section>
 
       <section className="border-slate-200 border-t pt-4">
@@ -156,12 +214,29 @@ export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
           follow into every part you extract.
         </p>
 
-        <div className="mt-3 flex gap-2">
+        {/*
+          A grid rather than a row: four labels of quite different lengths in
+          one flex line leave "Fingering" and "Performance" different widths,
+          and these are picked up and put down constantly.
+        */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <PlaceButton
             active={placing === 'fingering'}
             onClick={() => dispatch(toolToggled('fingering'))}
           >
             Fingering
+          </PlaceButton>
+          <PlaceButton
+            active={placing === 'string'}
+            onClick={() => dispatch(toolToggled('string'))}
+          >
+            String ③
+          </PlaceButton>
+          <PlaceButton
+            active={placing === 'position'}
+            onClick={() => dispatch(toolToggled('position'))}
+          >
+            Position Ⅴ
           </PlaceButton>
           <PlaceButton
             active={placing === 'note'}
@@ -170,6 +245,13 @@ export function ScorePartsPanel({ onExtract, isBusy }: ScorePartsPanelProps) {
             Performance
           </PlaceButton>
         </div>
+
+        {placing === 'position' && (
+          <p className="mt-2 text-slate-500 text-xs">
+            Type a roman numeral, or a number to have it converted — 7 becomes
+            VII.
+          </p>
+        )}
 
         <p className="mt-3 text-slate-500 text-xs">
           {annotationCount} placed · double-click to edit, drag to move

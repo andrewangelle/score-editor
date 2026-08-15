@@ -35,6 +35,21 @@ type DocumentState = {
    * longer the version on screen.
    */
   revision: number;
+  /**
+   * The revision last written back over the source file, or null if it never
+   * has been — which is the only state a document opened without a writable
+   * handle can be in.
+   */
+  savedRevision: number | null;
+  /**
+   * Whether the source file still holds this document at all.
+   *
+   * False once extraction has been written over it: the file then holds cut
+   * regions, which no revision of this document is. Without this the header
+   * would go on calling a document "saved" while the file it names contains
+   * something else entirely.
+   */
+  fileHoldsDocument: boolean;
 };
 
 const initialState: DocumentState = {
@@ -45,6 +60,8 @@ const initialState: DocumentState = {
   history: [],
   selectedPageId: null,
   revision: 0,
+  savedRevision: null,
+  fileHoldsDocument: true,
 };
 
 /**
@@ -93,6 +110,33 @@ export const documentSlice = createSlice({
       state.original = [...action.payload.pages];
       state.history = [];
       state.selectedPageId = action.payload.pages[0]?.id ?? null;
+      state.savedRevision = null;
+      state.fileHoldsDocument = true;
+    },
+
+    /**
+     * The edits as they stand are now what the source file contains.
+     *
+     * Only saving over the file itself counts. Downloading a copy leaves the
+     * original exactly as unsaved as it was, which is the whole difference
+     * between the two buttons.
+     */
+    documentSaved(state) {
+      state.savedRevision = state.revision;
+      // Saving puts the document back in a file that extraction may have taken.
+      state.fileHoldsDocument = true;
+    },
+
+    /**
+     * Something that is not this document — the extracted regions — has been
+     * written over the source file.
+     *
+     * The document itself is untouched and still on screen; what changed is
+     * that the file no longer agrees with it, and no amount of undoing will
+     * make it agree again. Only saving over it will.
+     */
+    documentFileReplaced(state) {
+      state.fileHoldsDocument = false;
     },
 
     documentClosed() {
@@ -157,6 +201,19 @@ export const documentSlice = createSlice({
     selectSelectedPageId: (state) => state.selectedPageId,
     selectCanUndo: (state) => state.history.length > 0,
     selectIsDirty: (state) => !isUnchanged(state.pages, state.original),
+    /**
+     * Whether the file this document came from is behind what is on screen.
+     *
+     * Before the first save that is just dirtiness against the upload. After
+     * one it is measured against what was written instead, because undoing back
+     * to the uploaded page list no longer means the file agrees — it now holds
+     * the version that was saved over it.
+     */
+    selectHasUnsavedChanges: (state) =>
+      !state.fileHoldsDocument ||
+      (state.savedRevision === null
+        ? !isUnchanged(state.pages, state.original)
+        : state.savedRevision !== state.revision),
     selectRevision: (state) => state.revision,
   },
 });
@@ -164,6 +221,8 @@ export const documentSlice = createSlice({
 export const {
   documentOpened,
   documentClosed,
+  documentSaved,
+  documentFileReplaced,
   pageSelected,
   pageRotated,
   allPagesRotated,
@@ -181,5 +240,6 @@ export const {
   selectSelectedPageId,
   selectCanUndo,
   selectIsDirty,
+  selectHasUnsavedChanges,
   selectRevision,
 } = documentSlice.selectors;
