@@ -1,10 +1,10 @@
 import { ClientOnly } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
-import { PDFDropzone } from '#/components/pdf/PDFDropzone';
-import { ErrorMessage } from '#/components/pdf/PDFEditor/ErrorMessage';
-import { LoadingViewer } from '#/components/pdf/PDFEditor/LoadingViewer';
-import { ScorePartsPanel } from '#/components/pdf/ScorePartsPanel/ScorePartsPanel';
-import { ToolbarButton } from '#/components/pdf/ToolbarButton';
+import { PDFDropzone } from '#/components/PDFDropzone';
+import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
+import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
+import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
+import { ToolbarButton } from '#/components/ToolbarButton';
 import { useAppDispatch, useAppSelector } from '#/hooks';
 import { downloadBytes } from '#/lib/download';
 import {

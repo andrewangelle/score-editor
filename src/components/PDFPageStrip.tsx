@@ -1,5 +1,5 @@
 import { Page } from 'react-pdf';
-import { StripButton } from '#/components/pdf/StripButton';
+import { StripButton } from '#/components/StripButton';
 import { useAppDispatch, useAppSelector } from '#/hooks';
 import {
   pageDeleted,

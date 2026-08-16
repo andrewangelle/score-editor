@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { IrregularSystemsNote } from '#/components/pdf/ScorePartsPanel/IrregularSystemsNote';
-import { ManualInfo } from '#/components/pdf/ScorePartsPanel/ManualInfo';
-import { PlaceButton } from '#/components/pdf/ScorePartsPanel/PlaceButton';
+import { IrregularSystemsNote } from '#/components/ScorePartsPanel/IrregularSystemsNote';
+import { ManualInfo } from '#/components/ScorePartsPanel/ManualInfo';
+import { PlaceButton } from '#/components/ScorePartsPanel/PlaceButton';
 import { useAppDispatch, useAppSelector } from '#/hooks';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';

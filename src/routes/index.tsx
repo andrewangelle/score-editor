@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PDFEditor } from '#/components/pdf/PDFEditor/PDFEditor';
+import { PDFEditor } from '#/components/PDFEditor/PDFEditor';
 
 export const Route = createFileRoute('/')({
   component: Home,
