@@ -125,7 +125,26 @@ export type DetectionOptions = {
    * outer band across the page.
    */
   maxContentGrowth: number;
+  /**
+   * How far a rule's ends may sit from the staff's, as a fraction of the staff's
+   * width, and still be one of its lines.
+   *
+   * Every staff of a system is engraved to the same left and right edge, which
+   * is the one thing that separates a staff line from the other long horizontals
+   * a score is full of. A rule that stops short of those edges is an 8va
+   * bracket, a hairpin, a bend or a gliss, however long it is and however neatly
+   * it is spaced — and each one admitted either grows a staff into the gap below
+   * it or invents a part that shifts every ordinal beneath it.
+   */
+  staffEdgeTolerance: number;
 };
+
+/**
+ * Lines at or above this count are a staff on their own evidence: nothing else
+ * in engraving stacks this many evenly spaced rules. Below it, a candidate has
+ * to look like a staff in width as well.
+ */
+const UNAMBIGUOUS_STAFF_LINES = 4;
 
 export const DEFAULT_DETECTION: DetectionOptions = {
   maxRuleThickness: 2.5,
@@ -138,6 +157,7 @@ export const DEFAULT_DETECTION: DetectionOptions = {
   maxLinesPerStaff: 8,
   staffBreakFactor: 1.75,
   maxContentGrowth: 4,
+  staffEdgeTolerance: 0.02,
 };
 
 /** Nominal vertical extent of a staff, so a one-line staff still has a size. */
@@ -539,6 +559,16 @@ function unionLength(spans: [number, number][]): number {
  * near-continuous and survives; a row of separate ledger lines spans just as far
  * but covers almost none of it, and is correctly rejected. Measuring the span
  * instead lets a row of ledger lines masquerade as a staff line.
+ *
+ * A group's height is the height of its *longest* rule, not the average of its
+ * members. Averaging drifts: beams are drawn a fraction of a point off a staff
+ * line and there are dozens of them, so each one drags the group a little
+ * further from where the line really is. A staff line whose height is off by a
+ * point stops being evenly spaced from its neighbours, and the whole staff is
+ * then thrown away as an accidental run of rules — which is how an inner part
+ * silently disappears from a page and every ordinal below it shifts up one.
+ * The longest rule in a group is the staff line; everything else merged into it
+ * is incidental ink, and incidental ink does not get a vote on where the line is.
  */
 export function consolidateRules(
   rules: Rule[],
@@ -547,17 +577,26 @@ export function consolidateRules(
   if (rules.length === 0) return [];
 
   const sorted = [...rules].sort((a, b) => b.y - a.y);
-  const groups: { y: number; spans: [number, number][] }[] = [];
+  const groups: { y: number; longest: number; spans: [number, number][] }[] =
+    [];
 
   for (const rule of sorted) {
     const last = groups.at(-1);
+    const length = rule.right - rule.left;
+
     if (last && Math.abs(last.y - rule.y) <= options.ruleMergeTolerance) {
       last.spans.push([rule.left, rule.right]);
-      // Track the running centre so a stack of near-identical rules does not drift.
-      last.y = (last.y + rule.y) / 2;
+      if (length > last.longest) {
+        last.longest = length;
+        last.y = rule.y;
+      }
       continue;
     }
-    groups.push({ y: rule.y, spans: [[rule.left, rule.right]] });
+    groups.push({
+      y: rule.y,
+      longest: length,
+      spans: [[rule.left, rule.right]],
+    });
   }
 
   const measured = groups.map((group) => ({
@@ -601,17 +640,97 @@ export function groupIntoStaves(
   const typicalSpacing = gaps.length > 0 ? median(gaps) : 0;
   const breakAt = typicalSpacing * options.staffBreakFactor;
 
-  const segments: Rule[][] = [[rules[0]]];
+  /** Do two rules begin and end together, to within one of their widths? */
+  const sharesEdges = (rule: Rule, reference: Rule): boolean => {
+    const slack =
+      (reference.right - reference.left) * options.staffEdgeTolerance;
+    return (
+      Math.abs(rule.left - reference.left) <= slack &&
+      Math.abs(rule.right - reference.right) <= slack
+    );
+  };
+
+  /**
+   * Drops the rules that do not share the run's edges.
+   *
+   * Which edges are the run's own is settled by vote: the lines of a staff all
+   * agree, and whatever else has landed among them — a row of beams under the
+   * middle line, a bracket a line-space beneath the bottom one — does not. The
+   * intruders are removed rather than allowed to split the run, because a staff
+   * cut in half at its third line is two staves that no instrument plays.
+   */
+  const staffLinesOnly = (segment: Rule[]): Rule[] => {
+    if (segment.length < 2) return segment;
+
+    const agreeing = segment.map(
+      (reference) =>
+        segment.filter((rule) => sharesEdges(rule, reference)).length,
+    );
+    let best = 0;
+    for (let i = 1; i < segment.length; i++) {
+      const wider =
+        segment[i].right - segment[i].left >
+        segment[best].right - segment[best].left;
+      if (
+        agreeing[i] > agreeing[best] ||
+        (agreeing[i] === agreeing[best] && wider)
+      ) {
+        best = i;
+      }
+    }
+
+    return segment.filter((rule) => sharesEdges(rule, segment[best]));
+  };
+
+  const grouped: Rule[][] = [[rules[0]]];
   for (let i = 1; i < rules.length; i++) {
-    if (breakAt > 0 && gaps[i - 1] > breakAt) segments.push([rules[i]]);
-    else segments[segments.length - 1].push(rules[i]);
+    if (breakAt > 0 && gaps[i - 1] > breakAt) grouped.push([rules[i]]);
+    else grouped[grouped.length - 1].push(rules[i]);
   }
+
+  const segments = grouped.map(staffLinesOnly);
+  const full = segments.filter(
+    (segment) => segment.length >= UNAMBIGUOUS_STAFF_LINES,
+  );
+
+  /**
+   * Does a run too short to vouch for itself line up with the full staves
+   * around it?
+   *
+   * Compared against the nearest full staff rather than against the page as a
+   * whole, because the first system of a piece is indented and its staves
+   * genuinely do not reach as far left as the rest — measured page-wide, that
+   * system's percussion staff would be thrown away.
+   */
+  const alignsWithStaves = (segment: Rule[]): boolean => {
+    if (full.length === 0) return true; // A page of nothing but short staves.
+
+    const middle = (segment[0].y + segment[segment.length - 1].y) / 2;
+    const at = (run: Rule[]) => (run[0].y + run[run.length - 1].y) / 2;
+    const nearest = full.reduce((best, candidate) =>
+      Math.abs(at(candidate) - middle) < Math.abs(at(best) - middle)
+        ? candidate
+        : best,
+    );
+
+    return segment.every((rule) => sharesEdges(rule, nearest[0]));
+  };
 
   const staves: Staff[] = [];
   for (const segment of segments) {
     if (
       segment.length < options.minLinesPerStaff ||
       segment.length > options.maxLinesPerStaff
+    ) {
+      continue;
+    }
+
+    // Too few lines to be a staff on the strength of the stack alone, so it has
+    // to be one on position: a percussion staff spans the system exactly as its
+    // neighbours do, a pair of gliss lines drawn between two staves does not.
+    if (
+      segment.length < UNAMBIGUOUS_STAFF_LINES &&
+      !alignsWithStaves(segment)
     ) {
       continue;
     }

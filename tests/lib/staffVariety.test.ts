@@ -126,6 +126,83 @@ describe('staves that are not five lines', () => {
   });
 });
 
+/**
+ * A real score is full of long horizontals that are not staff lines, and every
+ * one of them read as a staff — or as a line of one — shifts the ordinals of
+ * everything below it. Since a part is identified by its ordinal within the
+ * system, that is not a cosmetic error: extracting "guitars 1 and 2" from an
+ * affected system silently cuts the tenor sax, or the vocals, instead.
+ *
+ * Drawn from a 239-page orchestral score where 57 systems were misread this way.
+ */
+describe('decoys that a real engraving draws against its staves', () => {
+  const partNames = ['Gtr 1', 'Gtr 2', 'Perc', 'Bass'];
+  const lineCounts = [5, 6, 1, 5];
+  let pages: PageStaves[];
+  let bytes: Uint8Array;
+
+  beforeAll(async () => {
+    const fixture = await buildScoreFixture({
+      partNames,
+      lineCounts,
+      pageCount: 1,
+      systemsPerPage: 2,
+      lineSpacing: 6,
+      staffGap: 44,
+      systemGap: 90,
+      staffLineDecoys: true,
+    });
+    bytes = fixture.bytes;
+    pages = await analyse(bytes);
+  });
+
+  it('finds exactly one staff per part, inventing none', () => {
+    expect(pages[0].systems).toHaveLength(2);
+    for (const system of pages[0].systems) {
+      expect(system.staves).toHaveLength(partNames.length);
+    }
+  });
+
+  it('keeps the one-line percussion staff while rejecting the stray lines', () => {
+    // Both are a single long rule. Only one of them runs the full system.
+    expect(pages[0].systems).toHaveLength(2);
+    for (const system of pages[0].systems) {
+      expect(system.staves.map((staff) => staff.lineCount)).toEqual(lineCounts);
+    }
+  });
+
+  it('holds each staff line at its engraved height despite the beams', () => {
+    // Beams sit a fraction of a line-space off the middle line. Averaged into
+    // it, they drag it far enough that the staff stops looking evenly spaced
+    // and is discarded whole — which is how a part vanishes from a page.
+    const staves = pages[0].systems.flatMap((system) => system.staves);
+    expect(staves).toHaveLength(2 * partNames.length);
+
+    for (const staff of staves) {
+      if (staff.lineCount < 2) continue;
+      expect(staff.lineSpacing).toBeCloseTo(6, 1);
+    }
+  });
+
+  it('cuts the bands the ordinals name, not their neighbours', async () => {
+    const bands = planBands(pages, [0, 1]);
+    expect(bands).toHaveLength(pages[0].systems.length);
+
+    for (const band of bands) {
+      const system = pages[0].systems.find(
+        (candidate) => `0:${pages[0].systems.indexOf(candidate)}` === band.groupKey,
+      );
+      if (!system) throw new Error('band without a system');
+
+      // Inside the two guitars, clear of the percussion staff below them.
+      expect(band.rect.top).toBeLessThan(system.staves[0].top + 40);
+      expect(band.rect.bottom).toBeGreaterThan(system.staves[2].top);
+    }
+
+    expect((await extractParts(bytes, pages, [0, 1])).length).toBeGreaterThan(0);
+  });
+});
+
 describe('rules that are not staff lines', () => {
   it('rejects a row of ledger lines that together span the system', async () => {
     // The fixture draws four short ledger lines at a common height above every

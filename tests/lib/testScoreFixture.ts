@@ -49,6 +49,19 @@ export type FixtureOptions = {
    * part's band grows to keep them.
    */
   highNotes?: { ordinal: number; reach: number };
+  /**
+   * Long horizontals that look like staff lines but are not, drawn against
+   * every staff: rows of beams set a fraction of a line-space off a staff line,
+   * a bracket line in the gap below the staff, and a pair of gliss lines spaced
+   * exactly as staff lines are.
+   *
+   * All three are ordinary engraving, and each has its own way of destroying a
+   * part list — the beams by dragging a staff line off its true height until the
+   * staff no longer looks evenly spaced, the other two by adding lines or whole
+   * staves that no instrument plays. Off by default so the other fixtures stay
+   * legible; see the decoy tests for what each one costs.
+   */
+  staffLineDecoys: boolean;
 };
 
 export const FIXTURE_DEFAULTS: FixtureOptions = {
@@ -59,6 +72,7 @@ export const FIXTURE_DEFAULTS: FixtureOptions = {
   staffGap: 30,
   systemGap: 70,
   batchedPaths: true,
+  staffLineDecoys: false,
 };
 
 type Segment = { x1: number; y1: number; x2: number; y2: number };
@@ -186,6 +200,49 @@ export async function buildScoreFixture(
           height: 3.2,
           color: rgb(0, 0, 0),
         });
+
+        if (options.staffLineDecoys) {
+          const bottomLine = y - staffHeight;
+          const middleLine = y - Math.floor((lines - 1) / 2) * options.lineSpacing;
+
+          // Beams, in the three rows a couple of voices produce. Each row sits
+          // a fraction of a line-space under the middle staff line, near enough
+          // to be taken for part of it. They stop well inside the system, as
+          // beams always do — there is a clef in the way.
+          for (const step of [0.15, 0.3, 0.45]) {
+            const centre = middleLine - step * options.lineSpacing;
+            const thickness = options.lineSpacing * 0.15;
+            for (let n = 0; n < 8; n++) {
+              const x = LEFT + 20 + n * 52;
+              page.drawRectangle({
+                x,
+                y: centre - thickness / 2,
+                width: 42,
+                height: thickness,
+                color: rgb(0, 0, 0),
+              });
+            }
+          }
+
+          // A bracket line under the staff, and a pair of gliss lines below it
+          // spaced exactly like staff lines. Both run most of the system but
+          // neither reaches its edges.
+          const inset = 40;
+          const pairTop = bottomLine - options.staffGap * 0.55;
+          drawSegments(
+            page,
+            [bottomLine - options.staffGap * 0.25, pairTop, pairTop - options.lineSpacing].map(
+              (lineY) => ({
+                x1: LEFT + inset,
+                y1: lineY,
+                x2: RIGHT - inset,
+                y2: lineY,
+              }),
+            ),
+            0.6,
+            options.batchedPaths,
+          );
+        }
 
         // A chord stacked well above the staff, on ledger lines of its own.
         if (options.highNotes?.ordinal === ordinal) {
