@@ -41,31 +41,24 @@ import { staffHeight } from '#/lib/pdf/staffDetection';
 
 export type MarkingKind = 'measure' | 'tempo';
 
-/** A piece of text worth carrying into every part cut from its system. */
 export type Marking = {
   id: string;
   kind: MarkingKind;
-  /** What it says. Only ever used for labels and tests — extraction cuts pixels. */
   text: string;
   pageIndex: number;
   systemIndex: number;
-  /** The source rectangle to lift, padded clear of the glyphs' edges. */
   rect: Rect;
 };
 
 export type MarkingOptions = {
   /**
-   * How far beyond a staff's outermost line a marking may sit, in staff
-   * heights. Generous enough for a tempo mark set high above the system, tight
-   * enough to stop at the page's own furniture.
+   * How far beyond a staff's outermost line a marking may sit.
    */
   reach: number;
   /**
-   * How far outside the system's horizontal span a marking may sit, in staff
-   * heights. Measure numbers are routinely hung in the left margin.
+   * How far outside the system's horizontal span a marking may sit
    */
   sideReach: number;
-  /** Slack added around a marking's text box when it is cut out, in points. */
   padding: number;
 };
 
@@ -86,13 +79,11 @@ export type Candidate = {
   side: 'above' | 'below';
   text: string;
   rect: Rect;
-  /** Distance from the staff's outermost line, in staff heights. */
+  /** Distance from the staff's outermost line */
   offset: number;
-  /** How far short of the system's right edge it stops, in staff heights. */
+  /** How far short of the system's right edge it stops*/
   rightGap: number;
-  /** The text's own height, in staff heights. */
   size: number;
-  /** The number it spells, when it spells one. */
   value: number | null;
 };
 

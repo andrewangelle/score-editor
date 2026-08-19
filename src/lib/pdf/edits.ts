@@ -1,6 +1,5 @@
 import { normalizeAngle, type PageEdit } from '#/lib/pdf/document';
 
-/** Rotates a single page by `delta` degrees, keeping the angle normalized. */
 export function rotatePage(
   pages: readonly PageEdit[],
   id: string,
@@ -13,7 +12,6 @@ export function rotatePage(
   );
 }
 
-/** Rotates every page, used by the toolbar when no single page is the target. */
 export function rotateAllPages(
   pages: readonly PageEdit[],
   delta: number,

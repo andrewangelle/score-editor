@@ -161,3 +161,28 @@ export function editedFileName(name: string): string {
   const withoutExtension = name.replace(/\.pdf$/i, '');
   return `${withoutExtension || 'document'}-edited.pdf`;
 }
+
+/**
+ * Turns what someone typed into a name a download can carry.
+ *
+ * A download name is a request the operating system has to honour, so the
+ * characters it would object to — separators that would read as a path, and the
+ * set Windows reserves — are stripped rather than refused: nobody should have to
+ * learn that list to name a file. The extension is put back because the bytes
+ * are a PDF whatever it is called, and typing one is not the point of the box.
+ *
+ * A name that survives none of that is not saved as `.pdf`; the caller's
+ * suggestion stands in.
+ */
+export function downloadFileName(typed: string, fallback: string): string {
+  const base = typed
+    .replace(/\.pdf$/i, '')
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping them is the point
+    .replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    // Leading dots hide the file on Unix; trailing dots and spaces are dropped
+    // silently by Windows, which would leave a name nobody asked for.
+    .replace(/^[.\s]+|[.\s]+$/g, '');
+
+  return base ? `${base}.pdf` : fallback;
+}

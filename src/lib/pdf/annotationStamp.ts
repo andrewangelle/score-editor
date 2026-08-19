@@ -27,12 +27,10 @@ const CAP_HEIGHT = 0.717;
 /** How far the circle stands off the digit, as a fraction of point size. */
 const CIRCLE_PADDING = 0.24;
 
+/** placement in the output page's user space */
 type Placement = {
-  /** Text's left edge, in the output page's user space. */
   x: number;
-  /** Text's baseline, in the output page's user space. */
   y: number;
-  /** Point size, already scaled to the output. */
   size: number;
 };
 

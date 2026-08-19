@@ -8,17 +8,6 @@
  * different selection, and every note stays welded to the music it describes.
  * Extraction only has to ask "which annotations fall inside this band?".
  */
-
-/**
- * What a mark on the page says.
- *
- * The three terse kinds are the guitarist's shorthand: which finger stops the
- * note, which string it is stopped on, and where the left hand sits on the
- * neck. They are separate kinds rather than one "short text" because each is
- * engraved differently — a string number is circled, a position is a roman
- * numeral — and because they are read at a glance in a fixed order of
- * prominence, which is what `DEFAULT_SIZE` encodes.
- */
 export type AnnotationKind = 'fingering' | 'string' | 'position' | 'note';
 
 export type ScoreAnnotation = {
@@ -33,14 +22,6 @@ export type ScoreAnnotation = {
   kind: AnnotationKind;
 };
 
-/**
- * Fingerings are terse and sit tight to the notes; prose notes run larger.
- *
- * Within the shorthand the sizes are a hierarchy, not a preference. A fingering
- * belongs to one notehead, so it is the smallest; a string number qualifies
- * that note and is circled, so it needs a touch more room; a position governs a
- * whole passage, so it reads largest of the three.
- */
 export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
   fingering: 8,
   string: 9.5,
@@ -75,13 +56,8 @@ export function toRomanNumeral(value: number): string | null {
 /**
  * Puts committed text into the form its kind is engraved in.
  *
- * Positions are conventionally roman, but they are *thought* in arabic — a
- * player reads "seventh position" and types 7 — so a number is converted rather
- * than rejected. A string identifier is drawn inside a circle, which only has
- * room for the number itself.
- *
- * Returning empty is meaningful: the overlay reads it as "nothing was said
- * here" and drops the annotation rather than leaving a blank circle behind.
+ * Returning empty is meaningful:
+ * the overlay drops the annotation rather than leaving a blank circle behind.
  */
 export function normalizeAnnotationText(
   kind: AnnotationKind,

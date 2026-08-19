@@ -3,12 +3,14 @@ import { lazy, Suspense, useState } from 'react';
 import { PDFDropzone } from '#/components/PDFDropzone';
 import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
+import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
 import { ToolbarButton } from '#/components/ToolbarButton';
 import { useAppDispatch, useAppSelector } from '#/hooks';
 import { downloadBytes } from '#/lib/download';
 import {
   buildEditedPdf,
+  downloadFileName,
   editedFileName,
   PdfLoadError,
   readPdfFile,
@@ -82,6 +84,8 @@ export function PDFEditor() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  /** Whether the copy is waiting on a name. */
+  const [namingCopy, setNamingCopy] = useState(false);
 
   const analysis = useAppSelector(selectAnalysis);
   const analysisNote = useAppSelector(selectAnalysisNote);
@@ -256,10 +260,15 @@ export function PDFEditor() {
     });
   }
 
-  /** Leaves the original alone and downloads an edited copy beside it. */
-  function handleSaveCopy() {
+  /**
+   * Leaves the original alone and downloads an edited copy beside it, under
+   * whatever name was typed into the prompt.
+   */
+  function handleSaveCopy(typed: string) {
+    setNamingCopy(false);
+
     return saveWith((edited) => {
-      const fileName = editedFileName(name);
+      const fileName = downloadFileName(typed, editedFileName(name));
       downloadBytes(edited, fileName, 'application/pdf');
       return `Saved ${fileName}`;
     });
@@ -274,6 +283,7 @@ export function PDFEditor() {
     releaseDocumentBytes();
     setStatus(null);
     setError(null);
+    setNamingCopy(false);
   }
 
   function rotateLeft() {
@@ -346,25 +356,36 @@ export function PDFEditor() {
           the only save there is and takes the primary button back.
         */}
         {fileHandle && (
-          <ToolbarButton onClick={handleSaveCopy} disabled={isBusy}>
+          <ToolbarButton
+            onClick={() => setNamingCopy(true)}
+            disabled={isBusy || namingCopy}
+          >
             Save a copy
           </ToolbarButton>
         )}
 
         <button
           type="button"
-          onClick={fileHandle ? handleSaveToFile : handleSaveCopy}
-          disabled={isBusy}
+          onClick={fileHandle ? handleSaveToFile : () => setNamingCopy(true)}
+          disabled={isBusy || (!fileHandle && namingCopy)}
           title={
             fileHandle
               ? `Overwrite ${fileHandle.name}`
-              : 'Download an edited copy'
+              : 'Name and download an edited copy'
           }
           className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-sm text-white hover:bg-blue-500 disabled:opacity-50"
         >
           {isBusy ? 'Saving…' : fileHandle ? 'Save' : 'Save a copy'}
         </button>
       </header>
+
+      {namingCopy && (
+        <SaveCopyPrompt
+          suggestion={editedFileName(name)}
+          onSave={handleSaveCopy}
+          onCancel={() => setNamingCopy(false)}
+        />
+      )}
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
 
