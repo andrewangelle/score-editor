@@ -144,9 +144,9 @@ want to keep editing it on my laptop", that is the whole feature.
 with a teacher or another player, or a server-side score library. All legitimate
 goals for a music app — but they are a larger, different feature than "restore
 my edits", and they drag auth (whose edits are these?) and blob storage in with
-them. The app is currently client-only and zero-backend; TanStack Start + nitro
-are already present so server functions are low-friction, but the surface-area
-growth is real.
+them. The app is currently client-only and zero-backend; TanStack Start is
+already present, deployed as a Netlify function, so server functions are
+low-friction, but the surface-area growth is real.
 
 If Postgres does happen:
 

@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm build"
+  # Vite writes the static client bundle here; the SSR handler is picked up
+  # separately from .netlify/v1/functions, which the Netlify Vite plugin writes
+  # during `vite build`.
+  publish = "dist/client"
+
+[build.environment]
+  NODE_VERSION = "24"

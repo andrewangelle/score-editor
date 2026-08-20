@@ -9,7 +9,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
-import { nitro } from 'nitro/vite'
+import netlify from '@netlify/vite-plugin-tanstack-start'
 
 /** Where the worker is published, in dev and in the build alike. */
 const PDF_WORKER_FILE = 'pdf.worker.min.mjs'
@@ -51,7 +51,7 @@ const config = defineConfig({
   plugins: [
     pdfWorker(),
     devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    netlify(),
     tailwindcss(),
     tanstackStart(),
     viteReact(),

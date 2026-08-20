@@ -19,7 +19,7 @@
       "!**/node_modules",
       "./.vscode/settings.json",
       "!src/routeTree.gen.ts",
-      "!.output/*",
+      "!.netlify",
       "!.tanstack/*",
       "!.claude"
     ]

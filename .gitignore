@@ -6,10 +6,9 @@ dist
 dist-ssr
 *.local
 .env
-.nitro
+.netlify
 .tanstack
 .wrangler
-.output
 .vinxi
 __unconfig*
 todos.json

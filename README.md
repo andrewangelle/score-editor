@@ -42,18 +42,25 @@ npm run check
 ```
 
 
-## Deploy with Nitro
+## Deploy with Netlify
 
-This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
+This project targets Netlify through `@netlify/vite-plugin-tanstack-start`, which is
+wired into `vite.config.ts`. A production build produces both halves of the deploy:
+
+- `dist/client` — the static assets, which `netlify.toml` names as the publish directory.
+- `.netlify/v1/functions/server.mjs` — the SSR handler, generated at build time and
+  wrapping `dist/server/server.js`. It serves every path not matched by a static file.
+
+To deploy, connect the repository to a Netlify site; `netlify.toml` supplies the build
+command and publish directory, so no dashboard configuration is needed. For a one-off
+deploy from a local machine:
 
 ```bash
-npm run build
-node dist/server/index.mjs
+npx netlify deploy --build --prod
 ```
 
-The build output is a self-contained Node server. To deploy, push the `dist/` directory to your host (Render, Fly.io, your own VPS, etc.) and run the server command above.
-
-For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
+The same plugin also emulates the Netlify platform in `npm run dev`, so local development
+runs against the same request handling as production.
 
 
 
