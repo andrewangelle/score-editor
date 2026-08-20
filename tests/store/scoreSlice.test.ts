@@ -6,6 +6,7 @@ import {
   scoreAnalysed,
   scoreAnalysisFailed,
   scoreSlice,
+  selectPartNames,
 } from '#/store/score.slice';
 
 const ANALYSIS: ScoreAnalysis = {
@@ -142,15 +143,34 @@ describe('partRenamed', () => {
   it('renames by ordinal, leaving the rest alone', () => {
     const state = run(partRenamed({ ordinal: 1, name: 'Guitar I' }));
 
-    expect(state.analysis?.parts.map((part) => part.name)).toEqual([
+    expect(selectPartNames({ score: state })).toEqual([
       'Flute',
       'Guitar I',
       'Cello',
     ]);
   });
 
-  it('ignores an ordinal that was never detected', () => {
-    expect(run(partRenamed({ ordinal: 9, name: 'Tuba' }))).toEqual(ANALYSED);
+  it('leaves detection itself untouched', () => {
+    // A name lives beside the analysis, never inside it: detection output is
+    // recomputed on every open, and a name written into it could not survive
+    // one.
+    const state = run(partRenamed({ ordinal: 1, name: 'Guitar I' }));
+
+    expect(state.analysis?.parts.map((part) => part.name)).toEqual([
+      'Flute',
+      'Guitar',
+      'Cello',
+    ]);
+  });
+
+  it('shows nothing for an ordinal that was never detected', () => {
+    const state = run(partRenamed({ ordinal: 9, name: 'Tuba' }));
+
+    expect(selectPartNames({ score: state })).toEqual([
+      'Flute',
+      'Guitar',
+      'Cello',
+    ]);
   });
 });
 

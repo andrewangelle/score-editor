@@ -59,11 +59,8 @@ export function RegionLayer({
   const dispatch = useAppDispatch();
   const regions = useAppSelector(selectRegions);
   const selectedId = useAppSelector(selectSelectedRegionId);
-  /** The region tool is what makes this layer take clicks at all. */
   const interactive = useAppSelector(selectIsEditingRegions);
-
   const surface = useRef<HTMLDivElement>(null);
-  /** The surface's screen box, pinned for the length of a gesture. */
   const surfaceBox = useRef<DOMRect | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
 
@@ -76,16 +73,6 @@ export function RegionLayer({
   /**
    * Opens a gesture: pins the surface's geometry, and routes the rest of the
    * pointer stream here wherever it goes.
-   *
-   * Measuring forces a synchronous layout, and what sits under this surface is a
-   * PDF canvas plus pdf.js's text layer — one absolutely positioned span per
-   * text run, thousands of them on an engraved page. Measuring per pointermove
-   * reflows all of it every frame, which is what makes a drag crawl. The surface
-   * cannot move while a gesture is in flight, so once at the start is enough.
-   *
-   * The capture is what keeps that gesture alive past the page edge: the
-   * geometry clamps for exactly that case, so dragging a rectangle *to* the edge
-   * is ordinary, and without capture the release out there is never heard.
    */
   function captureGesture(event: React.PointerEvent) {
     surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;

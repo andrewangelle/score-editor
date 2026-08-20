@@ -6,7 +6,11 @@ import {
   removeAnnotation,
   type ScoreAnnotation,
 } from '#/lib/pdf/annotations';
-import { documentClosed, documentOpened } from '#/store/document.slice';
+import {
+  documentClosed,
+  documentOpened,
+  documentRestored,
+} from '#/store/document.slice';
 
 /**
  * Fingerings and performance notes, anchored to the uploaded document.
@@ -80,10 +84,13 @@ export const annotationsSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Notes are anchored to one document's coordinates, so they go with it.
     builder
       .addCase(documentOpened, () => initialState)
-      .addCase(documentClosed, () => initialState);
+      .addCase(documentClosed, () => initialState)
+      .addCase(
+        documentRestored,
+        (_state, action) => action.payload.annotations,
+      );
   },
   selectors: {
     selectAnnotations: (state) => state,

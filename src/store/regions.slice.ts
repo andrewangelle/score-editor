@@ -6,7 +6,11 @@ import {
   updateRegion,
 } from '#/lib/pdf/regions';
 import type { Rect } from '#/lib/pdf/staffDetection';
-import { documentClosed, documentOpened } from '#/store/document.slice';
+import {
+  documentClosed,
+  documentOpened,
+  documentRestored,
+} from '#/store/document.slice';
 
 /**
  * The rectangles extraction will cut.
@@ -102,7 +106,13 @@ export const regionsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(documentOpened, () => initialState)
-      .addCase(documentClosed, () => initialState);
+      .addCase(documentClosed, () => initialState)
+      // A file with no state attachment leaves `manual` null, which is detection
+      // still being in charge — the same thing a fresh open means.
+      .addCase(documentRestored, (state, action) => {
+        const restored = action.payload.state;
+        if (restored) state.manual = restored.regions;
+      });
   },
   selectors: {
     selectManualRegions: (state) => state.manual,

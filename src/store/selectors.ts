@@ -1,9 +1,12 @@
 import { createSelector } from '@reduxjs/toolkit';
+import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
 import { selectManualRegions } from '#/store/regions.slice';
 import {
   selectAnalysis,
+  selectKeepMarkings,
   selectPartNames,
+  selectRenames,
   selectSelectedOrdinals,
 } from '#/store/score.slice';
 
@@ -27,4 +30,20 @@ const selectDetectedRegions = createSelector(
 export const selectRegions = createSelector(
   [selectManualRegions, selectDetectedRegions],
   (manual, detected) => manual ?? detected,
+);
+
+export const selectEditorState = createSelector(
+  [
+    selectManualRegions,
+    selectKeepMarkings,
+    selectSelectedOrdinals,
+    selectRenames,
+  ],
+  (regions, keepMarkings, selectedOrdinals, partNames) => ({
+    v: EDITOR_STATE_VERSION,
+    regions,
+    keepMarkings,
+    selectedOrdinals,
+    partNames,
+  }),
 );

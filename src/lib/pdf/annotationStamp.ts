@@ -8,7 +8,7 @@
  * placement in their own output space.
  */
 
-import { type PDFFont, type PDFPage, rgb } from 'pdf-lib';
+import { type Color, type PDFFont, rgb } from 'pdf-lib';
 import type { ScoreAnnotation } from '#/lib/pdf/annotations';
 
 /** Ink for every mark: clearly the performer's, not the engraver's. */
@@ -35,11 +35,43 @@ type Placement = {
 };
 
 /**
+ * What stamping needs from the thing it is drawing onto.
+ *
+ * A mark ends up either in a page's content stream — flattened, the way a
+ * printed part carries it — or in a PDF annotation's appearance stream, which is
+ * what lets it be read back as an editable object. Both must produce the same
+ * ink: a string number circled in the saved score and bare in the reopened one
+ * would be a different instruction.
+ *
+ * `PDFPage` satisfies this structurally already, and so does the recording sink
+ * in `annotationObjects.ts`, so neither path can drift from the other.
+ */
+export type DrawSink = {
+  drawText(
+    text: string,
+    options: {
+      x: number;
+      y: number;
+      size: number;
+      font: PDFFont;
+      color: Color;
+    },
+  ): void;
+  drawCircle(options: {
+    x: number;
+    y: number;
+    size: number;
+    borderColor: Color;
+    borderWidth: number;
+  }): void;
+};
+
+/**
  * Stamps one annotation, if it has anything to say. Silently skips blank text
  * so callers do not each have to check.
  */
 export function stampAnnotation(
-  page: PDFPage,
+  page: DrawSink,
   annotation: ScoreAnnotation,
   placement: Placement,
   font: PDFFont,

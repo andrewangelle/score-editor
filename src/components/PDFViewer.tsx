@@ -9,7 +9,7 @@ import { useAppSelector } from '#/hooks';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
 import { useElementWidth } from '#/lib/useElementWidth';
 import { selectPages, selectSelectedPageId } from '#/store/document.slice';
-import { selectAnalysis } from '#/store/score.slice';
+import { selectAnalysis, selectParts } from '#/store/score.slice';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
 
@@ -28,6 +28,9 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   const selectedId = useAppSelector(selectSelectedPageId);
   // Only detection's page geometry is needed here; the layers read the rest.
   const analysis = useAppSelector(selectAnalysis);
+  // Not `analysis.parts`: a part carries whatever the user has renamed it to,
+  // and that lives beside the analysis rather than inside it.
+  const parts = useAppSelector(selectParts);
 
   // pdf.js detaches the buffer it is handed, so it gets a dedicated copy and the
   // pristine `bytes` stay usable by pdf-lib when the user saves. Memoized because
@@ -104,7 +107,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
                   pageHeight={overlay.sourcePage.height}
                   scale={overlay.scale}
                   systems={overlay.sourcePage.systems}
-                  parts={overlay.analysis.parts}
+                  parts={parts}
                 />
                 <RegionLayer
                   pageIndex={selected.sourceIndex}

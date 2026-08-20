@@ -1,5 +1,12 @@
-import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
+import {
+  createAction,
+  createSlice,
+  current,
+  type PayloadAction,
+} from '@reduxjs/toolkit';
+import type { ScoreAnnotation } from '#/lib/pdf/annotations';
 import type { PageEdit } from '#/lib/pdf/document';
+import type { EditorState } from '#/lib/pdf/editorState';
 import {
   isUnchanged,
   movePage,
@@ -7,6 +14,25 @@ import {
   rotateAllPages,
   rotatePage,
 } from '#/lib/pdf/edits';
+
+/**
+ * Work recovered from the file that was just opened.
+ *
+ * A standalone action rather than a reducer, because it belongs to no one slice:
+ * the marks go to the annotations slice, the rectangles to the regions slice,
+ * the part selection and renames to the score slice. It lives here beside
+ * `documentOpened` because it is the second half of the same event, and must be
+ * dispatched after it — every slice resets itself on the open.
+ *
+ * The document slice itself ignores this. Page arrangement is session-local by
+ * design: a deleted page's content is genuinely absent from the saved file, so
+ * no record of the deletion could put it back.
+ */
+export const documentRestored = createAction<{
+  annotations: ScoreAnnotation[];
+  /** Null when the file carried marks but no state attachment. */
+  state: EditorState | null;
+}>('document/restored');
 
 /**
  * The document being edited: which pages it has, in what order, and how far the

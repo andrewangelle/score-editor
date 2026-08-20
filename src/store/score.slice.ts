@@ -5,7 +5,11 @@ import {
 } from '@reduxjs/toolkit';
 import type { Part } from '#/lib/pdf/partExtraction';
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
-import { documentClosed, documentOpened } from '#/store/document.slice';
+import {
+  documentClosed,
+  documentOpened,
+  documentRestored,
+} from '#/store/document.slice';
 
 /**
  * What staff detection made of the open document.
@@ -28,6 +32,23 @@ type ScoreState = {
    */
   keepMarkings: boolean;
   /**
+   * Names the user typed, by the ordinal they were given to.
+   *
+   * Kept beside the analysis rather than written into it: detection output is
+   * thrown away on every open, so a name stored inside it could never outlive
+   * the run it was typed against. `selectParts` applies the two together, which
+   * also means a rename for an ordinal detection no longer finds simply never
+   * shows, and works again if that ordinal comes back.
+   */
+  renames: Record<number, string>;
+  /**
+   * A restored part selection waiting for the analysis it describes.
+   *
+   * Ordinals name parts, and there are no parts until detection has run — which
+   * happens well after the document is on screen.
+   */
+  pendingOrdinals: number[] | null;
+  /**
    * The document detection is currently describing, or being run for.
    *
    * Analysis is slow enough on a dense score to still be running when the next
@@ -43,11 +64,31 @@ const initialState: ScoreState = {
   note: null,
   selectedOrdinals: [],
   keepMarkings: true,
+  renames: {},
+  pendingOrdinals: null,
   documentId: null,
 };
 
 const NO_PARTS: Part[] = [];
 const NO_IRREGULAR: ScoreAnalysis['irregularSystems'] = [];
+
+/**
+ * The detected parts under whatever the user has called them.
+ *
+ * Module scope rather than inline, so the three selectors that need renamed
+ * parts share one memoized result instead of each recomputing the map.
+ */
+const selectRenamedParts = createSelector(
+  [
+    (state: ScoreState) => state.analysis?.parts,
+    (state: ScoreState) => state.renames,
+  ],
+  (parts, renames) =>
+    parts?.map((part) => {
+      const renamed = renames[part.ordinal];
+      return renamed === undefined ? part : { ...part, name: renamed };
+    }) ?? NO_PARTS,
+);
 
 export const scoreSlice = createSlice({
   name: 'score',
@@ -61,9 +102,23 @@ export const scoreSlice = createSlice({
       state.analysis = action.payload.analysis;
       state.note = null;
       // Everything detected starts checked; the user narrows from there.
-      state.selectedOrdinals = action.payload.analysis.parts.map(
+      const detected = action.payload.analysis.parts.map(
         (part) => part.ordinal,
       );
+      state.selectedOrdinals = detected;
+
+      const pending = state.pendingOrdinals;
+      if (!pending) return;
+      state.pendingOrdinals = null;
+
+      // Reconcile rather than trust: a detection that now finds eleven staves
+      // where it once found twelve has stored ordinals naming different parts,
+      // or no part at all. A selection that survives none of that gives way to
+      // the detected default rather than leaving the panel mysteriously empty.
+      const kept = pending.filter((ordinal) => detected.includes(ordinal));
+      if (kept.length > 0 || pending.length === 0) {
+        state.selectedOrdinals = kept;
+      }
     },
 
     scoreAnalysisFailed(
@@ -74,6 +129,8 @@ export const scoreSlice = createSlice({
       state.analysis = null;
       state.note = action.payload.message;
       state.selectedOrdinals = [];
+      // There are no parts to apply it against, and none are coming.
+      state.pendingOrdinals = null;
     },
 
     partToggled(state, action: PayloadAction<number>) {
@@ -95,10 +152,7 @@ export const scoreSlice = createSlice({
       state,
       action: PayloadAction<{ ordinal: number; name: string }>,
     ) {
-      const part = state.analysis?.parts.find(
-        (candidate) => candidate.ordinal === action.payload.ordinal,
-      );
-      if (part) part.name = action.payload.name;
+      state.renames[action.payload.ordinal] = action.payload.name;
     },
   },
   extraReducers: (builder) => {
@@ -108,24 +162,40 @@ export const scoreSlice = createSlice({
         ...initialState,
         documentId: action.payload.id,
       }))
-      .addCase(documentClosed, () => initialState);
+      .addCase(documentClosed, () => initialState)
+      // Dispatched after the open, which every slice resets itself on.
+      .addCase(documentRestored, (state, action) => {
+        const restored = action.payload.state;
+        if (!restored) return;
+
+        state.keepMarkings = restored.keepMarkings;
+        state.pendingOrdinals = restored.selectedOrdinals;
+        for (const { ordinal, name } of restored.partNames) {
+          state.renames[ordinal] = name;
+        }
+      });
   },
   selectors: {
     selectAnalysis: (state) => state.analysis,
     selectAnalysisNote: (state) => state.note,
     selectSelectedOrdinals: (state) => state.selectedOrdinals,
-    selectParts: (state) => state.analysis?.parts ?? NO_PARTS,
-    selectPartNames: createSelector(
-      [(state: ScoreState) => state.analysis?.parts],
-      (parts) => parts?.map((part) => part.name) ?? [],
+    selectParts: selectRenamedParts,
+    selectPartNames: createSelector([selectRenamedParts], (parts) =>
+      parts.map((part) => part.name),
     ),
     selectSelectedParts: createSelector(
-      [
-        (state: ScoreState) => state.analysis?.parts,
-        (state: ScoreState) => state.selectedOrdinals,
-      ],
+      [selectRenamedParts, (state: ScoreState) => state.selectedOrdinals],
       (parts, ordinals) =>
-        parts?.filter((part) => ordinals.includes(part.ordinal)) ?? NO_PARTS,
+        parts.filter((part) => ordinals.includes(part.ordinal)),
+    ),
+    /** The renames as the saved file stores them. */
+    selectRenames: createSelector(
+      [(state: ScoreState) => state.renames],
+      (renames) =>
+        Object.entries(renames).map(([ordinal, name]) => ({
+          ordinal: Number(ordinal),
+          name,
+        })),
     ),
     selectIrregularSystems: (state) =>
       state.analysis?.irregularSystems ?? NO_IRREGULAR,
@@ -164,6 +234,7 @@ export const {
   selectParts,
   selectPartNames,
   selectSelectedParts,
+  selectRenames,
   selectIrregularSystems,
   selectKeepMarkings,
   selectMarkingCounts,

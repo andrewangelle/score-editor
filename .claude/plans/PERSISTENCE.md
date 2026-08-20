@@ -1,8 +1,8 @@
 # Plan: performance marks that survive a reopen
 
-Status: **planned, not started.** Supersedes the option comparison in
-`.claude/ideas/PERSISTENCE.md`, which explored a database and concluded against
-one. This is the plan of record.
+Status: **Phases 1–4 built; Phase 5 still open on the score-vs-part decision
+below.** Supersedes the option comparison in `.claude/ideas/PERSISTENCE.md`,
+which explored a database and concluded against one. This is the plan of record.
 
 ## Goal
 

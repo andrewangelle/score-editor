@@ -8,33 +8,11 @@
  * that it is centred on the digit, whatever width that digit happens to be.
  */
 
-import { PDFDocument, type PDFPage, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import type { AnnotationKind, ScoreAnnotation } from '#/lib/pdf/annotations';
 import { createAnnotation } from '#/lib/pdf/annotations';
 import { stampAnnotation } from '#/lib/pdf/annotationStamp';
-
-type Circle = { x: number; y: number; size: number };
-type Text = { text: string; x: number; y: number; size: number };
-
-/**
- * A page that records instead of drawing. pdf-lib deflates the content streams
- * it builds, so the operators are not readable back out of a saved document;
- * the calls are the observable behaviour here.
- */
-function recorder() {
-  const circles: Circle[] = [];
-  const texts: Text[] = [];
-
-  const page = {
-    drawText: (
-      text: string,
-      { x, y, size }: { x: number; y: number; size: number },
-    ) => texts.push({ text, x, y, size }),
-    drawCircle: ({ x, y, size }: Circle) => circles.push({ x, y, size }),
-  } as unknown as PDFPage;
-
-  return { page, circles, texts };
-}
+import { recorder } from '#tests/lib/stampRecorder';
 
 const font = await (async () => {
   const pdf = await PDFDocument.create();

@@ -21,6 +21,7 @@ import {
   holdDocumentBytes,
   releaseDocumentBytes,
 } from '#/lib/pdf/documentBytes';
+import type { EditorState } from '#/lib/pdf/editorState';
 import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
 import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
@@ -32,6 +33,7 @@ import {
   documentFileReplaced,
   documentOpened,
   documentReset,
+  documentRestored,
   documentSaved,
   selectCanUndo,
   selectDocumentId,
@@ -52,7 +54,7 @@ import {
   selectKeepMarkings,
   selectSelectedParts,
 } from '#/store/score.slice';
-import { selectRegions } from '#/store/selectors';
+import { selectEditorState, selectRegions } from '#/store/selectors';
 
 // react-pdf reaches for browser globals at import time, so it must never be
 // evaluated during SSR — hence a dynamic import behind ClientOnly.
@@ -85,7 +87,7 @@ export function PDFEditor() {
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   /** Whether the copy is waiting on a name. */
-  const [namingCopy, setNamingCopy] = useState(false);
+  const [isNamingCopy, setNamingCopy] = useState(false);
 
   const analysis = useAppSelector(selectAnalysis);
   const analysisNote = useAppSelector(selectAnalysisNote);
@@ -95,6 +97,7 @@ export function PDFEditor() {
   const isManual = useAppSelector(selectIsManual);
   const keepMarkings = useAppSelector(selectKeepMarkings);
   const annotations = useAppSelector(selectAnnotations);
+  const editorState: EditorState = useAppSelector(selectEditorState);
 
   // The store holds the document's identity and edits; the bytes themselves are
   // too large to belong in it, so the id is what fetches them back.
@@ -116,9 +119,20 @@ export function PDFEditor() {
       const loaded = await readPdfFile(file);
       const id = crypto.randomUUID();
       // Hand off the bytes before announcing the document, so anything reacting
-      // to the open finds them already in place.
+      // to the open finds them already in place. These have this app's own marks
+      // lifted back out, so detection reads clean music and the viewer has
+      // nothing left to paint underneath the overlay.
       holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
+      // Strictly after the open: every slice empties itself on that.
+      if (loaded.annotations.length > 0 || loaded.state) {
+        dispatch(
+          documentRestored({
+            annotations: loaded.annotations,
+            state: loaded.state,
+          }),
+        );
+      }
       void analyseScore(id, loaded.bytes);
     } catch (cause) {
       setError(
@@ -228,6 +242,10 @@ export function PDFEditor() {
    * share everything up to that point — and both build from the pristine upload
    * rather than from whatever was last written, which is what lets the same
    * file be saved over repeatedly without edits compounding.
+   *
+   * Both write the marks as annotation objects rather than flattening them, so
+   * a file saved here can be reopened here and picked up where it was left.
+   * Extraction still flattens: a part is a print artifact handed to a player.
    */
   async function saveWith(
     write: (edited: Uint8Array) => Promise<string> | string,
@@ -237,7 +255,14 @@ export function PDFEditor() {
     setIsBusy(true);
     setError(null);
     try {
-      reportSaved(await write(await buildEditedPdf(bytes, pages, annotations)));
+      reportSaved(
+        await write(
+          await buildEditedPdf(bytes, pages, annotations, {
+            marks: 'objects',
+            state: editorState,
+          }),
+        ),
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -358,7 +383,7 @@ export function PDFEditor() {
         {fileHandle && (
           <ToolbarButton
             onClick={() => setNamingCopy(true)}
-            disabled={isBusy || namingCopy}
+            disabled={isBusy || isNamingCopy}
           >
             Save a copy
           </ToolbarButton>
@@ -367,7 +392,7 @@ export function PDFEditor() {
         <button
           type="button"
           onClick={fileHandle ? handleSaveToFile : () => setNamingCopy(true)}
-          disabled={isBusy || (!fileHandle && namingCopy)}
+          disabled={isBusy || (!fileHandle && isNamingCopy)}
           title={
             fileHandle
               ? `Overwrite ${fileHandle.name}`
@@ -379,7 +404,7 @@ export function PDFEditor() {
         </button>
       </header>
 
-      {namingCopy && (
+      {isNamingCopy && (
         <SaveCopyPrompt
           suggestion={editedFileName(name)}
           onSave={handleSaveCopy}
