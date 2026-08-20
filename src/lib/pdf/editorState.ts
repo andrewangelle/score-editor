@@ -1,20 +1,16 @@
 /**
- * The session state that has no annotation to ride on.
- *
- * A mark can be a PDF annotation because it is a thing on a page. The rest of
- * what the performer set up describes the document as a whole, so it goes in a
- * versioned JSON attachment instead.
+ * The session state that has no annotation to ride on. A mark can be a PDF
+ * annotation because it is a thing on a page; the rest describes the document as
+ * a whole, so it goes in a versioned JSON attachment.
  *
  * Two things this deliberately does not hold. Staff detection's output is
  * derived and stale-prone — a detection improvement would make a stored analysis
  * a lie — so it is recomputed on every open and only the *decisions* taken
- * against it are kept. And page arrangement is not here either: a deleted page's
- * content is genuinely absent from the saved file, so no record of the deletion
- * could undo it.
+ * against it are kept. Page arrangement is absent for the opposite reason: a
+ * deleted page's content is genuinely gone from the saved file.
  *
- * Reading is total. A blob that is corrupt, truncated, or written by a later
- * version of this app must never stop a document opening — the worst honest
- * outcome is that it opens unmarked.
+ * Reading is total. A blob that is corrupt, truncated or written by a later
+ * version must never stop a document opening; the worst outcome is unmarked.
  */
 
 import {
@@ -30,7 +26,6 @@ import {
 } from 'pdf-lib';
 import type { Region } from '#/lib/pdf/regions';
 
-/** The attachment's name, and how it is found again. */
 export const EDITOR_STATE_FILE = 'pdf-editor-state.json';
 
 /**
@@ -103,11 +98,8 @@ function findEmbeddedFile(
 }
 
 /**
- * Reads back the attachment, if it is there and this version understands it.
- *
- * There is no public pdf-lib API for this — attaching is one-way — so the name
- * tree is walked by hand: catalog → Names → EmbeddedFiles → the file
- * specification → its embedded stream.
+ * pdf-lib's attaching is one-way with no public read API, so the name tree is
+ * walked by hand: catalog → Names → EmbeddedFiles → file spec → its stream.
  */
 export function readEditorState(doc: PDFDocument): EditorState | null {
   try {
@@ -148,9 +140,7 @@ function isRegion(value: unknown): value is Region {
   );
 }
 
-/**
- * What came out of the JSON, if it is state this version can act on.
- */
+/** What came out of the JSON, if it is state this version can act on. */
 function validate(parsed: unknown): EditorState | null {
   if (typeof parsed !== 'object' || parsed === null) return null;
 

@@ -16,13 +16,12 @@ import {
  * The rectangles extraction will cut.
  *
  * Detection proposes a set derived from the checked parts; the moment the user
- * draws or drags one, that proposal stops applying and their list becomes the
- * truth. `manual` holds that takeover — null while the part checkboxes are
- * still in charge.
+ * draws or drags one, their list becomes the truth. `manual` holds that
+ * takeover, and is null while the part checkboxes are still in charge.
  *
- * Because the proposal lives in the score slice, the first hand edit has to be
- * told what was on screen to take over from: that is the `visible` field on
- * these payloads, and it is read only when `manual` is still null.
+ * The proposal lives in the score slice, so the first hand edit has to be told
+ * what was on screen to take over from — the `visible` field on these payloads,
+ * read only while `manual` is still null.
  */
 type RegionsState = {
   manual: Region[] | null;
@@ -54,7 +53,7 @@ export const regionsSlice = createSlice({
       ) {
         const base = editable(state, action.payload.visible);
         // The number depends on the list being joined, which only the reducer
-        // can see; the id does not, which is why it is minted in `prepare`.
+        // can see; the id does not, hence its being minted in `prepare`.
         state.manual = [
           ...base,
           { ...action.payload.region, label: `Region ${base.length + 1}` },

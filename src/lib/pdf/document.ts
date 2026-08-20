@@ -23,16 +23,13 @@ export const MAX_PDF_BYTES = 100 * 1024 * 1024;
 const HEADER_SCAN_BYTES = 1024;
 
 /**
- * One page of the document being edited.
- *
- * `sourceIndex` always points back into the originally uploaded bytes, which we
- * never mutate. Reordering and deleting are therefore just list operations, and
- * the real document is only rebuilt when the user saves.
+ * One page of the document being edited. `sourceIndex` always points back into
+ * the uploaded bytes, which are never mutated, so reordering and deleting are
+ * just list operations and the document is only rebuilt on save.
  */
 export type PageEdit = {
   /** Stable identity for React keys and selection, unrelated to position. */
   id: string;
-  /** Zero-based page index in the original uploaded document. */
   sourceIndex: number;
   /** Absolute rotation in degrees, normalized to 0 | 90 | 180 | 270. */
   rotation: number;
@@ -42,13 +39,10 @@ export type LoadedPdf = {
   name: string;
   /**
    * Pristine bytes of the upload. Never handed to pdf.js, which detaches
-   * buffers.
-   *
-   * "Pristine" means without this app's own marks: a file saved from here
-   * carries them as PDF annotations, and they are lifted out into `annotations`
-   * rather than left in the page. That is what lets the same file be saved over
-   * repeatedly without marks compounding, and keeps pdf.js from painting a mark
-   * the overlay is about to draw again itself.
+   * buffers. "Pristine" means without this app's own marks: they are lifted out
+   * into `annotations` rather than left in the page, which is what lets a file
+   * be saved over repeatedly without marks compounding, and keeps pdf.js from
+   * painting a mark the overlay is about to draw itself.
    */
   bytes: Uint8Array;
   pages: PageEdit[];
@@ -79,12 +73,10 @@ function formatBytes(bytes: number): string {
 
 /**
  * Reads a user-selected file, verifies it really is a PDF, derives the initial
- * page list, and recovers any work this app saved into it.
+ * page list, and recovers any work this app saved into it — all in one pass,
+ * because parsing a 239-page score is the expensive part of opening one.
  *
- * The recovery happens here rather than in a second pass because parsing a
- * 239-page score is the expensive part of opening one, and this has the parsed
- * document in hand already. Throws `PdfLoadError` with a message meant for the
- * UI.
+ * Throws `PdfLoadError` with a message meant for the UI.
  */
 export async function readPdfFile(file: File): Promise<LoadedPdf> {
   if (file.size === 0) {
@@ -130,9 +122,9 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
 
   const annotations = readAnnotationObjects(source);
   const state = readEditorState(source);
-  // Re-serializing is only worth it when there was something to take out. Most
+  // Re-serializing is only worth it when there was something to take out: most
   // documents opened here were never saved from here, and rewriting 100 MB to
-  // remove nothing would be a real cost for no change.
+  // remove nothing is a real cost for no change.
   const stripped = stripAnnotationObjects(source);
 
   return {
@@ -147,9 +139,9 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
 export type SaveOptions = {
   /**
    * `objects` writes each mark as a PDF annotation carrying its own fields, so
-   * reopening the file gets it back as something that can be retyped, dragged
-   * and deleted. `flattened` draws it into the page content, which is what a
-   * part handed to a player wants: ink no viewer can decide not to print.
+   * reopening gets it back as something retypable and draggable. `flattened`
+   * draws it into the page content, which is what a part handed to a player
+   * wants: ink no viewer can decide not to print.
    */
   marks?: 'objects' | 'flattened';
   /** Written only alongside `objects`; flattened output has no session. */
@@ -193,8 +185,8 @@ export async function buildEditedPdf(
     output.addPage(page);
 
     if (!font) return;
-    // Annotations are anchored in the source page's user space, which is exactly
-    // what drawText expects — the page's own rotation carries them along.
+    // Marks are anchored in the source page's user space, which is what drawText
+    // expects — the page's own rotation carries them along.
     const onPage = annotations.filter(
       (annotation) => annotation.pageIndex === pages[index].sourceIndex,
     );
@@ -235,10 +227,7 @@ export function editedFileName(name: string): string {
   return `${withoutExtension || 'document'}-edited.pdf`;
 }
 
-/**
- * Turns what someone typed into a name a download can carry.
- 
- */
+/** Turns what someone typed into a name a download can carry. */
 export function downloadFileName(typed: string, fallback: string): string {
   const base = typed
     .replace(/\.pdf$/i, '')

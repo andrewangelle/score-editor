@@ -2,11 +2,10 @@
  * Everything the performer writes on the score: fingerings, string numbers,
  * left-hand positions and performance notes.
  *
- * An annotation is anchored to a point in the *original* document's user space,
- * never to the extracted output. That is the whole trick: you can mark up the
- * full score, then extract the guitar parts, then extract them again with a
- * different selection, and every note stays welded to the music it describes.
- * Extraction only has to ask "which annotations fall inside this band?".
+ * An annotation is anchored in the *original* document's user space, never in
+ * the extracted output. That is the whole trick: mark up the full score, extract
+ * the guitar parts, extract them again differently, and every note stays welded
+ * to the music it describes — extraction only asks which fall inside a band.
  */
 export type AnnotationKind = 'fingering' | 'string' | 'position' | 'note';
 
@@ -54,10 +53,9 @@ export function toRomanNumeral(value: number): string | null {
 }
 
 /**
- * Puts committed text into the form its kind is engraved in.
- *
- * Returning empty is meaningful:
- * the overlay drops the annotation rather than leaving a blank circle behind.
+ * Puts committed text into the form its kind is engraved in. Returning empty is
+ * meaningful: the overlay drops the annotation rather than leaving a blank
+ * circle behind.
  */
 export function normalizeAnnotationText(
   kind: AnnotationKind,
@@ -72,8 +70,8 @@ export function normalizeAnnotationText(
       : (toRomanNumeral(arabic) ?? '');
   }
 
-  // Two digits so a 12-string or a lute tablature course still fits; more than
-  // that is not a string number and would burst the circle.
+  // Two digits so a 12-string or a lute course still fits; more than that is
+  // not a string number and would burst the circle.
   if (kind === 'string') return trimmed.replace(/\D/g, '').slice(0, 2);
 
   return trimmed;
@@ -104,10 +102,7 @@ export function removeAnnotation(
   return annotations.filter((annotation) => annotation.id !== id);
 }
 
-/**
- * Annotations whose anchor lies inside `rect`. Used both to decide what to bake
- * into an extracted band and to render the overlay for a single page.
- */
+/** Annotations whose anchor lies inside `rect`. */
 export function annotationsWithin(
   annotations: readonly ScoreAnnotation[],
   pageIndex: number,

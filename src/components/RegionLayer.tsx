@@ -21,16 +21,12 @@ import { selectRegions } from '#/store/selectors';
 import { selectIsEditingRegions } from '#/store/tool.slice';
 
 /**
- * Draws and edits the rectangles that extraction will cut.
+ * Draws and edits the rectangles that extraction will cut. Detection seeds them,
+ * but nothing here assumes they came from staves, which is what makes the tool
+ * usable on a misread score and on documents with no staves at all.
  *
- * Detection seeds these, but nothing here assumes they came from staves — drag
- * on empty space to add one, drag an edge to adjust, drag the body to move. This
- * is what makes the tool usable on a score it misread, and on documents that
- * have no staves at all.
- *
- * A drag in progress is local: the rectangle under the pointer is this
- * component's business until the pointer comes up, and only the result is
- * dispatched. The store hears about a move once, not sixty times a second.
+ * A drag in progress is local and only its result is dispatched, so the store
+ * hears about a move once rather than sixty times a second.
  */
 
 const EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
@@ -71,8 +67,8 @@ export function RegionLayer({
   };
 
   /**
-   * Opens a gesture: pins the surface's geometry, and routes the rest of the
-   * pointer stream here wherever it goes.
+   * Pins the surface's geometry and routes the rest of the pointer stream here
+   * wherever it goes.
    */
   function captureGesture(event: React.PointerEvent) {
     surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;

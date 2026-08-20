@@ -1,10 +1,10 @@
 /**
  * Runs staff detection across a whole document and turns it into a part list.
  *
- * A part is identified by its *position* within a system, not by its name:
- * engravers print instrument names only on the first system and abbreviate or
- * omit them thereafter, but staff order is fixed for the whole score. Names are
- * read off the first system purely so the UI has something human to show.
+ * A part is identified by its *position* within a system, never by its name:
+ * engravers print instrument names only on the first system, but staff order is
+ * fixed for the whole score. Names are read off the first system purely so the
+ * UI has something human to show.
  */
 
 import { detectMarkings, type Marking } from '#/lib/pdf/markings';
@@ -17,8 +17,7 @@ import {
 } from '#/lib/pdf/staffDetection';
 
 /**
- * A page's staves plus the markings that belong to them. Markings can only be
- * settled with the whole document in view — see `markings.ts` — so they are
+ * Markings can only be settled with the whole document in view, so they are
  * attached here rather than by the per-page staff finder.
  */
 export type ScorePage = PageStaves & { markings: Marking[] };
@@ -63,9 +62,8 @@ export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
       detected.map((page) => page.text ?? []),
     );
 
-    // `ink` and `text` run to thousands of entries per page and have done their
-    // job by now. This analysis is held in the store, so it must not carry them
-    // any further.
+    // `ink` and `text` run to thousands of entries per page and are done with.
+    // This analysis is held in the store, so it must not carry them further.
     const pages: ScorePage[] = detected.map(
       ({ ink: _ink, text: _text, ...page }, i) => ({
         ...page,

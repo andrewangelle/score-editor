@@ -17,16 +17,13 @@ import {
 import { selectIsEditingRegions, selectPlacing } from '#/store/tool.slice';
 
 /**
- * The interactive layer sitting on top of a rendered page.
+ * The interactive layer on top of a rendered page. It owns the single conversion
+ * between PDF user space and CSS pixels; everything else in the score feature
+ * works purely in PDF space, so this is the only place that handles the flip.
  *
- * It owns the single conversion between PDF user space (origin bottom-left, y
- * upward, points) and CSS pixels (origin top-left, y downward). Every other part
- * of the score feature works purely in PDF space, so this is the only place that
- * has to think about the flip.
- *
- * Typing and dragging are local until they are finished: the store hears the
- * text when the field is left and the position when the pointer comes up, so a
- * note being written is not a stream of dispatches.
+ * Typing and dragging stay local until they finish — the store hears the text on
+ * blur and the position on pointer-up — so writing a note is not a stream of
+ * dispatches.
  */
 
 type ScoreOverlayProps = {
@@ -63,9 +60,9 @@ export function ScoreOverlay({
 
   const surface = useRef<HTMLDivElement>(null);
   /**
-   * The surface's screen box, pinned while a note is being dragged. Measuring it
-   * reflows the page under it — canvas plus pdf.js's text layer — so doing it
-   * per pointermove costs a full layout every frame. Nothing moves mid-drag.
+   * The surface's screen box, pinned while a note is dragged. Measuring reflows
+   * the page under it, so doing it per pointermove costs a layout every frame —
+   * and nothing moves mid-drag.
    */
   const surfaceBox = useRef<DOMRect | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -83,10 +80,9 @@ export function ScoreOverlay({
   );
 
   function commitDraft(id: string, kind: AnnotationKind) {
-    // A note nobody typed into is not a note; leaving it blank removes it. The
-    // draft is judged after normalizing, so a string number typed as letters —
-    // which has no engravable form — counts as blank rather than becoming an
-    // empty circle.
+    // Leaving a note blank removes it. Judged after normalizing, so a string
+    // number typed as letters — which has no engravable form — counts as blank
+    // rather than becoming an empty circle.
     if (normalizeAnnotationText(kind, draft)) {
       dispatch(annotationRetitled({ id, text: draft }));
     } else {
@@ -113,19 +109,18 @@ export function ScoreOverlay({
       className={`absolute inset-0 ${interactive ? '' : 'pointer-events-none'} ${
         placing ? 'cursor-crosshair' : ''
       }`}
-      // A bare div is the right element here: it is a coordinate surface, not a
-      // control, and every actual affordance inside it is a real button.
+      // A bare div is right here: a coordinate surface, not a control, and every
+      // actual affordance inside it is a real button.
       onPointerMove={(event) => {
         if (!drag) return;
         const point = toPdf(event.clientX, event.clientY);
         if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
       }}
-      // Placement waits for the release, and that is load-bearing rather than a
-      // preference. This surface is not focusable, so the browser's default
-      // handling of the *press* moves focus to the body — which would blur the
-      // editor opened here the moment it mounts, and a blank note that loses
-      // focus deletes itself. By the time the pointer comes up that focus move
-      // has already happened, and nothing afterwards takes focus back.
+      // Placement waits for the release, and that is load-bearing. This surface
+      // is not focusable, so the browser's handling of the *press* moves focus
+      // to the body, blurring the editor opened here the moment it mounts — and
+      // a blank note that loses focus deletes itself. By pointer-up that focus
+      // move has already happened and nothing afterwards takes focus back.
       onPointerUp={(event) => {
         // A note being dragged also releases here; that is not a placement.
         if (drag) {
@@ -135,8 +130,7 @@ export function ScoreOverlay({
         if (!placing || event.target !== event.currentTarget) return;
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
-        // A freshly placed note is useless empty, so it opens straight into its
-        // editor — which needs the id the action just minted.
+        // Opens straight into its editor, which needs the id just minted.
         const placed = dispatch(
           annotationPlaced({
             pageIndex,
@@ -156,18 +150,18 @@ export function ScoreOverlay({
       {systems.map((system) =>
         system.staves.map((staff, ordinal) => {
           // The page's systems, so the hint agrees with the region drawn over
-          // it: both stop at the halfway line between one system and the next.
+          // it: both stop halfway between one system and the next.
           const bounds = staffBounds(system, ordinal, systems);
           const part = parts[ordinal];
 
           return (
-            // Position is the stable identity here: no two staves on a page
-            // share a top edge, and it survives re-detection.
+            // Position is the stable identity: no two staves on a page share a
+            // top edge, and it survives re-detection.
             <div
               key={`${staff.top}-${staff.left}`}
               aria-hidden
-              // A quiet hint of what detection found. The extraction rectangles
-              // themselves are drawn by RegionLayer on top of this.
+              // A quiet hint of what detection found; RegionLayer draws the
+              // extraction rectangles themselves on top of this.
               className="pointer-events-none absolute border-slate-400/40 border-l-2 bg-slate-900/4"
               style={{
                 left: 0,
@@ -187,12 +181,12 @@ export function ScoreOverlay({
       )}
 
       {pageAnnotations.map((annotation) => {
-        // While this note is being dragged its position is local, so the
-        // rendered anchor follows the pointer rather than the store.
+        // Mid-drag the position is local, so the anchor follows the pointer
+        // rather than the store.
         const anchor = drag?.id === annotation.id ? drag : annotation;
         const screen = toScreenPoint(anchor, pageHeight, scale);
-        // Below about 9px the shorthand stops being legible on screen, however
-        // small it is engraved; the baked PDF keeps the true size either way.
+        // Below ~9px the shorthand stops being legible on screen however small
+        // it is engraved; the baked PDF keeps the true size either way.
         const fontSize = Math.max(9, annotation.size * scale);
         const circled = annotation.kind === 'string';
 
@@ -240,8 +234,8 @@ export function ScoreOverlay({
                   setDraft(annotation.text);
                 }}
                 title="Double-click to edit, drag to move"
-                // A string number is circled here as it will be when baked, so
-                // the page on screen reads as the page that comes out.
+                // Circled here as it will be when baked, so the page on screen
+                // reads as the page that comes out.
                 className={`cursor-move whitespace-nowrap bg-white/80 font-medium text-blue-700 leading-none hover:bg-blue-50 ${
                   circled
                     ? 'flex items-center justify-center rounded-full border border-blue-700'

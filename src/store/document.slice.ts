@@ -18,13 +18,11 @@ import {
 /**
  * Work recovered from the file that was just opened.
  *
- * A standalone action rather than a reducer, because it belongs to no one slice:
- * the marks go to the annotations slice, the rectangles to the regions slice,
- * the part selection and renames to the score slice. It lives here beside
- * `documentOpened` because it is the second half of the same event, and must be
- * dispatched after it — every slice resets itself on the open.
+ * A standalone action because it belongs to no one slice: marks go to
+ * annotations, rectangles to regions, the part selection to score. It must be
+ * dispatched *after* `documentOpened` — every slice resets itself on the open.
  *
- * The document slice itself ignores this. Page arrangement is session-local by
+ * The document slice itself ignores it. Page arrangement is session-local by
  * design: a deleted page's content is genuinely absent from the saved file, so
  * no record of the deletion could put it back.
  */
@@ -38,10 +36,9 @@ export const documentRestored = createAction<{
  * The document being edited: which pages it has, in what order, and how far the
  * user has strayed from the upload.
  *
- * The pristine bytes are not here — see `#/lib/pdf/documentBytes`. `id` is what
- * ties this state to that buffer, and `original` is what "unchanged" and
- * "reset" are measured against, since editing only ever rebuilds this page
- * list; the source document itself is untouched until save.
+ * The pristine bytes live in `#/lib/pdf/documentBytes`; `id` ties this state to
+ * that buffer. Editing only ever rebuilds this page list — the source document
+ * is untouched until save.
  */
 type DocumentState = {
   /** Null when no document is open; otherwise the key for the held bytes. */
@@ -54,26 +51,20 @@ type DocumentState = {
   history: PageEdit[][];
   selectedPageId: string | null;
   /**
-   * Bumped on every committed page change, undo and reset included.
-   *
-   * It exists so a message about the document — "Saved score.pdf" — can say
-   * which version of it it was true for, and stop being shown once that is no
-   * longer the version on screen.
+   * Bumped on every committed page change, undo and reset included, so a message
+   * about the document ("Saved score.pdf") can say which version it was true
+   * for and stop being shown once that is no longer what is on screen.
    */
   revision: number;
   /**
-   * The revision last written back over the source file, or null if it never
-   * has been — which is the only state a document opened without a writable
-   * handle can be in.
+   * The revision last written back over the source file. Null if it never has
+   * been, the only state a document opened without a writable handle can be in.
    */
   savedRevision: number | null;
   /**
-   * Whether the source file still holds this document at all.
-   *
-   * False once extraction has been written over it: the file then holds cut
-   * regions, which no revision of this document is. Without this the header
-   * would go on calling a document "saved" while the file it names contains
-   * something else entirely.
+   * False once extraction has been written over the source file: it then holds
+   * cut regions, which no revision of this document is. Without this the header
+   * would go on calling a document "saved" while the file holds something else.
    */
   fileHoldsDocument: boolean;
 };
@@ -91,11 +82,10 @@ const initialState: DocumentState = {
 };
 
 /**
- * Commits a new page list, recording the previous one for undo.
- *
- * `change` is handed a plain snapshot rather than the draft, so the edit
- * helpers' "returns its input when nothing moved" contract still holds by
- * identity here and keeps no-ops off the undo stack.
+ * Commits a new page list, recording the previous one for undo. `change` is
+ * handed a plain snapshot rather than the draft, so the edit helpers' "returns
+ * its input when nothing moved" contract still holds by identity and keeps
+ * no-ops off the undo stack.
  */
 function commit(
   state: DocumentState,
@@ -141,11 +131,9 @@ export const documentSlice = createSlice({
     },
 
     /**
-     * The edits as they stand are now what the source file contains.
-     *
-     * Only saving over the file itself counts. Downloading a copy leaves the
-     * original exactly as unsaved as it was, which is the whole difference
-     * between the two buttons.
+     * The edits as they stand are now what the source file contains. Only
+     * saving over the file itself counts — downloading a copy leaves the
+     * original exactly as unsaved as it was.
      */
     documentSaved(state) {
       state.savedRevision = state.revision;
@@ -154,12 +142,9 @@ export const documentSlice = createSlice({
     },
 
     /**
-     * Something that is not this document — the extracted regions — has been
-     * written over the source file.
-     *
-     * The document itself is untouched and still on screen; what changed is
-     * that the file no longer agrees with it, and no amount of undoing will
-     * make it agree again. Only saving over it will.
+     * The extracted regions have been written over the source file. The document
+     * is untouched and still on screen; the file simply no longer agrees with
+     * it, and no amount of undoing will make it agree — only saving over it.
      */
     documentFileReplaced(state) {
       state.fileHoldsDocument = false;
@@ -194,8 +179,7 @@ export const documentSlice = createSlice({
       if (removedAt === -1) return;
 
       commit(state, (pages) => removePage(pages, action.payload));
-      // Whatever slid into the deleted page's place is the natural next
-      // selection, falling back to the new last page.
+      // Whatever slid into the deleted page's place is the next selection.
       keepSelectionValid(state, removedAt);
     },
 
@@ -228,12 +212,10 @@ export const documentSlice = createSlice({
     selectCanUndo: (state) => state.history.length > 0,
     selectIsDirty: (state) => !isUnchanged(state.pages, state.original),
     /**
-     * Whether the file this document came from is behind what is on screen.
-     *
-     * Before the first save that is just dirtiness against the upload. After
-     * one it is measured against what was written instead, because undoing back
-     * to the uploaded page list no longer means the file agrees — it now holds
-     * the version that was saved over it.
+     * Before the first save this is just dirtiness against the upload. After
+     * one it is measured against what was written, because undoing back to the
+     * uploaded page list no longer means the file agrees — it holds the version
+     * that was saved over it.
      */
     selectHasUnsavedChanges: (state) =>
       !state.fileHoldsDocument ||

@@ -8,13 +8,10 @@ type SaveCopyPromptProps = {
 };
 
 /**
- * Names the copy before it is written.
- *
- * A download cannot be taken back or renamed from here — the browser has put it
- * on disk by the time anything else runs — so the name is asked for on the way
- * out rather than corrected afterwards. It opens with the name the copy would
- * have had, selected up to the extension: pressing Enter is still the old
- * one-click save, and typing replaces just the part worth changing.
+ * Names the copy before it is written. A download cannot be taken back or
+ * renamed from here, so the name is asked for on the way out. It opens holding
+ * the default, selected up to the extension: Enter is still a one-click save,
+ * and typing replaces just the part worth changing.
  */
 export function SaveCopyPrompt({
   suggestion,

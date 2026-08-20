@@ -1,12 +1,9 @@
 /**
  * Regions: the rectangles that extraction actually operates on.
  *
- * Staff detection is only one way to produce these. A region is a plain
- * rectangle on a source page, so the same extraction path serves "give me the
- * guitar staves" and "give me this box I drew on a spreadsheet". Detection
- * proposes; the user disposes.
- *
- * All coordinates are PDF user space (origin bottom-left, y upward, points).
+ * A region is a plain rectangle on a source page, so the same extraction path
+ * serves "give me the guitar staves" and "give me this box I drew". Staff
+ * detection only proposes them; the user disposes.
  */
 
 import {
@@ -85,15 +82,14 @@ const NEIGHBOUR_CLEARANCE = 1;
 
 export type Edge = 'top' | 'bottom' | 'left' | 'right';
 
-/** Halfway between two staves that face each other across a gap. */
 function midpoint(near: number, far: number): number {
   return (near + far) / 2;
 }
 
 /**
- * The nearest staff on the page above this one, whatever system it belongs to,
- * or null at the top of the page. Found by geometry rather than by position in
- * a list, so it does not depend on how the systems came to be ordered.
+ * The nearest staff above this one, whatever system it belongs to. Found by
+ * geometry rather than list position, so it does not depend on how the systems
+ * came to be ordered.
  */
 function staffAbove(staff: Staff, page: readonly System[]): Staff | null {
   let found: Staff | null = null;
@@ -122,24 +118,17 @@ function staffBelow(staff: Staff, page: readonly System[]): Staff | null {
 /**
  * Vertical extent to give each staff.
  *
- * Two things have to hold at once. The band must reach far enough to keep
- * everything that belongs to the staff — ledger lines and notes stacked well
- * above it, dynamics well below — which is what detection recorded in
- * `contentTop`/`contentBottom`. And it must still claim at least half the space
- * to each neighbour, so a slur or fingering sitting in the gap, which detection
- * may have assigned to the staff on the other side, is not sliced in two.
+ * Within a system the band is the larger of `contentTop`/`contentBottom` and
+ * half the space to each neighbour, stopped just short of the neighbour's own
+ * lines: staves of one system are read together, so two bands cut from it
+ * sharing the ink between them is the point, and a slur in the gap that
+ * detection assigned to the other side is not sliced in two.
  *
- * So within a system the band is the larger of the two, stopped just short of
- * the neighbouring staff's own lines. Staves of one system are read together,
- * and two bands cut from it sharing the ink between them is the point.
- *
- * Across systems it is the opposite: the next system is different music, and a
- * band that reached into it would carry a second line of the score along with
- * the one it is for. `contentTop`/`contentBottom` cannot be trusted to stop on
- * their own — they chain outwards through whatever ink they find, and a column
- * of performance marks written into the gap will bridge one system to the next
- * quite happily — so the gap between two systems is simply halved. Both sides
- * compute the same midpoint, so their bands meet there and never overlap.
+ * Across systems it is the opposite — the next system is different music. The
+ * content bounds cannot be trusted to stop there, since they chain outwards
+ * through whatever ink they find and a column of performance marks in the gap
+ * bridges one system to the next quite happily. So that gap is simply halved:
+ * both sides compute the same midpoint and their bands meet without overlapping.
  */
 export function staffBounds(
   system: System,
@@ -149,7 +138,7 @@ export function staffBounds(
   options: LayoutOptions = DEFAULT_LAYOUT,
 ): { top: number; bottom: number } {
   const staff = system.staves[index];
-  // Nominal height, so a one-line percussion staff still gets real padding.
+  // Nominal, so a one-line percussion staff still gets real padding.
   const height = staffHeight(staff);
   const above = system.staves[index - 1];
   const below = system.staves[index + 1];
@@ -188,7 +177,7 @@ export function staffBounds(
   };
 }
 
-/** Builds a rectangle from two arbitrary corners, in either drag direction. */
+/** Builds a rectangle from two corners, in either drag direction. */
 export function rectFromPoints(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -313,16 +302,13 @@ function extent(markings: readonly Marking[]): { bottom: number; top: number } {
 }
 
 /**
- * Groups a region's markings into the lines they were engraved on.
+ * Groups a region's markings into the lines they were engraved on. Sharing more
+ * than half a height makes them one line: marks that merely graze each other are
+ * two lines sitting close, and stacking those as one is how a section title
+ * lands on top of a tempo mark.
  *
- * A tempo mark and the measure number beside it share a line in the score and
- * should share one above the extracted band; a section title set above them both
- * is a second line. Sharing more than half a height is what makes them one line:
- * marks that merely graze each other are two lines that happen to sit close, and
- * stacking those as one is how a title lands on top of a tempo mark.
- *
- * Rows come back nearest-first: the line that sat lowest in the score is the one
- * that sits closest to the music it describes.
+ * Rows come back nearest-first — the line lowest in the score is the one closest
+ * to the music it describes.
  */
 export function markingRows(region: Region): MarkingRow[] {
   const markings = [...(region.markings ?? [])].sort(
@@ -370,12 +356,10 @@ export function markingStackHeight(
 
 /**
  * The markings a rectangle should carry: everything its system says that the
- * rectangle does not already contain.
- *
- * A repeated marking counts as contained when *any* of its copies falls inside —
- * a score that numbers every instrumental group puts the same number in seven
- * places down one system, and a band holding one of them must not have a second
- * stamped above it.
+ * rectangle does not already contain. A repeated marking counts as contained
+ * when *any* of its copies falls inside — a score numbering every instrumental
+ * group puts the same number in seven places down one system, and a band holding
+ * one of them must not have a second stamped above it.
  */
 export function markingsFor(
   rect: Rect,
@@ -397,10 +381,10 @@ export function markingsFor(
 /**
  * Derives regions from detected staves and a part selection.
  *
- * Adjacent selected staves become a single region so the barlines and bracket
- * joining them survive; separating them would slice those in half. Systems whose
- * staff count differs from the selection still contribute whatever ordinals they
- * do have, so an occasional condensed system degrades rather than failing.
+ * Adjacent selected staves become one region so the barlines and bracket joining
+ * them survive. Systems whose staff count differs from the selection contribute
+ * whatever ordinals they do have, so a condensed system degrades rather than
+ * failing.
  */
 export function regionsFromParts(
   pages: readonly DerivedSource[],

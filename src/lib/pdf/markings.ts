@@ -1,33 +1,24 @@
 /**
  * Measure numbers and tempo marks: the text that tells a player where they are.
  *
- * A score engraves these once for the whole system — almost always in the strip
- * above its top staff — because one conductor reads all of it at once. Cutting a
- * single instrument out of that score is a horizontal slice, and the slice stops
- * a long way below that strip, so every part but the topmost comes out with no
- * bar numbers and no tempo at all. That is the one omission a player cannot work
- * around: an unnumbered part cannot be rehearsed from.
+ * A score engraves these once per system, in the strip above its top staff.
+ * Cutting one instrument out is a horizontal slice that stops well below that
+ * strip, so every part but the topmost comes out unnumbered — and an unnumbered
+ * part cannot be rehearsed from.
  *
- * Nothing here matches placement against a template, because there is no
- * template to match. Engravers number every bar, or the first bar of each
- * system; above the top staff, above each instrumental group, or below the
- * bottom staff; bare, boxed, or in brackets. Tempo marks sit wherever the bar
- * they apply to happens to fall. So both are read from evidence that survives
- * the house style:
+ * Nothing here matches placement against a template, because engravers vary all
+ * of it: every bar or the first of each system, above the top staff or below the
+ * bottom one, bare or boxed. Both are read from evidence that survives any house
+ * style instead:
  *
  *  - a **measure number** is a bare number printed in the same place relative to
- *    a staff throughout the document, whose values only ever increase as the
- *    score is read. That is what a measure number *is*, and it is precisely what
- *    tuplet digits, fingerings and time signatures are not.
- *  - a **tempo mark** is text — set in a text font rather than the notation
- *    font — sitting in the free strip above a system, which is space notation
- *    itself does not use.
+ *    a staff throughout the document, whose values only ever increase — which is
+ *    precisely what tuplet digits, fingerings and time signatures are not.
+ *  - a **tempo mark** is text in a text font (not the notation font) sitting in
+ *    the free strip above a system, space notation itself does not use.
  *
- * Page numbers pass the first test as convincingly as measure numbers do, so
- * they are told apart by the one thing that makes them page numbers: their value
- * is the page they are printed on.
- *
- * Coordinates are PDF user space throughout, as everywhere else in this folder.
+ * Page numbers pass the first test too, so they are told apart by the one thing
+ * that makes them page numbers: their value is the page they are printed on.
  */
 
 import type {
@@ -51,13 +42,9 @@ export type Marking = {
 };
 
 export type MarkingOptions = {
-  /**
-   * How far beyond a staff's outermost line a marking may sit.
-   */
+  /** How far beyond a staff's outermost line a marking may sit, in staff heights. */
   reach: number;
-  /**
-   * How far outside the system's horizontal span a marking may sit
-   */
+  /** How far outside the system's horizontal span a marking may sit. */
   sideReach: number;
   padding: number;
 };
@@ -69,8 +56,8 @@ export const DEFAULT_MARKINGS: MarkingOptions = {
 };
 
 /**
- * A marking-shaped piece of text, before the document as a whole has had its
- * say about whether it is one.
+ * A marking-shaped piece of text, before the document as a whole has had its say
+ * about whether it is one. `offset`, `rightGap` and `size` are in staff heights.
  */
 export type Candidate = {
   pageIndex: number;
@@ -79,9 +66,9 @@ export type Candidate = {
   side: 'above' | 'below';
   text: string;
   rect: Rect;
-  /** Distance from the staff's outermost line */
+  /** Distance from the staff's outermost line. */
   offset: number;
-  /** How far short of the system's right edge it stops*/
+  /** How far short of the system's right edge it stops. */
   rightGap: number;
   size: number;
   value: number | null;
@@ -104,7 +91,6 @@ function median(values: number[]): number {
     : sorted[middle];
 }
 
-/** Welds items already known to belong together into one run. */
 function mergeRun(items: readonly PageTextItem[]): PageTextItem {
   const rect = {
     left: Math.min(...items.map((item) => item.rect.left)),
@@ -124,10 +110,9 @@ function mergeRun(items: readonly PageTextItem[]): PageTextItem {
     str += (spaced ? ' ' : '') + item.str;
   });
 
-  // The run's font is the one that sets most of it. A metronome mark begins
-  // with a note glyph from the notation font and continues "= 120" in a text
-  // font; reading the first item's font would file the whole mark as notation
-  // and throw it away.
+  // The run's font is the one that sets most of it: a metronome mark opens with
+  // a notation-font note glyph and continues "= 120" in a text font, so reading
+  // the first item's font would file the whole mark as notation and discard it.
   const dominant = [...items].sort(
     (a, b) =>
       b.rect.right - b.rect.left - (a.rect.right - a.rect.left) ||
@@ -142,12 +127,10 @@ function mergeRun(items: readonly PageTextItem[]): PageTextItem {
 }
 
 /**
- * Joins text items that sit on one baseline into runs.
- *
- * A tempo mark reaches the text layer in pieces: the metronome's note is one
- * item in the notation font, "= 120" another in the text font, the caption
- * before it a third. Read separately they are three cryptic fragments; read as a
- * run they are one marking with one rectangle, which is what has to be lifted.
+ * Joins text items that sit on one baseline into runs. A tempo mark reaches the
+ * text layer in pieces — the metronome's note, "= 120", the caption before it —
+ * which read separately are cryptic fragments and read as a run are one marking
+ * with one rectangle, which is what has to be lifted.
  */
 export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
   const usable = items.filter((item) => item.str.trim().length > 0);
@@ -203,13 +186,11 @@ export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
 /**
  * Which of the page's fonts are notation fonts.
  *
- * Noteheads, clefs, rests and dynamics reach the text layer exactly as words do,
- * so "text above the staff" would otherwise collect every high note on the page.
- * They are told apart by where they land: notation is set *on* the staff, so a
- * font whose glyphs mostly fall between staff lines is the notation font —
- * whatever it is called, and whether or not we have ever met the engraver's
- * software. Reading this from usage rather than from a list of font names is
- * what keeps it working on the next score.
+ * Noteheads, clefs and rests reach the text layer exactly as words do, so "text
+ * above the staff" would otherwise collect every high note on the page. They are
+ * told apart by where they land: a font whose glyphs mostly fall between staff
+ * lines is the notation font. Reading this from usage rather than a list of font
+ * names is what keeps it working on the next score.
  */
 export function notationFonts(
   items: readonly PageTextItem[],
@@ -237,18 +218,17 @@ export function notationFonts(
 
   const notation = new Set<string>();
   for (const [font, count] of tally) {
-    // A handful of glyphs is too small a sample to judge; a font that rare
-    // cannot be carrying the page's notation anyway.
+    // Too small a sample to judge, and a font that rare cannot be carrying the
+    // page's notation anyway.
     if (count.total >= 4 && count.on / count.total >= 0.5) notation.add(font);
   }
   return notation;
 }
 
 /**
- * Measures a run against the staff it sits by, in units of that staff's own
- * height. Scores are engraved at wildly different sizes — a pocket score and a
- * conductor's score of the same piece differ threefold — so every placement
- * judgement downstream is made in staff heights rather than points.
+ * Measures a run against the staff it sits by, in that staff's own heights: a
+ * pocket score and a conductor's score of the same piece differ threefold, so
+ * every placement judgement downstream is made in staff heights, never points.
  */
 function against(
   run: PageTextItem,
@@ -279,16 +259,13 @@ function against(
 }
 
 /**
- * Grows a marking's rectangle to take in whatever is drawn around it.
+ * Grows a marking's rectangle to take in whatever is drawn around it. Engravers
+ * box measure numbers and draw a metronome's note as paths as often as glyphs;
+ * lifting only the text's own box cuts the enclosure in half and leaves a stray
+ * rule floating above the number, which reads as damage.
  *
- * Engravers box measure numbers and rehearsal marks, and draw a metronome
- * mark's note as paths as often as glyphs. Lifting only the text's own box cuts
- * the enclosure in half and leaves a stray rule floating above the number, which
- * reads as damage rather than engraving.
- *
- * Only ink close to the marking's own size counts, so the staff lines, the
- * barlines and the page background — each of which crosses the rectangle —
- * cannot swallow it. Growth is capped for the same reason.
+ * Only ink close to the marking's own size counts, so the staff lines, barlines
+ * and page background crossing the rectangle cannot swallow it.
  */
 function enclosure(rect: Rect, ink: readonly Rect[], limit: number): Rect {
   const width = rect.right - rect.left;
@@ -321,11 +298,8 @@ function enclosure(rect: Rect, ink: readonly Rect[], limit: number): Rect {
 }
 
 /**
- * The strip of free space on one side of a staff.
- *
- * Bounded by whatever is next in that direction — the neighbouring staff, the
- * system above, the edge of the page — so a marking is never read off music that
- * belongs to someone else.
+ * The strip of free space on one side of a staff, bounded by whatever is next in
+ * that direction, so a marking is never read off someone else's music.
  */
 function strip(
   staff: Staff,
@@ -346,9 +320,8 @@ function strip(
 }
 
 /**
- * Everything on one page that could be a marking, with no judgement yet about
- * whether it is one — that takes the whole document, and happens in
- * `resolveMarkings`.
+ * Everything on one page that could be a marking. Whether it is one takes the
+ * whole document to say, and is settled in `resolveMarkings`.
  */
 export function pageCandidates(
   page: PageStaves,
@@ -406,10 +379,9 @@ export function pageCandidates(
               : run.rect.top <= near && run.rect.top >= far;
           if (!inside) continue;
 
-          // Notation glyphs are the staff's own music. They already travel with
-          // it, and stamping a stray notehead onto another part would be noise.
-          // Digits are exempt: a measure number is often set in the notation
-          // font, which carries the numerals used for time signatures.
+          // Notation glyphs already travel with the staff, and stamping a stray
+          // notehead onto another part would be noise. Digits are exempt: bar
+          // numbers are often set in the notation font, which carries numerals.
           const value = numericValue(run.str);
           if (value === null && notation.has(run.fontName)) continue;
 
@@ -438,13 +410,11 @@ function inReadingOrder(candidates: readonly Candidate[]): Candidate[] {
 }
 
 /**
- * Groups numeric candidates by where they sit relative to their staff.
- *
- * Engraved position is astonishingly consistent — a house style picks one offset
- * and one size and holds them for the whole score — so a group built this way is
- * one *role*: all the measure numbers, or all the page numbers, or all the
- * fingerings. Judging the role once per group rather than once per number is
- * what lets a single wrongly-placed digit be outvoted by its neighbours.
+ * Groups numeric candidates by where they sit relative to their staff. A house
+ * style holds one offset and size for the whole score, so a group built this way
+ * is one *role* — all the bar numbers, or all the page numbers, or all the
+ * fingerings — and judging the role per group rather than per number lets a
+ * single wrongly-placed digit be outvoted by its neighbours.
  */
 function byPlacement(candidates: readonly Candidate[]): Candidate[][] {
   const sorted = [...candidates].sort(
@@ -454,10 +424,9 @@ function byPlacement(candidates: readonly Candidate[]): Candidate[][] {
 
   for (const candidate of sorted) {
     const group = groups.at(-1);
-    // Measured against the group's first member rather than its last, so a
-    // group can never creep: page numbers sit a little further out than bar
-    // numbers, and a chain of near-misses between them would otherwise merge
-    // the two roles into one unreadable group.
+    // Measured against the group's first member, not its last, so a group can
+    // never creep: page numbers sit a little further out than bar numbers, and a
+    // chain of near-misses would otherwise merge the two roles into one.
     const anchor = group?.[0];
     if (
       anchor &&
@@ -475,13 +444,10 @@ function byPlacement(candidates: readonly Candidate[]): Candidate[][] {
 }
 
 /**
- * Are these page numbers?
- *
- * A page number is the one number in a score whose value is fixed by where it is
- * printed rather than by the music, so it is the one number we can identify
- * outright. Most of a group has to agree before the group is thrown out, which
- * keeps a score whose bar numbers briefly coincide with its page numbers from
- * losing them.
+ * A page number's value is fixed by where it is printed rather than by the
+ * music, making it the one number identifiable outright. Most of a group must
+ * agree before it is thrown out, so a score whose bar numbers briefly coincide
+ * with its page numbers does not lose them.
  */
 function arePageNumbers(group: readonly Candidate[]): boolean {
   const matching = group.filter(
@@ -520,16 +486,13 @@ const AGREEMENT = 0.8;
 /**
  * The measure numbers in one placement group, if that is what it holds.
  *
- * The music only goes forwards, so its numbering only goes up — and a group is
- * judged by the longest run through it that does. Tuplet digits, fingerings and
- * string numbers recur at whatever value the music calls for, so their longest
- * run is flat: it never rises, and it holds one or two values between them.
+ * Music only goes forwards, so its numbering only goes up, and a group is judged
+ * by the longest run through it that does. Tuplet digits and fingerings recur at
+ * whatever value the music calls for, so their longest run is flat.
  *
- * Demanding that the *whole* group climb would be too brittle to use. A single
- * tuplet printed at the same height as the bar numbers would otherwise throw
- * away every bar number in the score, and that is exactly what real engraving
- * does. So most of the group has to agree, and the run that agrees is also the
- * answer — the interlopers are left behind with the same stroke that finds them.
+ * Requiring the *whole* group to climb is too brittle: one tuplet printed at bar
+ * number height would discard every bar number in the score. So most of the
+ * group has to agree, and the run that agrees is also the answer.
  */
 function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
   if (group.length === 0 || arePageNumbers(group)) return [];
@@ -541,17 +504,16 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
     chain.length >= 2 &&
     chain.length / group.length >= AGREEMENT &&
     values[values.length - 1] > values[0] &&
-    // A numbering counts through many values; a group of tuplets that happens
-    // to end higher than it started still only ever says two or three things.
+    // A numbering counts through many values; tuplets that happen to end higher
+    // than they started still only ever say two or three things.
     new Set(values).size >= Math.min(3, chain.length)
   ) {
     return chain;
   }
 
-  // Placement alone cannot always keep page numbers and bar numbers apart — a
-  // score that hangs both in the top margin puts them within a line of each
-  // other — and mixed together neither reads as a numbering. Page numbers are
-  // the ones that can be named outright, so they are the ones to stand down.
+  // A score hanging both in the top margin puts them within a line of each
+  // other, and mixed together neither reads as a numbering. Page numbers can be
+  // named outright, so they are the ones to stand down.
   const withoutPages = group.filter(
     (candidate) => candidate.value !== candidate.pageIndex + 1,
   );
@@ -561,21 +523,18 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
 }
 
 /**
- * Strips out the page's own furniture from the tempo-mark candidates.
- *
- * Two things live in the same strip as a tempo mark without being one. A title
- * is set far larger than any marking, and a running header or a credit line
- * repeats itself verbatim page after page — neither of which a tempo mark, which
- * says something new each time it appears, ever does.
+ * Strips the page's own furniture out of the tempo-mark candidates. Two things
+ * share that strip without being tempo marks: a title, set far larger than any
+ * marking, and a running header or credit line, which repeats verbatim page
+ * after page where a tempo mark says something new each time.
  */
 function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
   if (candidates.length === 0) return [];
 
   const typical = median(candidates.map((candidate) => candidate.size));
 
-  // Keyed on the words *and* where on the line they fall: a running header is
-  // pinned to one spot page after page, while a tempo that returns later in the
-  // piece returns at whatever bar it applies to.
+  // Keyed on the words *and* where they fall: a running header is pinned to one
+  // spot page after page, while a tempo returns at whatever bar it applies to.
   const place = (candidate: Candidate) =>
     `${candidate.text}@${Math.round(candidate.rect.left / 4)}`;
   const repeats = new Map<string, Set<number>>();
@@ -586,12 +545,11 @@ function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
   }
 
   return candidates.filter((candidate) => {
-    // A title is set far larger than any marking around it.
     if (typical > 0 && candidate.size > typical * 1.75) return false;
     if ((repeats.get(place(candidate))?.size ?? 0) >= 3) return false;
 
-    // A composer credit is set flush with the end of the system, where a
-    // marking — which belongs to a bar, and so to a point along it — never is.
+    // A composer credit sits flush with the end of the system, where a marking —
+    // which belongs to a bar, and so to a point along it — never is.
     const words = candidate.text.split(/\s+/).length;
     const flushRight = Math.abs(candidate.rightGap) <= 0.35;
     return !(flushRight && words >= 2 && !/[\d=]/.test(candidate.text));
@@ -600,7 +558,6 @@ function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
 
 /**
  * Decides, with the whole document in view, which candidates are markings.
- *
  * Returns one list per page, indexed as `pages` was given.
  */
 export function resolveMarkings(
@@ -616,16 +573,16 @@ export function resolveMarkings(
     }
   }
 
-  // Tempo marks are read off the system header only. Text above an inner staff
-  // is that player's own instruction — "pizz.", "with distortion" — and stamping
-  // it onto everyone else's part would be a lie about who plays what.
+  // Tempo marks come off the system header only: text above an inner staff is
+  // that player's own instruction ("pizz."), and stamping it onto everyone
+  // else's part would be a lie about who plays what.
   const prose = candidates.filter(
     (candidate) =>
       candidate.value === null &&
       candidate.side === 'above' &&
       candidate.staffIndex === 0 &&
-      // Something has to be said. A tuplet's "3:2" is digits and a colon; a
-      // marking carries words, or the "=" of a metronome mark.
+      // A tuplet's "3:2" is digits and a colon; a marking carries words, or the
+      // "=" of a metronome mark.
       /[=\p{L}]/u.test(candidate.text),
   );
   for (const candidate of withoutFurniture(prose)) {
@@ -649,10 +606,8 @@ export function resolveMarkings(
 }
 
 /**
- * Reads the markings of a whole document.
- *
- * `text` is indexed alongside `pages`; a page with no text layer contributes an
- * empty list rather than failing the read.
+ * Reads the markings of a whole document. `text` is indexed alongside `pages`; a
+ * page with no text layer contributes an empty list rather than failing the read.
  */
 export function detectMarkings(
   pages: readonly PageStaves[],
@@ -664,8 +619,8 @@ export function detectMarkings(
   );
 
   // Measurement is done on the text's own box, above; what gets *lifted* is
-  // widened here, once a candidate has been accepted, so that presentation
-  // never moves the goalposts for classification.
+  // widened here, after acceptance, so presentation never moves the goalposts
+  // for classification.
   return resolveMarkings(candidates, pages.length).map((markings, index) => {
     const page = pages[index];
     const ink = page?.ink ?? [];
@@ -684,7 +639,6 @@ export function detectMarkings(
   });
 }
 
-/** Whether a marking is already inside a rectangle being cut. */
 export function markingWithin(marking: Marking, rect: Rect): boolean {
   return (
     marking.rect.left >= rect.left &&
@@ -695,17 +649,14 @@ export function markingWithin(marking: Marking, rect: Rect): boolean {
 }
 
 /**
- * What makes two markings the same marking.
- *
- * Scores that number every instrumental group repeat one number down the whole
- * system, once per group: same words, same column, different heights. A part cut
- * from that system wants it once.
+ * Scores that number every instrumental group repeat one number down the system,
+ * once per group: same words, same column, different heights. A part cut from
+ * that system wants it once.
  */
 export function markingKey(marking: Marking): string {
   return `${marking.kind}:${marking.text}:${Math.round(marking.rect.left)}`;
 }
 
-/** Drops markings that say the same thing in the same place twice. */
 export function dedupeMarkings(markings: readonly Marking[]): Marking[] {
   const seen = new Set<string>();
   return markings.filter((marking) => {

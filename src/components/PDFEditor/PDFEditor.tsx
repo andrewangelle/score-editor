@@ -76,9 +76,9 @@ export function PDFEditor() {
   const revision = useAppSelector(selectRevision);
 
   /**
-   * The last save, tagged with the document version it described. Any page
-   * edit — from here or from the strip — moves the revision on and the banner
-   * stops applying, without anything having to go and clear it.
+   * The last save, tagged with the document version it described. Any page edit
+   * moves the revision on and the banner stops applying, with nothing having to
+   * go and clear it.
    */
   const [status, setStatus] = useState<{
     message: string;
@@ -99,14 +99,13 @@ export function PDFEditor() {
   const annotations = useAppSelector(selectAnnotations);
   const editorState: EditorState = useAppSelector(selectEditorState);
 
-  // The store holds the document's identity and edits; the bytes themselves are
-  // too large to belong in it, so the id is what fetches them back.
+  // The store holds identity and edits; the bytes are too large to belong in it,
+  // so the id is what fetches them back.
   const bytes = documentBytes(documentId);
-  // Null unless the file was opened through a picker that gave up a handle, in
-  // which case saving over the original is on offer as well as saving a copy.
+  // Null unless the file came from a picker that gave up a handle, in which case
+  // saving over the original is on offer as well as saving a copy.
   const fileHandle = documentFileHandle(documentId);
 
-  /** Reports a finished save against the document version it wrote out. */
   function reportSaved(message: string) {
     setStatus({ message, revision });
   }
@@ -119,9 +118,9 @@ export function PDFEditor() {
       const loaded = await readPdfFile(file);
       const id = crypto.randomUUID();
       // Hand off the bytes before announcing the document, so anything reacting
-      // to the open finds them already in place. These have this app's own marks
-      // lifted back out, so detection reads clean music and the viewer has
-      // nothing left to paint underneath the overlay.
+      // to the open finds them in place. These have this app's own marks lifted
+      // out, so detection reads clean music and the viewer has nothing left to
+      // paint underneath the overlay.
       holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
       // Strictly after the open: every slice empties itself on that.
@@ -146,12 +145,10 @@ export function PDFEditor() {
   }
 
   /**
-   * Staff detection runs after the document is already on screen: it is a
-   * best-effort enrichment, so a score that cannot be parsed leaves the plain
-   * page editor perfectly usable.
-   *
-   * Nothing here can be cancelled, so the document it was asked about travels
-   * with it; the score slice drops an answer that has been overtaken.
+   * Runs after the document is on screen: a best-effort enrichment, so a score
+   * that cannot be parsed leaves the plain page editor usable. Nothing here can
+   * be cancelled, so the document it was asked about travels with it and the
+   * score slice drops an answer that has been overtaken.
    */
   async function analyseScore(id: string, source: Uint8Array) {
     try {
@@ -171,12 +168,7 @@ export function PDFEditor() {
     }
   }
 
-  /**
-   * Cuts the regions and hands the result to `write`.
-   *
-   * The two destinations — a downloaded copy, or the opened file itself — differ
-   * only in where the finished bytes land, exactly as the two saves do.
-   */
+  /** Cuts the regions and hands the result to `write`. */
   async function extractWith(
     write: (extracted: Uint8Array) => Promise<string> | string,
   ) {
@@ -217,12 +209,10 @@ export function PDFEditor() {
   }
 
   /**
-   * Replaces the opened file with the cut regions.
-   *
-   * The score stays open and in memory afterwards, so the regions can be
-   * adjusted and written again — but the file no longer holds it, which is what
-   * `documentFileReplaced` records and what the confirmation in the panel is
-   * for. This is the one action here that destroys something on disk.
+   * Replaces the opened file with the cut regions — the one action here that
+   * destroys something on disk. The score stays open in memory so the regions
+   * can be adjusted and written again, but the file no longer holds it, which
+   * is what `documentFileReplaced` records.
    */
   function handleExtractToFile() {
     if (!fileHandle) return;
@@ -236,16 +226,13 @@ export function PDFEditor() {
   }
 
   /**
-   * Writes the edited document out.
+   * Writes the edited document out. Builds from the pristine upload rather than
+   * whatever was last written, which is what lets the same file be saved over
+   * repeatedly without edits compounding.
    *
-   * The two destinations differ only in where the finished bytes go, so they
-   * share everything up to that point — and both build from the pristine upload
-   * rather than from whatever was last written, which is what lets the same
-   * file be saved over repeatedly without edits compounding.
-   *
-   * Both write the marks as annotation objects rather than flattening them, so
-   * a file saved here can be reopened here and picked up where it was left.
-   * Extraction still flattens: a part is a print artifact handed to a player.
+   * Marks go out as annotation objects rather than flattened, so a file saved
+   * here can be reopened here and picked up where it was left. Extraction still
+   * flattens: a part is a print artifact handed to a player.
    */
   async function saveWith(
     write: (edited: Uint8Array) => Promise<string> | string,
@@ -285,10 +272,7 @@ export function PDFEditor() {
     });
   }
 
-  /**
-   * Leaves the original alone and downloads an edited copy beside it, under
-   * whatever name was typed into the prompt.
-   */
+  /** Leaves the original alone and downloads an edited copy beside it. */
   function handleSaveCopy(typed: string) {
     setNamingCopy(false);
 
@@ -376,9 +360,9 @@ export function PDFEditor() {
         <ToolbarButton onClick={handleClose}>Close</ToolbarButton>
 
         {/*
-          With a handle there are two distinct saves and the destructive one is
-          the one being asked for, so it leads; without one, saving a copy is
-          the only save there is and takes the primary button back.
+          With a handle there are two saves and the destructive one is the one
+          being asked for, so it leads; without one, saving a copy is the only
+          save there is and takes the primary button back.
         */}
         {fileHandle && (
           <ToolbarButton
@@ -447,10 +431,9 @@ export function PDFEditor() {
         )}
 
         {/*
-          Detection runs after the page is already on screen, and on a dense
-          score it takes a moment. Without this the whole side of the window is
-          simply empty until it lands, which reads as a panel that never arrives
-          rather than one still being worked out.
+          Detection takes a moment on a dense score. Without this the side of
+          the window is empty until it lands, which reads as a panel that never
+          arrives rather than one still being worked out.
         */}
         {!analysis && !analysisNote && (
           <aside className="w-64 shrink-0 border-slate-200 border-l bg-white p-4">

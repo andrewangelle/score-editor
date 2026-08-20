@@ -11,10 +11,8 @@ import {
 } from '#/store/score.slice';
 
 /**
- * Selectors that answer a question no single slice owns.
- *
- * These live here rather than in a slice because they read across two of them,
- * and a slice that reached into its neighbour would stop being movable.
+ * Selectors that read across two slices. They live here rather than in one of
+ * them because a slice reaching into its neighbour stops being movable.
  */
 
 const NO_REGIONS: Region[] = [];

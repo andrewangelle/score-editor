@@ -42,9 +42,9 @@ export function ScorePartsPanel({
 }: ScorePartsPanelProps) {
   const dispatch = useAppDispatch();
   /**
-   * Replacing the file is the one thing here that cannot be undone: the score
-   * it held is gone from disk afterwards, and only the copy in this tab can put
-   * it back. So it asks, rather than acting on the click that lands on it.
+   * The one thing here that cannot be undone: the score the file held is gone
+   * from disk afterwards, and only the copy in this tab can put it back. So it
+   * asks rather than acting on the click that lands on it.
    */
   const [confirmingReplace, setConfirmingReplace] = useState(false);
   const annotationCount = useAppSelector(selectAnnotationCount);
@@ -215,9 +215,9 @@ export function ScorePartsPanel({
         </p>
 
         {/*
-          A grid rather than a row: four labels of quite different lengths in
-          one flex line leave "Fingering" and "Performance" different widths,
-          and these are picked up and put down constantly.
+          A grid rather than a row: four labels of different lengths in one flex
+          line leave "Fingering" and "Performance" different widths, and these
+          are picked up and put down constantly.
         */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <PlaceButton

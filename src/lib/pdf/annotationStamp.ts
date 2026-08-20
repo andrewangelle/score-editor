@@ -1,11 +1,10 @@
 /**
  * Drawing annotations onto an output page.
  *
- * Saving the whole document and extracting a part both end up stamping the same
- * marks, and they must look identical either way — a string number that is
- * circled in the full score and bare in the extracted part is a different
- * instruction. So the geometry lives here once, and both callers hand it a
- * placement in their own output space.
+ * Saving the whole document and extracting a part stamp the same marks, and a
+ * string number circled in the full score but bare in the extracted part is a
+ * different instruction. So the geometry lives here once and both callers hand
+ * it a placement in their own output space.
  */
 
 import { type Color, type PDFFont, rgb } from 'pdf-lib';
@@ -15,19 +14,16 @@ import type { ScoreAnnotation } from '#/lib/pdf/annotations';
 export const ANNOTATION_COLOR = rgb(0.1, 0.2, 0.75);
 
 /**
- * Helvetica's cap height as a fraction of point size.
- *
- * The circled digits are the only place this matters, and it is worth the
- * constant: `heightAtSize` reports the font's full line height, ascender and
- * descender included, so centring a digit against it would sink it visibly
- * below the middle of its circle.
+ * Helvetica's cap height as a fraction of point size. Worth the constant because
+ * `heightAtSize` reports full line height, ascender and descender included, so
+ * centring a digit against it sinks it visibly below the middle of its circle.
  */
 const CAP_HEIGHT = 0.717;
 
 /** How far the circle stands off the digit, as a fraction of point size. */
 const CIRCLE_PADDING = 0.24;
 
-/** placement in the output page's user space */
+/** Placement in the output page's user space. */
 type Placement = {
   x: number;
   y: number;
@@ -35,16 +31,12 @@ type Placement = {
 };
 
 /**
- * What stamping needs from the thing it is drawing onto.
+ * What stamping needs from the thing it draws onto: either a page's content
+ * stream (flattened, the way a printed part carries it) or an annotation's
+ * appearance stream (readable back as an editable object).
  *
- * A mark ends up either in a page's content stream — flattened, the way a
- * printed part carries it — or in a PDF annotation's appearance stream, which is
- * what lets it be read back as an editable object. Both must produce the same
- * ink: a string number circled in the saved score and bare in the reopened one
- * would be a different instruction.
- *
- * `PDFPage` satisfies this structurally already, and so does the recording sink
- * in `annotationObjects.ts`, so neither path can drift from the other.
+ * `PDFPage` satisfies this structurally, as does the recording sink in
+ * `annotationObjects.ts`, so neither path can drift from the other.
  */
 export type DrawSink = {
   drawText(
@@ -66,10 +58,7 @@ export type DrawSink = {
   }): void;
 };
 
-/**
- * Stamps one annotation, if it has anything to say. Silently skips blank text
- * so callers do not each have to check.
- */
+/** Silently skips blank text, so callers do not each have to check. */
 export function stampAnnotation(
   page: DrawSink,
   annotation: ScoreAnnotation,
@@ -84,9 +73,9 @@ export function stampAnnotation(
 
   if (annotation.kind !== 'string') return;
 
-  // The circle is centred on the digit rather than on the anchor: a "1" and a
-  // "12" are different widths, and a circle drawn to a fixed box would sit off
-  // to one side of the narrower one.
+  // Centred on the digit rather than the anchor: "1" and "12" are different
+  // widths, and a circle drawn to a fixed box sits off to one side of the
+  // narrower one.
   const width = font.widthOfTextAtSize(text, size);
   const capHeight = size * CAP_HEIGHT;
 

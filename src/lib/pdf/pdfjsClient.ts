@@ -1,10 +1,9 @@
 /**
  * Single place that hands out a configured pdf.js.
  *
- * react-pdf touches browser globals as it is imported, so this must never be
- * evaluated during SSR — every export here is async and imports react-pdf
- * lazily, which makes the module itself safe to reference from server-rendered
- * components.
+ * react-pdf touches browser globals as it is imported, so every export here is
+ * async and imports it lazily — which makes this module itself safe to
+ * reference from server-rendered components.
  */
 
 /**

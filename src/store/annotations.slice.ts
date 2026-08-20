@@ -13,11 +13,9 @@ import {
 } from '#/store/document.slice';
 
 /**
- * Fingerings and performance notes, anchored to the uploaded document.
- *
- * Only committed values arrive here. Typing into a note and dragging one across
- * the page are both handled locally by the overlay; the store sees the text
- * when the field is left and the position when the pointer comes up.
+ * Fingerings and performance notes, anchored to the uploaded document. Only
+ * committed values arrive: the overlay handles typing and dragging locally, so
+ * the store sees the text on blur and the position on pointer-up.
  */
 const initialState: ScoreAnnotation[] = [];
 
@@ -55,9 +53,9 @@ export const annotationsSlice = createSlice({
       const annotation = state.find(
         (candidate) => candidate.id === action.payload.id,
       );
-      // Normalizing here rather than at the keystroke keeps a position readable
-      // as "1" while it is being typed towards "12", and still guarantees that
-      // nothing but an engravable value is ever stored.
+      // Normalizing on commit rather than per keystroke keeps a position
+      // readable as "1" while it is typed towards "12", and still guarantees
+      // only engravable values are stored.
       if (annotation) {
         annotation.text = normalizeAnnotationText(
           annotation.kind,

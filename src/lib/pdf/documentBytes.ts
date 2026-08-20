@@ -1,17 +1,14 @@
 /**
- * The uploaded bytes deliberately live outside Redux.
+ * The uploaded bytes deliberately live outside Redux: up to 100 MB of
+ * `Uint8Array` is not serializable, and walking it in RTK's dev-time checks on
+ * every dispatch is a real cost. The store owns the document's identity and
+ * edits; this owns the buffer those edits describe.
  *
- * A PDF here is up to 100 MB of `Uint8Array`: not a serializable value, and
- * walking it in RTK's dev-time serializability and immutability checks on every
- * dispatch would be a real cost. The store owns the document's identity and the
- * edits made to it; this owns the single buffer those edits describe.
- *
- * The file handle, where the browser gave one up, is kept here too: it is just
- * as unserializable, and it has exactly the same lifetime — it is the way back
- * to the file these bytes came from, so it must go when they do.
+ * The file handle lives here too — equally unserializable, and with the same
+ * lifetime, being the way back to the file these bytes came from.
  *
  * One document is open at a time, so this is one slot rather than a cache. The
- * id is carried so a read after a close or a swap returns null instead of the
+ * id is carried so a read after a close or swap returns null rather than the
  * previous document's bytes.
  */
 

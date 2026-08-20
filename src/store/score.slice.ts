@@ -12,12 +12,10 @@ import {
 } from '#/store/document.slice';
 
 /**
- * What staff detection made of the open document.
- *
- * Analysis is a best-effort enrichment: it runs after the document is already
- * on screen, and a document it cannot read leaves the plain page editor
- * perfectly usable. `analysis` and `note` are therefore the two outcomes of one
- * attempt, never both at once.
+ * What staff detection made of the open document. A best-effort enrichment: it
+ * runs after the document is on screen, and a document it cannot read leaves the
+ * plain page editor perfectly usable. `analysis` and `note` are the two outcomes
+ * of one attempt, never both at once.
  */
 type ScoreState = {
   analysis: ScoreAnalysis | null;
@@ -27,34 +25,27 @@ type ScoreState = {
   selectedOrdinals: number[];
   /**
    * Carry each system's measure numbers and tempo marks into the parts cut from
-   * it. On by default: a part without them is hard to rehearse from, and a
-   * score prints them only above its top staff.
+   * it. On by default: a score prints them only above its top staff, and a part
+   * without them is hard to rehearse from.
    */
   keepMarkings: boolean;
   /**
-   * Names the user typed, by the ordinal they were given to.
-   *
-   * Kept beside the analysis rather than written into it: detection output is
-   * thrown away on every open, so a name stored inside it could never outlive
-   * the run it was typed against. `selectParts` applies the two together, which
-   * also means a rename for an ordinal detection no longer finds simply never
-   * shows, and works again if that ordinal comes back.
+   * Names the user typed, by ordinal. Kept beside the analysis rather than in
+   * it, since detection output is thrown away on every open. `selectParts`
+   * applies the two together, so a rename for an ordinal detection no longer
+   * finds simply never shows, and works again if that ordinal comes back.
    */
   renames: Record<number, string>;
   /**
-   * A restored part selection waiting for the analysis it describes.
-   *
-   * Ordinals name parts, and there are no parts until detection has run — which
-   * happens well after the document is on screen.
+   * A restored part selection waiting for the analysis it describes: ordinals
+   * name parts, and there are no parts until detection has run.
    */
   pendingOrdinals: number[] | null;
   /**
-   * The document detection is currently describing, or being run for.
-   *
-   * Analysis is slow enough on a dense score to still be running when the next
-   * document is opened, and nothing cancels it. Both outcomes therefore carry
-   * the document they were asked about, and one that no longer matches this is
-   * dropped rather than attributed to whatever is on screen now.
+   * The document detection is currently describing, or being run for. Analysis
+   * on a dense score can still be running when the next document is opened and
+   * nothing cancels it, so an outcome that no longer matches this is dropped
+   * rather than attributed to whatever is on screen now.
    */
   documentId: string | null;
 };
@@ -73,9 +64,7 @@ const NO_PARTS: Part[] = [];
 const NO_IRREGULAR: ScoreAnalysis['irregularSystems'] = [];
 
 /**
- * The detected parts under whatever the user has called them.
- *
- * Module scope rather than inline, so the three selectors that need renamed
+ * At module scope rather than inline, so the three selectors that need renamed
  * parts share one memoized result instead of each recomputing the map.
  */
 const selectRenamedParts = createSelector(
@@ -111,10 +100,10 @@ export const scoreSlice = createSlice({
       if (!pending) return;
       state.pendingOrdinals = null;
 
-      // Reconcile rather than trust: a detection that now finds eleven staves
-      // where it once found twelve has stored ordinals naming different parts,
-      // or no part at all. A selection that survives none of that gives way to
-      // the detected default rather than leaving the panel mysteriously empty.
+      // Reconcile rather than trust: a detection now finding eleven staves where
+      // it once found twelve has stored ordinals naming different parts, or
+      // none. A selection surviving none of that gives way to the detected
+      // default rather than leaving the panel mysteriously empty.
       const kept = pending.filter((ordinal) => detected.includes(ordinal));
       if (kept.length > 0 || pending.length === 0) {
         state.selectedOrdinals = kept;

@@ -3,10 +3,9 @@
  *
  * Each mark is a `/Stamp` whose appearance stream draws what `stampAnnotation`
  * draws, and whose dictionary carries the `ScoreAnnotation` fields in a private
- * `PdfEditor*` namespace. The ink therefore lives in the annotation rather than
- * the page, so removing it recovers the unstamped original — which is what lets
- * a file be opened, stripped back to pristine bytes, and saved over repeatedly
- * without marks compounding.
+ * `PdfEditor*` namespace. The ink lives in the annotation rather than the page,
+ * so removing it recovers the unstamped original — which is what lets a file be
+ * opened, stripped to pristine bytes and saved over without marks compounding.
  */
 
 import {
@@ -30,12 +29,9 @@ import type { AnnotationKind, ScoreAnnotation } from '#/lib/pdf/annotations';
 import { DEFAULT_SIZE } from '#/lib/pdf/annotations';
 
 /**
- * The private keys a mark rides in.
- *
- * The prefix is what makes our marks identifiable: a source score may
- * legitimately carry links, outline targets or form fields, and both reading and
- * stripping filter strictly on it so that someone else's annotations are never
- * claimed or deleted.
+ * The prefix is what makes our marks identifiable: a source score may carry
+ * links, outline targets or form fields, and both reading and stripping filter
+ * strictly on it so someone else's annotations are never claimed or deleted.
  */
 const KIND = PDFName.of('PdfEditorKind');
 const TEXT = PDFName.of('PdfEditorText');
@@ -58,9 +54,8 @@ const KINDS: readonly AnnotationKind[] = Object.keys(
 ) as AnnotationKind[];
 
 /**
- * Vertical room the glyphs are given in the appearance box, as a fraction of
- * point size. Deliberately generous on both sides: a box that is too small
- * clips the mark, while one that is too large costs nothing at all.
+ * Vertical room the glyphs get in the appearance box, as a fraction of point
+ * size. Generous on purpose: too small clips the mark, too large costs nothing.
  */
 const GLYPH_ASCENT = 1;
 const GLYPH_DESCENT = 0.35;
@@ -68,20 +63,17 @@ const GLYPH_DESCENT = 0.35;
 type Box = { left: number; bottom: number; right: number; top: number };
 
 /**
- * A built appearance and the box it draws inside.
- *
- * The box is in *mark-local* space — anchored at the origin rather than at the
- * mark's position on the page — which is what makes two marks with the same
- * kind, text and size share one XObject. The position is applied once, by the
- * annotation's `/Rect`.
+ * A built appearance and the box it draws inside, in *mark-local* space —
+ * anchored at the origin, not at the mark's position on the page — which is what
+ * lets two marks of the same kind, text and size share one XObject. Position is
+ * applied once, by the annotation's `/Rect`.
  */
 type Appearance = { ref: PDFRef; box: Box };
 
 /**
- * Form XObjects already built, keyed by what determines their geometry.
- *
- * A well-marked score carries hundreds of "3"s at one size. They are one drawing
- * repeated, and the file should say so once.
+ * Form XObjects already built, keyed by what determines their geometry. A
+ * well-marked score carries hundreds of "3"s at one size: one drawing repeated,
+ * and the file should say so once.
  */
 export type AppearanceCache = Map<string, Appearance>;
 
@@ -96,7 +88,6 @@ function appearanceKey(annotation: ScoreAnnotation): string {
 /**
  * A draw sink that accumulates pdf-lib operators instead of pushing them into a
  * page, and tracks what they reach so the form can be given a bounding box.
- *
  * Everything is drawn against the origin — see `Appearance`.
  */
 function appearanceSink(font: PDFFont) {
@@ -165,10 +156,9 @@ function appearanceSink(font: PDFFont) {
 }
 
 /**
- * The Form XObject for one mark, built once per distinct kind/text/size.
- *
- * Null when the mark draws nothing — a note whose editor was open but empty when
- * the file was saved. It is not written out, exactly as it is not stamped.
+ * The Form XObject for one mark, built once per distinct kind/text/size. Null
+ * when the mark draws nothing — a note whose editor was open but empty at save
+ * time — which is not written out, exactly as it is not stamped.
  */
 function annotationAppearance(
   doc: PDFDocument,
@@ -208,11 +198,9 @@ function annotationAppearance(
 }
 
 /**
- * Writes the marks belonging to one page as annotation objects on it.
- *
- * `cache` is a parameter rather than a local so that one document's worth of
- * pages share their appearance streams; a per-page cache would emit the same
- * fingering once per page it appears on.
+ * Writes the marks belonging to one page as annotation objects on it. `cache` is
+ * a parameter, not a local, so a document's pages share appearance streams; a
+ * per-page cache would emit the same fingering once per page it appears on.
  */
 export function writeAnnotationObjects(
   doc: PDFDocument,
@@ -226,10 +214,10 @@ export function writeAnnotationObjects(
     if (!appearance) continue;
 
     const { ref, box } = appearance;
-    // The appearance is drawn against the origin and the box measured there, so
-    // placing the box at the anchor is the whole of the positioning. Box and
-    // rect being the same size means a viewer's appearance transform is a pure
-    // translation, and the mark lands exactly where it was flattened.
+    // Drawn against the origin and measured there, so placing the box at the
+    // anchor is the whole of the positioning. Box and rect matching in size
+    // keeps the viewer's appearance transform a pure translation, so the mark
+    // lands exactly where it was flattened.
     const dict = doc.context.obj({
       Type: 'Annot',
       Subtype: 'Stamp',
@@ -308,11 +296,9 @@ function toAnnotation(
 }
 
 /**
- * Every mark this app wrote into the document, grouped by page in page order.
- *
- * `pageIndex` comes from where the annotation sits *now*, not from anything
- * stored: pages may have been reordered or deleted before the file was saved,
- * and the mark's page is whichever one it was written onto.
+ * Every mark this app wrote into the document. `pageIndex` comes from where the
+ * annotation sits *now*, not from anything stored: pages may have been reordered
+ * or deleted before the file was saved.
  */
 export function readAnnotationObjects(doc: PDFDocument): ScoreAnnotation[] {
   const restored: ScoreAnnotation[] = [];
@@ -328,15 +314,14 @@ export function readAnnotationObjects(doc: PDFDocument): ScoreAnnotation[] {
 }
 
 /**
- * Takes our marks back out, leaving every other annotation where it is.
+ * Takes our marks back out, leaving every other annotation where it is. This is
+ * what an opened document works from, with the marks lifted into the store. It
+ * also settles a rendering problem: pdf.js paints annotations onto its canvas
+ * whether or not the HTML annotation layer is off, so the overlay would
+ * otherwise draw every mark twice.
  *
- * The bytes an opened document works from are these, with the marks lifted into
- * the store instead. That also settles a rendering problem: pdf.js paints
- * annotations onto its canvas whether or not the HTML annotation layer is
- * switched off, so the overlay would otherwise draw every mark twice.
- *
- * Returns whether anything was removed, so an untouched document can be spared
- * a pointless re-serialization.
+ * Returns whether anything was removed, sparing an untouched document a
+ * pointless re-serialization.
  */
 export function stripAnnotationObjects(doc: PDFDocument): boolean {
   let stripped = false;

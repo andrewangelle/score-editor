@@ -1,10 +1,10 @@
 /**
  * The one conversion between PDF user space and screen space.
  *
- * PDF measures in points from the bottom-left with y increasing upward; CSS
- * measures in pixels from the top-left with y increasing downward. Getting this
- * wrong puts every annotation on the wrong side of the page, so it lives here as
- * a pair of pure, mutually inverse functions rather than inline in a component.
+ * PDF measures points from the bottom-left with y increasing upward; CSS
+ * measures pixels from the top-left with y increasing downward. Getting it wrong
+ * puts every annotation on the wrong side of the page, so it lives here as a
+ * pair of pure, mutually inverse functions rather than inline in a component.
  */
 
 export type Point = { x: number; y: number };

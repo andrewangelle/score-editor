@@ -6,13 +6,12 @@ import { scoreSlice } from '#/store/score.slice';
 import { toolSlice } from '#/store/tool.slice';
 
 /**
- * Detection output is plain data, but there is a lot of it: a staff for every
- * system on every page, each a handful of numbers. The development-only
- * immutability and serializability checks walk the whole state tree on every
- * dispatch, and that subtree alone puts them tens of milliseconds behind — which
- * a region drag, dispatching as the pointer comes up, feels immediately.
+ * Detection output is plain data but there is a lot of it — a staff for every
+ * system on every page. RTK's dev-only immutability and serializability checks
+ * walk the whole state tree per dispatch, and that subtree alone costs them tens
+ * of milliseconds, which a region drag feels immediately.
  *
- * The checks stay on everywhere they can still catch something. `score.analysis`
+ * The checks stay on everywhere they can still catch something; `score.analysis`
  * is exempt because it is written once by `scoreAnalysed` and only ever read.
  */
 const ANALYSIS_PATH = ['score.analysis'];

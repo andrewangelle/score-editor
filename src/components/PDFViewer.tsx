@@ -26,15 +26,13 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const pages = useAppSelector(selectPages);
   const selectedId = useAppSelector(selectSelectedPageId);
-  // Only detection's page geometry is needed here; the layers read the rest.
   const analysis = useAppSelector(selectAnalysis);
-  // Not `analysis.parts`: a part carries whatever the user has renamed it to,
-  // and that lives beside the analysis rather than inside it.
+  // Not `analysis.parts`: a renamed part's name lives beside the analysis.
   const parts = useAppSelector(selectParts);
 
-  // pdf.js detaches the buffer it is handed, so it gets a dedicated copy and the
-  // pristine `bytes` stay usable by pdf-lib when the user saves. Memoized because
-  // a new `file` identity would make react-pdf reload the document every render.
+  // pdf.js detaches the buffer it is handed, so it gets a copy and the pristine
+  // `bytes` stay usable by pdf-lib on save. Memoized because a new `file`
+  // identity would make react-pdf reload the document every render.
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
 
   const selected = pages.find((page) => page.id === selectedId) ?? pages[0];
@@ -85,19 +83,16 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
               pageNumber={selected.sourceIndex + 1}
               rotate={selected.rotation}
               width={pageWidth}
-              // The overlays below own this surface, so pdf.js's own text and
-              // annotation layers have nothing left to do here: they cannot be
-              // selected through an overlay, and each page view was paying for a
-              // text-content round trip and a span per text run, thrown away
-              // again on the next page. The page strip has always been rendered
-              // this way.
+              // The overlays own this surface, so pdf.js's text and annotation
+              // layers have nothing left to do: they cannot be selected through
+              // an overlay, and each page view paid for a text-content round
+              // trip and a span per text run to build them.
               renderTextLayer={false}
               renderAnnotationLayer={false}
               // Those layers carry z-indexes of their own (2 and 3) while
               // react-pdf's wrapper is `position: relative` with none, so they
-              // used to paint above the overlays and swallow every click meant
-              // for them. `isolate` keeps that from mattering again if either
-              // layer is ever switched back on.
+              // painted above the overlays and swallowed clicks meant for them.
+              // `isolate` keeps that from mattering if either is switched on.
               className="isolate"
             />
             {overlay ? (

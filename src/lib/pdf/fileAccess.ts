@@ -1,22 +1,21 @@
 /**
  * Opening a PDF in a way that can be saved back over itself.
  *
- * A `File` from a plain `<input>` or a drop is a read-only snapshot: the browser
- * hands over the bytes and forgets where they came from, which is why the only
- * way to "save" one is to download a second copy. The File System Access API
- * hands over a *handle* instead, and a handle can be written back to.
+ * A `File` from an `<input>` or a drop is a read-only snapshot — the browser
+ * forgets where the bytes came from, so the only way to "save" one is to
+ * download a copy. The File System Access API hands over a *handle* instead,
+ * which can be written back to.
  *
- * Only Chromium browsers implement it, so this is strictly an upgrade: where it
- * is missing the app keeps the input-and-download path it always had, and the
- * caller asks `supportsInPlaceSave()` to know which of the two it is offering.
+ * Only Chromium implements it, so this is strictly an upgrade: elsewhere the
+ * app keeps the input-and-download path, and callers ask `supportsInPlaceSave()`
+ * to know which of the two they are offering.
  */
 
 type PermissionDescriptor = { mode: 'read' | 'readwrite' };
 
 /**
- * A file handle plus the permission methods, which the DOM types do not yet
- * carry. Both are optional: a browser that grants write access up front simply
- * will not have them, and that is not an error.
+ * The permission methods are optional because the DOM types do not carry them
+ * and a browser granting write access up front will not have them either.
  */
 export type PdfFileHandle = FileSystemFileHandle & {
   queryPermission?: (
@@ -55,9 +54,9 @@ function isAbort(cause: unknown): boolean {
 }
 
 /**
- * Opens the system picker. Null means the user cancelled, or that this browser
- * has no picker to open — callers reach here through `supportsInPlaceSave()`,
- * so in practice it is the cancel.
+ * Opens the system picker. Null means the user cancelled, or that the browser
+ * has no picker — callers reach here through `supportsInPlaceSave()`, so in
+ * practice it is the cancel.
  */
 export async function pickPdfFile(): Promise<{
   file: File;
@@ -79,11 +78,9 @@ export async function pickPdfFile(): Promise<{
 }
 
 /**
- * The handle behind a dropped file, when the browser will give one up.
- *
- * Dropping and picking should not differ in what you can do afterwards, and on
- * Chromium they need not: a drop carries a real handle. Everywhere else this is
- * null and the drop stays a read-only snapshot.
+ * The handle behind a dropped file, when the browser will give one up, so
+ * dropping and picking do not differ in what you can do afterwards. Null
+ * everywhere else, leaving the drop a read-only snapshot.
  */
 export async function droppedFileHandle(
   item: DataTransferItem | null | undefined,
@@ -102,11 +99,9 @@ export async function droppedFileHandle(
 }
 
 /**
- * Write access, asking for it if it has not been granted yet.
- *
- * The prompt this raises is why saving in place is a button the user presses
- * rather than something that happens on open: permission is asked for at the
- * moment it is meant, and only then.
+ * Write access, asking for it if it has not been granted. The prompt this raises
+ * is why saving in place is a button the user presses rather than something
+ * that happens on open: permission is asked for at the moment it is meant.
  */
 async function ensureWritePermission(handle: PdfFileHandle): Promise<boolean> {
   const descriptor: PermissionDescriptor = { mode: 'readwrite' };

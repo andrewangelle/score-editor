@@ -2,9 +2,9 @@
  * Turns regions into a new PDF containing only those rectangles.
  *
  * `pdf-lib`'s `embedPage` clips to a rectangle, so a region is lifted as vector
- * content — the output stays crisp and selectable, unlike a render-and-crop
- * approach. Nothing in here knows about music: regions may come from staff
- * detection or from the user dragging boxes on the page.
+ * content and the output stays crisp and selectable, unlike render-and-crop.
+ * Nothing here knows about music: regions come from staff detection or from the
+ * user dragging boxes on the page.
  */
 
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -56,10 +56,9 @@ export function layoutBands(
   const usableTop = pageHeight - options.margin;
   const usableBottom = options.margin;
 
-  // Grouped by key rather than by adjacency: a hand-edited region sorts to
-  // wherever its new geometry puts it, which for a run-length scan would split
-  // its system into several groups and lay them out as if they were unrelated.
-  // Groups keep first-appearance order, so document order still drives the flow.
+  // Grouped by key rather than adjacency: a hand-edited region sorts to wherever
+  // its new geometry puts it, which a run-length scan would split into several
+  // unrelated groups. First-appearance order keeps document order driving flow.
   const groups: Region[][] = [];
   const byKey = new Map<string, Region[]>();
   for (const region of regions) {
@@ -86,8 +85,8 @@ export function layoutBands(
       group.reduce((sum, region) => sum + occupied(region), 0) +
       options.bandGap * (group.length - 1);
 
-    // Start a new page unless the whole group fits, or nothing has been placed
-    // yet — a group taller than one page has to overflow somewhere.
+    // Unless nothing has been placed yet: a group taller than one page has to
+    // overflow somewhere.
     if (cursor - groupHeight < usableBottom && current.length > 0) {
       pages.push(current);
       current = [];
@@ -95,8 +94,8 @@ export function layoutBands(
     }
 
     for (const region of group) {
-      // The markings sit above the band, so the band itself starts that much
-      // further down; `y` is where its own rectangle is drawn.
+      // Markings sit above the band, so it starts that much further down; `y` is
+      // where the band's own rectangle is drawn.
       const height = occupied(region);
       current.push({
         region,
@@ -149,7 +148,7 @@ export async function extractRegions(
 
   // Embed every rectangle up front, once each. `embedPage` copies the source
   // page's content stream into the form it makes, and one marking is stamped
-  // onto every band of its system — embedding it per band would multiply the
+  // onto every band of its system, so embedding per band would multiply the
   // output's size by the number of parts.
   const sourcePages = source.getPages();
   const flat = laidOut.flat();
@@ -204,11 +203,10 @@ export async function extractRegions(
         height,
       });
 
-      // Markings are stacked back above the band, nearest line first, each at
-      // the horizontal position it held in the score — a measure number hung in
-      // the left margin stays in the left margin. They are lifted as vector
-      // clips rather than re-typeset, so a metronome mark keeps its note glyph
-      // and a boxed rehearsal letter keeps its box.
+      // Stacked back above the band, nearest line first, each keeping the
+      // horizontal position it held in the score. Lifted as vector clips rather
+      // than re-typeset, so a metronome mark keeps its note glyph and a boxed
+      // rehearsal letter keeps its box.
       let stack = placed.y + embed.height + layout.markingGap;
       const rows = layout.keepMarkings ? markingRows(placed.region) : [];
       for (const row of rows) {
@@ -221,14 +219,14 @@ export async function extractRegions(
           const stampWidth = stamp.width * scale;
           const offset = (marking.rect.left - placed.region.rect.left) * scale;
           outPage.drawPage(stamp, {
-            // A marking engraved outside the band's own width — or one whose
-            // band was scaled down — would otherwise run off the page.
+            // A marking engraved outside the band's width, or one whose band was
+            // scaled down, would otherwise run off the page.
             x: Math.min(
               Math.max(layout.margin, placed.x + offset),
               pageWidth - layout.margin - stampWidth,
             ),
-            // Within a row, each marking keeps the height it was set at, so a
-            // metronome mark still sits below the caption it belongs under.
+            // Each marking keeps the height it was set at, so a metronome mark
+            // still sits below the caption it belongs under.
             y: stack + (marking.rect.bottom - row.bottom) * scale,
             width: stampWidth,
             height: stamp.height * scale,
