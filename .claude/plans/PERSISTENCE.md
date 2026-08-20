@@ -1,8 +1,9 @@
 # Plan: performance marks that survive a reopen
 
-Status: **Phases 1–4 built; Phase 5 still open on the score-vs-part decision
-below.** Supersedes the option comparison in `.claude/ideas/PERSISTENCE.md`,
-which explored a database and concluded against one. This is the plan of record.
+Status: **built.** Phases 1–4 are in the working tree; Phase 5 was decided
+against — see "Settled" below. Supersedes the option comparison in
+`.claude/ideas/PERSISTENCE.md`, which explored a database and concluded against
+one. This is the plan of record.
 
 ## Goal
 
@@ -97,7 +98,21 @@ Prototyped against the installed `pdf-lib@1.17.1`; all confirmed working:
   `page.drawText`/`page.drawCircle` use — so the existing geometry transfers to
   an appearance stream without being rewritten.
 
-## Settle this before building
+## Settled: the score is the durable artifact
+
+**Decided 2026-08-20 — score-durable. Phase 5 is not being built.**
+
+One source of truth, and less risk of drift. A fingering lives in the score and
+nowhere else, so there is never a question of which file is right. Part-durable
+was built and then removed: it splits the truth, because fixing a fingering in a
+part leaves the score disagreeing with it and nothing reconciles the two, and
+re-extracting that part silently discards whatever was done to the old one.
+
+Note what this does *not* cost: a part opened in this app can still take new
+marks, and those persist, because saving always writes objects. Only the marks
+carried across at extraction time are flattened.
+
+The reasoning that led here is kept below.
 
 **Is the durable artifact the score, or the extracted part?**
 
@@ -120,6 +135,12 @@ re-pointing part ordinals between sessions.
 
 **The plan below assumes score-durable (Phase 1–4) and treats part-durable as
 Phase 5.** Phases 1–4 are unaffected by the decision.
+
+Phase 5 was built against this and then removed. If it is ever reconsidered, the
+removal touched `partExtraction.ts` (a `marks` option and part-space rewriting),
+a `source` field on `ScoreAnnotation`, `PdfEditorSource*` keys, an
+`editableMarks` flag through the score slice and editor state, and a checkbox in
+the parts panel. The mechanism worked; the reason against it is not technical.
 
 ## Implementation
 
@@ -237,7 +258,7 @@ rather than trust: if detection now finds 11 staves where it previously found
 12, stored ordinals name different parts — drop ordinals with no matching part,
 and apply renames only where the ordinal still exists.
 
-### Phase 5 — re-editable extracted parts (only if part-durable)
+### Phase 5 — re-editable extracted parts (decided against; see above)
 
 Emit annotation objects from `extractRegions` in part space, keeping source
 `pageIndex/x/y` in the custom keys. Add a flatten-on-export path so a part can
