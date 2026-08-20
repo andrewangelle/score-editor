@@ -1,215 +1,128 @@
-Welcome to your new TanStack Start app!
+# Score Editor
 
-# Getting Started
+A browser PDF editor for engraved sheet music. Open a score, cut a single
+instrument out of it, and write the things a player writes on a part —
+fingerings, string numbers, left-hand positions, performance notes — then save
+it back.
 
-To run this application:
+Everything runs in the tab. The PDF is never uploaded; there is no backend, no
+account, and no copy of your music on anyone's server.
+
+## What it does
+
+**Page editing, for any PDF.** Rotate the whole document or a single page,
+reorder pages, delete them, undo, or reset back to the file as opened. A score
+is not required for this part.
+
+**Staff detection.** An engraved PDF draws its staff lines as vector rules, so
+they can be read back out. The app groups those rules into staves, staves into
+systems, and reports how many instruments the score has, guessing part names off
+the labels on the first system. Scanned or photographed music has no vector
+staff lines and is rejected with a message saying so — the plain page editor
+still works.
+
+**Part extraction.** Each detected staff becomes a region: a rectangle on a
+source page. Tick the instruments you want and extraction lifts those rectangles
+into a new PDF as vector content, so the output stays crisp and selectable
+rather than being a render-and-crop. Regions are editable — drag to move, drag
+an edge to resize, drag empty space to add — so a badly detected staff can be
+fixed by hand, and a PDF with no staves at all can still be cut up by drawing
+boxes.
+
+**Measure numbers and tempo marks are carried across.** A score engraves those
+once per system, above the top staff. A horizontal slice through the second
+instrument would come out unnumbered and with no tempo, so they are detected and
+stamped back above every band cut from that system. This is on by default and
+can be turned off.
+
+**Performance markings.** Four kinds, each with its own engraving conventions:
+fingerings, circled string numbers, positions (type `7`, get `VII`), and free
+performance notes. A marking is anchored in the *original* page's coordinate
+space, not in any output. Mark up the full score, extract the guitar staves,
+extract them again differently — every marking stays welded to the music it
+describes, because extraction only asks which ones fall inside a band.
+
+**Saving, and reopening what you saved.** Save downloads an edited copy; in
+Chromium, opening through the file picker also allows saving over the original
+in place. Markings go out as real PDF annotation objects and the rest of the
+session — regions, part names, selections — goes out as a versioned JSON
+attachment inside the PDF. Reopen that file here and your work comes back
+editable. Extraction still flattens, because a part is a print artifact handed
+to a player.
+
+Documents are limited to 100 MB.
+
+## Running it
+
+Requires Node and pnpm.
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev          # http://localhost:3000
 ```
 
-# Building For Production
-
-To build this application for production:
+Other scripts:
 
 ```bash
-npm run build
+pnpm test         # vitest, single run
+pnpm test:watch
+pnpm test:types   # tsc --noEmit
+pnpm lint:check   # biome
+pnpm lint:fix     # biome, writing fixes
+pnpm build
 ```
 
-## Styling
+## How it is put together
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+TanStack Start (React 19) serves a single route. `react-pdf` and `pdf.js` render
+and read pages; `pdf-lib` writes them. Redux Toolkit holds the state. Tailwind 4
+for styling, Biome for lint and format, Vitest for tests.
 
-### Removing Tailwind CSS
+The document bytes deliberately live *outside* Redux, in a module-level holder
+keyed by document id (`src/lib/pdf/documentBytes.ts`). The store holds identity
+and edits only, which are a few KB; the bytes are far too large to belong in a
+state tree that gets structurally shared on every dispatch.
 
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
-
-## Linting & Formatting
-
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
-
-
-```bash
-npm run lint
-npm run format
-npm run check
+```
+src/
+  components/
+    PDFEditor/         toolbar, save/extract orchestration, error and status banners
+    PDFDropzone/       file input, drag and drop, File System Access handles
+    ScorePartsPanel/   part list, region and marking tools, extraction controls
+    PDFViewer.tsx      page rendering
+    PDFPageStrip.tsx   page thumbnails: rotate, reorder, delete
+    RegionLayer.tsx    drawing and editing extraction rectangles
+    ScoreOverlay.tsx   placing and editing markings
+  lib/pdf/
+    staffDetection.ts  vector rules -> staves -> systems
+    scoreAnalysis.ts   whole-document detection -> part list
+    markings.ts        measure numbers and tempo marks
+    regions.ts         the rectangles extraction operates on
+    partExtraction.ts  regions -> a new PDF
+    annotations.ts     the performer's marks
+    annotationObjects.ts / annotationStamp.ts   marks as PDF objects / as flat ink
+    editorState.ts     session state embedded in the saved PDF
+    document.ts        loading, page edits, building the saved file
+    fileAccess.ts      save-in-place handles where the browser supports them
+  store/               document, score, regions, annotations, tool slices
+tests/                 unit tests for lib/ and store/
 ```
 
+## Browser support
 
-## Deploy with Netlify
+Chromium gets the File System Access API, and with it saving over the original
+file and dropping a file that stays writable. Everywhere else the app falls back
+to a file input and downloads, which loses nothing except in-place saving.
 
-This project targets Netlify through `@netlify/vite-plugin-tanstack-start`, which is
-wired into `vite.config.ts`. A production build produces both halves of the deploy:
+## Notes for contributors
 
-- `dist/client` — the static assets, which `netlify.toml` names as the publish directory.
-- `.netlify/v1/functions/server.mjs` — the SSR handler, generated at build time and
-  wrapping `dist/server/server.js`. It serves every path not matched by a static file.
+Staff detection is the part of this codebase most likely to fail quietly: a
+system that detects one staff too many silently re-points every part below it,
+and the symptom — an extracted part containing the neighbouring instrument —
+looks nothing like the cause. `CLAUDE.md` documents the three assumptions
+detection rests on, how each can still break, and how to debug it. Read that
+before changing anything under `staffDetection.ts`.
 
-To deploy, connect the repository to a Netlify site; `netlify.toml` supplies the build
-command and publish directory, so no dashboard configuration is needed. For a one-off
-deploy from a local machine:
-
-```bash
-npx netlify deploy --build --prod
-```
-
-The same plugin also emulates the Netlify platform in `npm run dev`, so local development
-runs against the same request handling as production.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+`.claude/ideas/` holds design notes written before the work they discuss. They
+are records of thinking rather than plans of record, and some describe code that
+has since been built — check the source before trusting one.
