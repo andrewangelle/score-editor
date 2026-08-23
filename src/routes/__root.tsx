@@ -35,7 +35,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="overflow-hidden">
+      <body>
         <StoreProvider>{children}</StoreProvider>
         <TanStackDevtools
           config={{

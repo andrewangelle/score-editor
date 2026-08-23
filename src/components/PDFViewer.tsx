@@ -5,10 +5,16 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { PDFPageStrip } from '#/components/PDFPageStrip';
 import { RegionLayer } from '#/components/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay';
-import { useAppSelector } from '#/hooks';
+import { useAppDispatch, useAppSelector } from '#/hooks';
+import type { TurnDirection } from '#/lib/edgeScrollPaging';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
+import { useEdgeScrollPaging } from '#/lib/useEdgeScrollPaging';
 import { useElementWidth } from '#/lib/useElementWidth';
-import { selectPages, selectSelectedPageId } from '#/store/document.slice';
+import {
+  pageSelected,
+  selectPages,
+  selectSelectedPageId,
+} from '#/store/document.slice';
 import { selectAnalysis, selectParts } from '#/store/score.slice';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
@@ -21,6 +27,7 @@ type PdfViewerProps = {
 };
 
 export function PDFViewer({ bytes }: PdfViewerProps) {
+  const dispatch = useAppDispatch();
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
   const stageWidth = useElementWidth(stage);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -47,6 +54,21 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
     analysis && sourcePage && pageWidth && selected && selected.rotation === 0
       ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
       : null;
+
+  function turnPage(direction: TurnDirection) {
+    const index = pages.findIndex((page) => page.id === selected?.id);
+    const next = pages[index + direction];
+    if (index === -1 || !next) return false;
+
+    dispatch(pageSelected(next.id));
+    return true;
+  }
+
+  useEdgeScrollPaging({
+    container: stage,
+    pageKey: selected?.id ?? null,
+    onTurn: turnPage,
+  });
 
   if (loadError) {
     return (
@@ -75,7 +97,10 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
         <PDFPageStrip />
       </nav>
 
-      <div ref={setStage} className="flex-1 overflow-auto bg-slate-200 p-4">
+      <div
+        ref={setStage}
+        className="flex-1 overflow-auto overscroll-contain bg-slate-200 p-4"
+      >
         {selected && pageWidth ? (
           <div className="relative mx-auto w-fit shadow-lg">
             <Page

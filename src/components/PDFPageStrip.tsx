@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Page } from 'react-pdf';
 import { StripButton } from '#/components/StripButton';
 import { useAppDispatch, useAppSelector } from '#/hooks';
@@ -16,6 +17,16 @@ export function PDFPageStrip() {
   const dispatch = useAppDispatch();
   const pages = useAppSelector(selectPages);
   const selectedId = useAppSelector(selectSelectedPageId);
+  const selectedItem = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    selectedItem.current?.scrollIntoView({
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  }, [selectedId]);
 
   return (
     <ol className="flex h-full flex-col gap-3 overflow-y-auto p-3">
@@ -23,7 +34,7 @@ export function PDFPageStrip() {
         const isSelected = page.id === selectedId;
 
         return (
-          <li key={page.id}>
+          <li key={page.id} ref={isSelected ? selectedItem : null}>
             <button
               type="button"
               onClick={() => dispatch(pageSelected(page.id))}
