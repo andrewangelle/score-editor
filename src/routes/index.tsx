@@ -3,7 +3,7 @@ import { PDFEditor } from '#/components/PDFEditor/PDFEditor';
 
 export const Route = createFileRoute('/')({
   component: Home,
-  head: () => ({ meta: [{ title: 'PDF Editor' }] }),
+  head: () => ({ meta: [{ title: 'Score Editor' }] }),
 });
 
 function Home() {

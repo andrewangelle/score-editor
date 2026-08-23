@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '#/hooks';
 import {
+  ANNOTATION_COLORS,
   type AnnotationKind,
+  DEFAULT_COLOR,
   normalizeAnnotationText,
 } from '#/lib/pdf/annotations';
 import { toPdfPoint, toScreenPoint } from '#/lib/pdf/pageCoordinates';
@@ -14,7 +16,11 @@ import {
   annotationRetitled,
   selectAnnotations,
 } from '#/store/annotations.slice';
-import { selectIsEditingRegions, selectPlacing } from '#/store/tool.slice';
+import {
+  selectAnnotationColor,
+  selectIsEditingRegions,
+  selectPlacing,
+} from '#/store/tool.slice';
 
 /**
  * The interactive layer on top of a rendered page. It owns the single conversion
@@ -55,15 +61,9 @@ export function ScoreOverlay({
   const dispatch = useAppDispatch();
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
-  /** Notes go read-only while the region tool has the page. */
+  const color = useAppSelector(selectAnnotationColor);
   const interactive = !useAppSelector(selectIsEditingRegions);
-
   const surface = useRef<HTMLDivElement>(null);
-  /**
-   * The surface's screen box, pinned while a note is dragged. Measuring reflows
-   * the page under it, so doing it per pointermove costs a layout every frame —
-   * and nothing moves mid-drag.
-   */
   const surfaceBox = useRef<DOMRect | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -137,6 +137,7 @@ export function ScoreOverlay({
             x: point.x,
             y: point.y,
             kind: placing,
+            color,
           }),
         );
         setEditing(placed.payload.id);
@@ -185,6 +186,10 @@ export function ScoreOverlay({
         const screen = toScreenPoint(anchor, pageHeight, scale);
         const fontSize = Math.max(7, annotation.size * scale);
         const circled = annotation.kind === 'string';
+        const ink = (
+          ANNOTATION_COLORS[annotation.color] ??
+          ANNOTATION_COLORS[DEFAULT_COLOR]
+        ).css;
 
         return (
           <div
@@ -232,21 +237,23 @@ export function ScoreOverlay({
                 title="Double-click to edit, drag to move"
                 // Circled here as it will be when baked, so the page on screen
                 // reads as the page that comes out.
-                className={`cursor-move whitespace-nowrap bg-white/80 font-medium text-blue-700 leading-none hover:bg-blue-50 ${
+                className={`cursor-move whitespace-nowrap bg-white/80 font-medium leading-none hover:bg-white ${
                   circled
-                    ? 'flex items-center justify-center rounded-full border border-blue-700'
+                    ? 'flex items-center justify-center rounded-full border'
                     : 'rounded px-1'
                 }`}
                 style={
                   circled
                     ? {
                         fontSize,
+                        color: ink,
+                        borderColor: ink,
                         // Round enough to hold two digits without turning into
                         // an oval on one.
                         width: fontSize * 1.8,
                         height: fontSize * 1.8,
                       }
-                    : { fontSize }
+                    : { fontSize, color: ink }
                 }
               >
                 {annotation.text || '…'}

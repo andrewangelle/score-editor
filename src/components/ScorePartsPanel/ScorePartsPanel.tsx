@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ColorPicker } from '#/components/ScorePartsPanel/ColorPicker';
 import { IrregularSystemsNote } from '#/components/ScorePartsPanel/IrregularSystemsNote';
 import { ManualInfo } from '#/components/ScorePartsPanel/ManualInfo';
 import { PlaceButton } from '#/components/ScorePartsPanel/PlaceButton';
@@ -19,6 +20,8 @@ import {
 } from '#/store/score.slice';
 import { selectRegions } from '#/store/selectors';
 import {
+  annotationColorPicked,
+  selectAnnotationColor,
   selectIsEditingRegions,
   selectPlacing,
   toolToggled,
@@ -56,6 +59,7 @@ export function ScorePartsPanel({
   const isManual = useAppSelector(selectIsManual);
   const editingRegions = useAppSelector(selectIsEditingRegions);
   const placing = useAppSelector(selectPlacing);
+  const annotationColor = useAppSelector(selectAnnotationColor);
   const keepMarkings = useAppSelector(selectKeepMarkings);
   const markings = useAppSelector(selectMarkingCounts);
 
@@ -245,6 +249,11 @@ export function ScorePartsPanel({
             Performance
           </PlaceButton>
         </div>
+
+        <ColorPicker
+          value={annotationColor}
+          onPick={(color) => dispatch(annotationColorPicked(color))}
+        />
 
         {placing === 'position' && (
           <p className="mt-2 text-slate-500 text-xs">

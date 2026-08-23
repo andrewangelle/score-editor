@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AnnotationKind } from '#/lib/pdf/annotations';
+import type { AnnotationColor, AnnotationKind } from '#/lib/pdf/annotations';
+import { DEFAULT_COLOR } from '#/lib/pdf/annotations';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 
 /**
@@ -14,9 +15,10 @@ export type Tool = AnnotationKind | 'regions';
 type ToolState = {
   /** Null means plain page editing: no overlay is taking clicks. */
   active: Tool | null;
+  color: AnnotationColor;
 };
 
-const initialState: ToolState = { active: null };
+const initialState: ToolState = { active: null, color: DEFAULT_COLOR };
 
 export const toolSlice = createSlice({
   name: 'tool',
@@ -26,20 +28,31 @@ export const toolSlice = createSlice({
     toolToggled(state, action: PayloadAction<Tool>) {
       state.active = state.active === action.payload ? null : action.payload;
     },
+
+    annotationColorPicked(state, action: PayloadAction<AnnotationColor>) {
+      state.color = action.payload;
+    },
   },
   extraReducers: (builder) => {
+    const closeDocument = (state: ToolState): ToolState => ({
+      ...initialState,
+      color: state.color,
+    });
+
     builder
-      .addCase(documentOpened, () => initialState)
-      .addCase(documentClosed, () => initialState);
+      .addCase(documentOpened, closeDocument)
+      .addCase(documentClosed, closeDocument);
   },
   selectors: {
     selectIsEditingRegions: (state) => state.active === 'regions',
     /** The note kind being placed, if the active tool places notes at all. */
     selectPlacing: (state): AnnotationKind | null =>
       state.active === 'regions' ? null : state.active,
+    selectAnnotationColor: (state) => state.color,
   },
 });
 
-export const { toolToggled } = toolSlice.actions;
+export const { toolToggled, annotationColorPicked } = toolSlice.actions;
 
-export const { selectIsEditingRegions, selectPlacing } = toolSlice.selectors;
+export const { selectIsEditingRegions, selectPlacing, selectAnnotationColor } =
+  toolSlice.selectors;

@@ -9,6 +9,30 @@
  */
 export type AnnotationKind = 'fingering' | 'string' | 'position' | 'note';
 
+export type AnnotationColor = 'blue' | 'black' | 'red' | 'green' | 'purple';
+
+export const ANNOTATION_COLORS: Record<
+  AnnotationColor,
+  { label: string; css: string; rgb: readonly [number, number, number] }
+> = {
+  blue: { label: 'Blue', css: '#1a33bf', rgb: [0.1, 0.2, 0.75] },
+  black: { label: 'Black', css: '#14141a', rgb: [0.08, 0.08, 0.1] },
+  red: { label: 'Red', css: '#b31a1a', rgb: [0.7, 0.1, 0.1] },
+  green: { label: 'Green', css: '#0d7333', rgb: [0.05, 0.45, 0.2] },
+  purple: { label: 'Purple', css: '#7326b3', rgb: [0.45, 0.15, 0.7] },
+};
+
+/** The ink a mark gets when nothing else is chosen. */
+export const DEFAULT_COLOR: AnnotationColor = 'blue';
+
+export const ANNOTATION_COLOR_ORDER = Object.keys(
+  ANNOTATION_COLORS,
+) as AnnotationColor[];
+
+export function isAnnotationColor(value: unknown): value is AnnotationColor {
+  return typeof value === 'string' && value in ANNOTATION_COLORS;
+}
+
 export type ScoreAnnotation = {
   id: string;
   /** Page of the uploaded document this note is anchored to. */
@@ -19,6 +43,7 @@ export type ScoreAnnotation = {
   text: string;
   size: number;
   kind: AnnotationKind;
+  color: AnnotationColor;
 };
 
 export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
@@ -83,6 +108,7 @@ export function createAnnotation(
   y: number,
   kind: AnnotationKind,
   text = '',
+  color: AnnotationColor = DEFAULT_COLOR,
 ): ScoreAnnotation {
   return {
     id: `note-${crypto.randomUUID()}`,
@@ -92,6 +118,7 @@ export function createAnnotation(
     text: normalizeAnnotationText(kind, text),
     size: DEFAULT_SIZE[kind],
     kind,
+    color,
   };
 }
 

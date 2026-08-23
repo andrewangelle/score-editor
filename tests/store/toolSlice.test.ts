@@ -1,5 +1,10 @@
+import { DEFAULT_COLOR } from '#/lib/pdf/annotations';
 import { documentClosed, documentOpened } from '#/store/document.slice';
-import { toolSlice, toolToggled } from '#/store/tool.slice';
+import {
+  annotationColorPicked,
+  toolSlice,
+  toolToggled,
+} from '#/store/tool.slice';
 
 const reduce = toolSlice.reducer;
 const IDLE = reduce(undefined, { type: '@@init' });
@@ -54,6 +59,29 @@ describe('exclusivity', () => {
   });
 });
 
+describe('choosing the ink', () => {
+  it('starts on the default', () => {
+    expect(IDLE.color).toBe(DEFAULT_COLOR);
+  });
+
+  it('holds the ink the next mark will be placed in', () => {
+    expect(run(annotationColorPicked('red')).color).toBe('red');
+  });
+
+  it('is independent of which tool is up', () => {
+    // Ink and kind are separate choices: picking green for fingerings should
+    // not put the fingering tool down, and vice versa.
+    const state = run(toolToggled('fingering'), annotationColorPicked('green'));
+
+    expect(state.active).toBe('fingering');
+    expect(state.color).toBe('green');
+    expect(run(annotationColorPicked('green'), toolToggled('note'))).toEqual({
+      active: 'note',
+      color: 'green',
+    });
+  });
+});
+
 describe('following the document', () => {
   it('puts the tool away when the document opens or closes', () => {
     expect(run(toolToggled('note'), documentClosed()).active).toBeNull();
@@ -63,5 +91,19 @@ describe('following the document', () => {
         documentOpened({ id: 'doc-2', name: 'x.pdf', pages: [] }),
       ).active,
     ).toBeNull();
+  });
+
+  it('carries the chosen ink into the next document', () => {
+    // Someone who marks in green is still marking in green in the next score;
+    // the tool is put away with the document, but the ink is not.
+    expect(run(annotationColorPicked('purple'), documentClosed()).color).toBe(
+      'purple',
+    );
+    expect(
+      run(
+        annotationColorPicked('purple'),
+        documentOpened({ id: 'doc-2', name: 'x.pdf', pages: [] }),
+      ).color,
+    ).toBe('purple');
   });
 });

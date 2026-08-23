@@ -8,10 +8,19 @@
  */
 
 import { type Color, type PDFFont, rgb } from 'pdf-lib';
-import type { ScoreAnnotation } from '#/lib/pdf/annotations';
+import {
+  ANNOTATION_COLORS,
+  type AnnotationColor,
+  DEFAULT_COLOR,
+  type ScoreAnnotation,
+} from '#/lib/pdf/annotations';
 
-/** Ink for every mark: clearly the performer's, not the engraver's. */
-export const ANNOTATION_COLOR = rgb(0.1, 0.2, 0.75);
+export function annotationInk(color: AnnotationColor): Color {
+  const [r, g, b] = (
+    ANNOTATION_COLORS[color] ?? ANNOTATION_COLORS[DEFAULT_COLOR]
+  ).rgb;
+  return rgb(r, g, b);
+}
 
 /**
  * Helvetica's cap height as a fraction of point size. Worth the constant because
@@ -69,7 +78,8 @@ export function stampAnnotation(
   if (!text) return;
 
   const { x, y, size } = placement;
-  page.drawText(text, { x, y, size, font, color: ANNOTATION_COLOR });
+  const ink = annotationInk(annotation.color);
+  page.drawText(text, { x, y, size, font, color: ink });
 
   if (annotation.kind !== 'string') return;
 
@@ -85,7 +95,7 @@ export function stampAnnotation(
     size: Math.max(width, capHeight) / 2 + size * CIRCLE_PADDING,
     // No `color`, so pdf-lib leaves the circle unfilled and the music engraved
     // underneath it still shows through.
-    borderColor: ANNOTATION_COLOR,
+    borderColor: ink,
     borderWidth: Math.max(0.4, size * 0.07),
   });
 }

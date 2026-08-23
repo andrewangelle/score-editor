@@ -16,7 +16,7 @@ export function getDragContainerStyles(isDragging: boolean, disabled: boolean) {
 }
 
 export const CHOOSE_FILE_BUTTON_CLASS =
-  'mt-2 rounded-lg bg-slate-900 px-4 py-2 font-medium text-sm text-white hover:bg-slate-700 disabled:opacity-60';
+  'mt-2 rounded-lg bg-slate-900 px-4 py-2 font-medium text-sm text-white hover:bg-slate-700 disabled:opacity-60 cursor-pointer';
 
 export const CHOOSE_FILE_INPUT_LABEL_CLASS =
   'mt-2 cursor-pointer rounded-lg bg-slate-900 px-4 py-2 font-medium text-sm text-white hover:bg-slate-700';

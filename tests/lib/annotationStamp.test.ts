@@ -9,9 +9,13 @@
  */
 
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import type { AnnotationKind, ScoreAnnotation } from '#/lib/pdf/annotations';
-import { createAnnotation } from '#/lib/pdf/annotations';
-import { stampAnnotation } from '#/lib/pdf/annotationStamp';
+import type {
+  AnnotationColor,
+  AnnotationKind,
+  ScoreAnnotation,
+} from '#/lib/pdf/annotations';
+import { ANNOTATION_COLORS, createAnnotation } from '#/lib/pdf/annotations';
+import { annotationInk, stampAnnotation } from '#/lib/pdf/annotationStamp';
 import { recorder } from '#tests/lib/stampRecorder';
 
 const font = await (async () => {
@@ -21,10 +25,15 @@ const font = await (async () => {
 
 const SIZE = 10;
 
-function stamp(kind: AnnotationKind, text: string, size = SIZE) {
+function stamp(
+  kind: AnnotationKind,
+  text: string,
+  size = SIZE,
+  color: AnnotationColor = 'blue',
+) {
   const recording = recorder();
   const annotation: ScoreAnnotation = {
-    ...createAnnotation(0, 40, 100, kind, text),
+    ...createAnnotation(0, 40, 100, kind, text, color),
     size,
   };
 
@@ -87,6 +96,31 @@ describe('stampAnnotation', () => {
     const half = stamp('string', '3', SIZE / 2).circles[0];
 
     expect(half.size).toBeCloseTo(full.size / 2);
+  });
+
+  it('draws a mark in the ink it was placed in', () => {
+    const { inks } = stamp('fingering', '2', SIZE, 'red');
+    const [r, g, b] = ANNOTATION_COLORS.red.rgb;
+
+    expect(inks).toEqual([{ type: 'RGB', red: r, green: g, blue: b }]);
+  });
+
+  it('rings a string identifier in the same ink as its digit', () => {
+    // Two inks would read as two marks: a red 3 inside a blue circle is a
+    // fingering and a string number sitting on top of each other.
+    const { inks } = stamp('string', '3', SIZE, 'green');
+
+    expect(inks).toHaveLength(2);
+    expect(inks[1]).toEqual(inks[0]);
+    expect(inks[0]).toEqual(annotationInk('green'));
+  });
+
+  it('falls back to the default ink for a colour it does not know', () => {
+    // Only reachable from a file written by a newer version; drawing the mark
+    // in the wrong colour beats not drawing it.
+    const unknown = 'chartreuse' as AnnotationColor;
+
+    expect(annotationInk(unknown)).toEqual(annotationInk('blue'));
   });
 
   it('says nothing for a mark with no text', () => {

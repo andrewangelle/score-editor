@@ -26,7 +26,11 @@ import {
 } from 'pdf-lib';
 import { type DrawSink, stampAnnotation } from '#/lib/pdf/annotationStamp';
 import type { AnnotationKind, ScoreAnnotation } from '#/lib/pdf/annotations';
-import { DEFAULT_SIZE } from '#/lib/pdf/annotations';
+import {
+  DEFAULT_COLOR,
+  DEFAULT_SIZE,
+  isAnnotationColor,
+} from '#/lib/pdf/annotations';
 
 /**
  * The prefix is what makes our marks identifiable: a source score may carry
@@ -37,6 +41,7 @@ const KIND = PDFName.of('PdfEditorKind');
 const TEXT = PDFName.of('PdfEditorText');
 const ID = PDFName.of('PdfEditorId');
 const SIZE = PDFName.of('PdfEditorSize');
+const COLOR = PDFName.of('PdfEditorColor');
 const X = PDFName.of('PdfEditorX');
 const Y = PDFName.of('PdfEditorY');
 
@@ -82,7 +87,7 @@ export function appearanceCache(): AppearanceCache {
 }
 
 function appearanceKey(annotation: ScoreAnnotation): string {
-  return `${annotation.kind}:${annotation.size}:${annotation.text}`;
+  return `${annotation.kind}:${annotation.size}:${annotation.color}:${annotation.text}`;
 }
 
 /**
@@ -237,6 +242,7 @@ export function writeAnnotationObjects(
     dict.set(ID, PDFHexString.fromText(annotation.id));
     dict.set(TEXT, PDFHexString.fromText(annotation.text));
     dict.set(SIZE, doc.context.obj(annotation.size));
+    dict.set(COLOR, PDFName.of(annotation.color));
     dict.set(X, doc.context.obj(annotation.x));
     dict.set(Y, doc.context.obj(annotation.y));
 
@@ -284,6 +290,7 @@ function toAnnotation(
   const text = readText(dict, TEXT);
   const kind = (dict.get(KIND) as PDFName | undefined)?.decodeText?.();
   const size = readNumber(dict, SIZE);
+  const color = (dict.get(COLOR) as PDFName | undefined)?.decodeText?.();
   const x = readNumber(dict, X);
   const y = readNumber(dict, Y);
 
@@ -292,7 +299,16 @@ function toAnnotation(
   }
   if (!KINDS.includes(kind as AnnotationKind)) return null;
 
-  return { id, pageIndex, x, y, text, size, kind: kind as AnnotationKind };
+  return {
+    id,
+    pageIndex,
+    x,
+    y,
+    text,
+    size,
+    kind: kind as AnnotationKind,
+    color: isAnnotationColor(color) ? color : DEFAULT_COLOR,
+  };
 }
 
 /**

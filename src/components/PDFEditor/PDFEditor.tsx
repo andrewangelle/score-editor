@@ -68,42 +68,28 @@ export function PDFEditor() {
   const name = useAppSelector(selectDocumentName);
   const pages = useAppSelector(selectPages);
   const pageCount = useAppSelector(selectPageCount);
-  // Two different questions: whether Reset has anything to undo you back to,
-  // and whether the file on disk is behind what is on screen.
   const dirty = useAppSelector(selectIsDirty);
   const unsaved = useAppSelector(selectHasUnsavedChanges);
   const canUndo = useAppSelector(selectCanUndo);
   const revision = useAppSelector(selectRevision);
 
-  /**
-   * The last save, tagged with the document version it described. Any page edit
-   * moves the revision on and the banner stops applying, with nothing having to
-   * go and clear it.
-   */
+  /** The last save, tagged with the document version it described. */
   const [status, setStatus] = useState<{
     message: string;
     revision: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  /** Whether the copy is waiting on a name. */
   const [isNamingCopy, setNamingCopy] = useState(false);
-
   const analysis = useAppSelector(selectAnalysis);
   const analysisNote = useAppSelector(selectAnalysisNote);
   const selectedParts = useAppSelector(selectSelectedParts);
-
   const regions = useAppSelector(selectRegions);
   const isManual = useAppSelector(selectIsManual);
   const keepMarkings = useAppSelector(selectKeepMarkings);
   const annotations = useAppSelector(selectAnnotations);
   const editorState: EditorState = useAppSelector(selectEditorState);
-
-  // The store holds identity and edits; the bytes are too large to belong in it,
-  // so the id is what fetches them back.
   const bytes = documentBytes(documentId);
-  // Null unless the file came from a picker that gave up a handle, in which case
-  // saving over the original is on offer as well as saving a copy.
   const fileHandle = documentFileHandle(documentId);
 
   function reportSaved(message: string) {
@@ -117,10 +103,7 @@ export function PDFEditor() {
     try {
       const loaded = await readPdfFile(file);
       const id = crypto.randomUUID();
-      // Hand off the bytes before announcing the document, so anything reacting
-      // to the open finds them in place. These have this app's own marks lifted
-      // out, so detection reads clean music and the viewer has nothing left to
-      // paint underneath the overlay.
+      // Hand off the bytes before announcing the document
       holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
       // Strictly after the open: every slice empties itself on that.
@@ -146,9 +129,7 @@ export function PDFEditor() {
 
   /**
    * Runs after the document is on screen: a best-effort enrichment, so a score
-   * that cannot be parsed leaves the plain page editor usable. Nothing here can
-   * be cancelled, so the document it was asked about travels with it and the
-   * score slice drops an answer that has been overtaken.
+   * that cannot be parsed leaves the plain page editor usable.
    */
   async function analyseScore(id: string, source: Uint8Array) {
     try {
@@ -306,7 +287,7 @@ export function PDFEditor() {
   if (!bytes) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16">
-        <h1 className="text-3xl font-bold text-slate-900">PDF Editor</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Score Editor</h1>
         <p className="mt-2 mb-8 text-slate-600">
           Upload a PDF to rotate, reorder, and remove pages. Upload an engraved
           score and you can also split out individual instruments and mark up
