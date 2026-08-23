@@ -22,10 +22,10 @@ export type ScoreAnnotation = {
 };
 
 export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
-  fingering: 8,
-  string: 9.5,
-  position: 11,
-  note: 10,
+  fingering: 6,
+  string: 7,
+  position: 8.5,
+  note: 7.5,
 };
 
 /** Highest position a left hand reaches; past this the numeral is unreadable. */
