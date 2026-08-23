@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
   type AnnotationKind,
   createAnnotation,
+  DEFAULT_SIZE,
   normalizeAnnotationText,
   removeAnnotation,
   type ScoreAnnotation,
@@ -85,9 +86,12 @@ export const annotationsSlice = createSlice({
     builder
       .addCase(documentOpened, () => initialState)
       .addCase(documentClosed, () => initialState)
-      .addCase(
-        documentRestored,
-        (_state, action) => action.payload.annotations,
+      // Migrate any previous annotations to current default size
+      .addCase(documentRestored, (_state, action) =>
+        action.payload.annotations.map((annotation) => ({
+          ...annotation,
+          size: DEFAULT_SIZE[annotation.kind],
+        })),
       );
   },
   selectors: {
