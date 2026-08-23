@@ -181,13 +181,9 @@ export function ScoreOverlay({
       )}
 
       {pageAnnotations.map((annotation) => {
-        // Mid-drag the position is local, so the anchor follows the pointer
-        // rather than the store.
         const anchor = drag?.id === annotation.id ? drag : annotation;
         const screen = toScreenPoint(anchor, pageHeight, scale);
-        // Below ~9px the shorthand stops being legible on screen however small
-        // it is engraved; the baked PDF keeps the true size either way.
-        const fontSize = Math.max(9, annotation.size * scale);
+        const fontSize = Math.max(7, annotation.size * scale);
         const circled = annotation.kind === 'string';
 
         return (
