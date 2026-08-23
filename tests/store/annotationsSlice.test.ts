@@ -1,4 +1,8 @@
-import { type AnnotationKind, DEFAULT_SIZE } from '#/lib/pdf/annotations';
+import {
+  type AnnotationKind,
+  DEFAULT_COLOR,
+  DEFAULT_SIZE,
+} from '#/lib/pdf/annotations';
 import {
   annotationMoved,
   annotationPlaced,
@@ -39,6 +43,18 @@ describe('annotationPlaced', () => {
 
       expect(placed.size).toBe(DEFAULT_SIZE[kind]);
     }
+  });
+
+  it('places a mark in the ink it was given', () => {
+    const [placed] = run(
+      annotationPlaced({ pageIndex: 0, x: 100, y: 400, kind: 'note', color: 'red' }),
+    );
+
+    expect(placed.color).toBe('red');
+  });
+
+  it('falls back to the default ink when none is given', () => {
+    expect(run(place())[0].color).toBe(DEFAULT_COLOR);
   });
 
   it('mints the id outside the reducer, so replaying is stable', () => {

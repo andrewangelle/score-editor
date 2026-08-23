@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
+  type AnnotationColor,
   type AnnotationKind,
   createAnnotation,
   DEFAULT_SIZE,
@@ -35,6 +36,7 @@ export const annotationsSlice = createSlice({
         x: number;
         y: number;
         kind: AnnotationKind;
+        color?: AnnotationColor;
       }) {
         return {
           payload: createAnnotation(
@@ -42,6 +44,8 @@ export const annotationsSlice = createSlice({
             input.x,
             input.y,
             input.kind,
+            '',
+            input.color,
           ),
         };
       },

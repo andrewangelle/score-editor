@@ -12,6 +12,7 @@ import {
 import {
   type AnnotationKind,
   createAnnotation,
+  DEFAULT_COLOR,
   type ScoreAnnotation,
 } from '#/lib/pdf/annotations';
 import {
@@ -90,6 +91,22 @@ describe('round trip', () => {
     const { restored } = await roundTrip(written);
 
     expect(restored).toEqual(written);
+  });
+
+  it('restores each mark in the ink it was placed in', async () => {
+    const written = [
+      { ...at('fingering', '1', 100, 200), color: 'red' as const },
+      { ...at('string', '3', 140, 210), color: 'green' as const },
+      { ...at('note', 'sul tasto', 180, 220), color: 'purple' as const },
+    ];
+
+    const { restored } = await roundTrip(written);
+
+    expect(restored.map((mark) => mark.color)).toEqual([
+      'red',
+      'green',
+      'purple',
+    ]);
   });
 
   it('reads a mark back onto the page it was written on', async () => {
@@ -222,6 +239,26 @@ describe('appearance streams', () => {
     ]);
 
     expect(appearanceRefs(reopened).size).toBe(4);
+  });
+
+  it('draws a separate form for the same mark in another ink', async () => {
+    // The colour is drawn into the stream, so sharing one form between two
+    // inks would silently repaint one of them.
+    const { reopened } = await roundTrip([
+      at('fingering', '3'),
+      { ...at('fingering', '3', 120, 200), color: 'red' },
+    ]);
+
+    expect(appearanceRefs(reopened).size).toBe(2);
+  });
+
+  it('still shares one form between marks of the same ink', async () => {
+    const { reopened } = await roundTrip([
+      { ...at('fingering', '3', 100, 200), color: 'green' },
+      { ...at('fingering', '3', 120, 200), color: 'green' },
+    ]);
+
+    expect(appearanceRefs(reopened).size).toBe(1);
   });
 
   it('shares one form across pages', async () => {
@@ -360,5 +397,31 @@ describe('reading a document that is not ours', () => {
     expect(
       readAnnotationObjects(await PDFDocument.load(await doc.save())),
     ).toEqual([]);
+  });
+
+  it('opens a mark written before this app had colours', async () => {
+    const { doc, page, font } = await blank();
+    writeAnnotationObjects(doc, page, [at('fingering', '3')], font);
+    annots(doc)[0].delete(PDFName.of('PdfEditorColor'));
+
+    const restored = readAnnotationObjects(
+      await PDFDocument.load(await doc.save()),
+    );
+    expect(restored).toHaveLength(1);
+    expect(restored[0].color).toBe(DEFAULT_COLOR);
+  });
+
+  it('keeps a mark whose colour this version does not know', async () => {
+    // Unlike an unknown kind, which changes what the mark *means*, an unknown
+    // ink only changes how it looks — so it opens in the default.
+    const { doc, page, font } = await blank();
+    writeAnnotationObjects(doc, page, [at('fingering', '3')], font);
+    annots(doc)[0].set(PDFName.of('PdfEditorColor'), PDFName.of('chartreuse'));
+
+    const restored = readAnnotationObjects(
+      await PDFDocument.load(await doc.save()),
+    );
+    expect(restored).toHaveLength(1);
+    expect(restored[0].color).toBe(DEFAULT_COLOR);
   });
 });

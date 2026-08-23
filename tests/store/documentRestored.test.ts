@@ -95,6 +95,16 @@ describe('what lands immediately', () => {
     });
   });
 
+  it('keeps the ink a restored mark was placed in', () => {
+    // The counterpart to the size rule above: colour is chosen, so re-reading
+    // the current default over it would throw away the performer's decision.
+    const green = { ...MARK, color: 'green' as const };
+
+    expect(restored(STATE, [green]).getState().annotations[0].color).toBe(
+      'green',
+    );
+  });
+
   it('restores the markings choice', () => {
     expect(restored(STATE).getState().score.keepMarkings).toBe(false);
   });
