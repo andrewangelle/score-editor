@@ -31,7 +31,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
 const MAX_PAGE_WIDTH = 900;
 
 type PdfViewerProps = {
-  /** The one thing that cannot come from the store: see `documentBytes`. */
   bytes: Uint8Array;
 };
 
@@ -103,16 +102,8 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
               pageNumber={selected.sourceIndex + 1}
               rotate={selected.rotation}
               width={pageWidth}
-              // The overlays own this surface, so pdf.js's text and annotation
-              // layers have nothing left to do: they cannot be selected through
-              // an overlay, and each page view paid for a text-content round
-              // trip and a span per text run to build them.
               renderTextLayer={false}
               renderAnnotationLayer={false}
-              // Those layers carry z-indexes of their own (2 and 3) while
-              // react-pdf's wrapper is `position: relative` with none, so they
-              // painted above the overlays and swallowed clicks meant for them.
-              // `isolate` keeps that from mattering if either is switched on.
               className="isolate"
             />
             {overlay ? (
