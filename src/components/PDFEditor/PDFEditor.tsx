@@ -3,9 +3,17 @@ import { lazy, Suspense, useState } from 'react';
 import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
 import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
+import {
+  HEADER_CLASS,
+  INTRO_CONTAINER_CLASS,
+  INTRO_ERROR_CLASS,
+  PARTS_ASIDE_CLASS,
+  SAVE_BUTTON_CLASS,
+  STATUS_MESSAGE_CLASS,
+} from '#/components/PDFEditor/PDFEditor.styles';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
-import { ToolbarButton } from '#/components/ToolbarButton';
+import { ToolbarButton } from '#/components/ToolbarButton/ToolbarButton';
 import { downloadBytes } from '#/lib/download';
 import {
   buildEditedPdf,
@@ -59,7 +67,9 @@ import { selectEditorState, selectRegions } from '#/store/selectors';
 // react-pdf reaches for browser globals at import time, so it must never be
 // evaluated during SSR — hence a dynamic import behind ClientOnly.
 const PDFViewer = lazy(() =>
-  import('../PDFViewer').then((module) => ({ default: module.PDFViewer })),
+  import('../PDFViewer/PDFViewer').then((module) => ({
+    default: module.PDFViewer,
+  })),
 );
 
 export function PDFEditor() {
@@ -286,7 +296,7 @@ export function PDFEditor() {
 
   if (!bytes) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-16">
+      <div className={INTRO_CONTAINER_CLASS}>
         <h1 className="text-3xl font-bold text-slate-900">Score Editor</h1>
         <p className="mt-2 mb-8 text-slate-600">
           Upload a PDF to rotate, reorder, and remove pages. Upload an engraved
@@ -299,10 +309,7 @@ export function PDFEditor() {
         {isBusy && <p className="mt-4 text-sm text-slate-500">Reading PDF…</p>}
 
         {error && (
-          <p
-            className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
-            role="alert"
-          >
+          <p className={INTRO_ERROR_CLASS} role="alert">
             {error}
           </p>
         )}
@@ -312,7 +319,7 @@ export function PDFEditor() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+      <header className={HEADER_CLASS}>
         <div className="mr-auto min-w-0">
           <h1 className="truncate font-semibold text-slate-900" title={name}>
             {name}
@@ -363,7 +370,7 @@ export function PDFEditor() {
               ? `Overwrite ${fileHandle.name}`
               : 'Name and download an edited copy'
           }
-          className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+          className={SAVE_BUTTON_CLASS}
         >
           {isBusy ? 'Saving…' : fileHandle ? 'Save' : 'Save a copy'}
         </button>
@@ -380,9 +387,7 @@ export function PDFEditor() {
       {error && <ErrorMessage>{error}</ErrorMessage>}
 
       {status && status.revision === revision && (
-        <p className="border-b border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-          {status.message}
-        </p>
+        <p className={STATUS_MESSAGE_CLASS}>{status.message}</p>
       )}
 
       <main className="flex min-h-0 flex-1">
@@ -405,7 +410,7 @@ export function PDFEditor() {
         )}
 
         {analysisNote && !analysis && (
-          <aside className="w-64 shrink-0 border-slate-200 border-l bg-white p-4">
+          <aside className={PARTS_ASIDE_CLASS}>
             <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
             <p className="mt-2 text-slate-500 text-xs">{analysisNote}</p>
           </aside>
@@ -417,7 +422,7 @@ export function PDFEditor() {
           arrives rather than one still being worked out.
         */}
         {!analysis && !analysisNote && (
-          <aside className="w-64 shrink-0 border-slate-200 border-l bg-white p-4">
+          <aside className={PARTS_ASIDE_CLASS}>
             <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
             <p className="mt-2 text-slate-500 text-xs">Looking for staves…</p>
           </aside>

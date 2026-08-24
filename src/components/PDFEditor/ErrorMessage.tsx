@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
+import { ERROR_MESSAGE_CLASS } from '#/components/PDFEditor/PDFEditor.styles';
 
 export function ErrorMessage({ children }: { children: ReactNode }) {
   return (
-    <p
-      className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
-      role="alert"
-    >
+    <p className={ERROR_MESSAGE_CLASS} role="alert">
       {children}
     </p>
   );

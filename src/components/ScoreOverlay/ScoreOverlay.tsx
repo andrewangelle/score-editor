@@ -1,5 +1,12 @@
 import { useRef, useState } from 'react';
 import {
+  DRAFT_INPUT_CLASS,
+  getAnnotationStyles,
+  getSurfaceStyles,
+  STAFF_HINT_CLASS,
+  STAFF_LABEL_CLASS,
+} from '#/components/ScoreOverlay/ScoreOverlay.styles';
+import {
   ANNOTATION_COLORS,
   type AnnotationKind,
   DEFAULT_COLOR,
@@ -25,18 +32,15 @@ import {
 /**
  * The interactive layer on top of a rendered page. It owns the single conversion
  * between PDF user space and CSS pixels; everything else in the score feature
- * works purely in PDF space, so this is the only place that handles the flip.
+ * works purely in PDF space.
  *
  * Typing and dragging stay local until they finish — the store hears the text on
- * blur and the position on pointer-up — so writing a note is not a stream of
- * dispatches.
+ * blur and the position on pointer-up.
  */
 
 type ScoreOverlayProps = {
   pageIndex: number;
-  /** Source page size in PDF points. */
   pageHeight: number;
-  /** Rendered pixels per PDF point. */
   scale: number;
   systems: readonly System[];
   parts: readonly Part[];
@@ -80,9 +84,7 @@ export function ScoreOverlay({
   );
 
   function commitDraft(id: string, kind: AnnotationKind) {
-    // Leaving a note blank removes it. Judged after normalizing, so a string
-    // number typed as letters — which has no engravable form — counts as blank
-    // rather than becoming an empty circle.
+    // Leaving a note blank removes it. Judged after normalizing.
     if (normalizeAnnotationText(kind, draft)) {
       dispatch(annotationRetitled({ id, text: draft }));
     } else {
@@ -106,21 +108,12 @@ export function ScoreOverlay({
   return (
     <div
       ref={surface}
-      className={`absolute inset-0 ${interactive ? '' : 'pointer-events-none'} ${
-        placing ? 'cursor-crosshair' : ''
-      }`}
-      // A bare div is right here: a coordinate surface, not a control, and every
-      // actual affordance inside it is a real button.
+      className={getSurfaceStyles(interactive, Boolean(placing))}
       onPointerMove={(event) => {
         if (!drag) return;
         const point = toPdf(event.clientX, event.clientY);
         if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
       }}
-      // Placement waits for the release, and that is load-bearing. This surface
-      // is not focusable, so the browser's handling of the *press* moves focus
-      // to the body, blurring the editor opened here the moment it mounts — and
-      // a blank note that loses focus deletes itself. By pointer-up that focus
-      // move has already happened and nothing afterwards takes focus back.
       onPointerUp={(event) => {
         // A note being dragged also releases here; that is not a placement.
         if (drag) {
@@ -150,20 +143,14 @@ export function ScoreOverlay({
     >
       {systems.map((system) =>
         system.staves.map((staff, ordinal) => {
-          // The page's systems, so the hint agrees with the region drawn over
-          // it: both stop halfway between one system and the next.
           const bounds = staffBounds(system, ordinal, systems);
           const part = parts[ordinal];
 
           return (
-            // Position is the stable identity: no two staves on a page share a
-            // top edge, and it survives re-detection.
             <div
               key={`${staff.top}-${staff.left}`}
               aria-hidden
-              // A quiet hint of what detection found; RegionLayer draws the
-              // extraction rectangles themselves on top of this.
-              className="pointer-events-none absolute border-slate-400/40 border-l-2 bg-slate-900/4"
+              className={STAFF_HINT_CLASS}
               style={{
                 left: 0,
                 top: (pageHeight - bounds.top) * scale,
@@ -172,9 +159,7 @@ export function ScoreOverlay({
               }}
             >
               {part ? (
-                <span className="absolute bottom-0.5 left-1 font-medium text-[10px] text-slate-500">
-                  {part.name}
-                </span>
+                <span className={STAFF_LABEL_CLASS}>{part.name}</span>
               ) : null}
             </div>
           );
@@ -198,7 +183,6 @@ export function ScoreOverlay({
             style={{
               left: screen.x,
               top: screen.y,
-              // The anchor is the text baseline, so the box hangs above it.
               transform: 'translateY(-100%)',
             }}
           >
@@ -214,7 +198,7 @@ export function ScoreOverlay({
                     event.currentTarget.blur();
                   }
                 }}
-                className="w-32 rounded border border-blue-400 bg-white px-1 py-0.5 text-xs shadow"
+                className={DRAFT_INPUT_CLASS}
                 placeholder={PLACEHOLDER[annotation.kind]}
               />
             ) : (
@@ -235,21 +219,13 @@ export function ScoreOverlay({
                   setDraft(annotation.text);
                 }}
                 title="Double-click to edit, drag to move"
-                // Circled here as it will be when baked, so the page on screen
-                // reads as the page that comes out.
-                className={`cursor-move whitespace-nowrap bg-white/80 font-medium leading-none hover:bg-white ${
-                  circled
-                    ? 'flex items-center justify-center rounded-full border'
-                    : 'rounded px-1'
-                }`}
+                className={getAnnotationStyles(circled)}
                 style={
                   circled
                     ? {
                         fontSize,
                         color: ink,
                         borderColor: ink,
-                        // Round enough to hold two digits without turning into
-                        // an oval on one.
                         width: fontSize * 1.8,
                         height: fontSize * 1.8,
                       }

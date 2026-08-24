@@ -1,8 +1,22 @@
 import { useState } from 'react';
-import { ColorPicker } from '#/components/ScorePartsPanel/ColorPicker';
+import { ColorPicker } from '#/components/ScorePartsPanel/ColorPicker/ColorPicker';
 import { IrregularSystemsNote } from '#/components/ScorePartsPanel/IrregularSystemsNote';
 import { ManualInfo } from '#/components/ScorePartsPanel/ManualInfo';
-import { PlaceButton } from '#/components/ScorePartsPanel/PlaceButton';
+import { PlaceButton } from '#/components/ScorePartsPanel/PlaceButton/PlaceButton';
+import {
+  EXTRACT_BUTTON_CLASS,
+  MARKINGS_CHECKBOX_CLASS,
+  MARKINGS_LABEL_CLASS,
+  PANEL_CLASS,
+  PART_CHECKBOX_CLASS,
+  PART_NAME_INPUT_CLASS,
+  PLACE_BUTTON_GRID_CLASS,
+  REPLACE_BUTTON_CLASS,
+  REPLACE_CANCEL_BUTTON_CLASS,
+  REPLACE_CONFIRM_BUTTON_CLASS,
+  REPLACE_CONFIRM_CLASS,
+  RESET_REGIONS_BUTTON_CLASS,
+} from '#/components/ScorePartsPanel/ScorePartsPanel.styles';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
@@ -64,7 +78,7 @@ export function ScorePartsPanel({
   const markings = useAppSelector(selectMarkingCounts);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-l border-slate-200 bg-white p-4">
+    <aside className={PANEL_CLASS}>
       <section>
         <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
         <p className="mt-0.5 text-slate-500 text-xs">
@@ -82,7 +96,7 @@ export function ScorePartsPanel({
                 checked={selectedOrdinals.includes(part.ordinal)}
                 onChange={() => dispatch(partToggled(part.ordinal))}
                 disabled={isManual}
-                className="size-4 shrink-0 accent-blue-600 disabled:opacity-40"
+                className={PART_CHECKBOX_CLASS}
               />
               <input
                 aria-label={`Name for staff ${part.ordinal + 1}`}
@@ -95,7 +109,7 @@ export function ScorePartsPanel({
                     }),
                   )
                 }
-                className="min-w-0 flex-1 rounded border border-transparent px-1 py-0.5 text-sm hover:border-slate-300 focus:border-blue-400 focus:outline-none"
+                className={PART_NAME_INPUT_CLASS}
               />
             </li>
           ))}
@@ -103,12 +117,12 @@ export function ScorePartsPanel({
 
         {irregularSystems.length > 0 && <IrregularSystemsNote />}
 
-        <label className="mt-4 flex items-start gap-2 text-slate-700 text-xs">
+        <label className={MARKINGS_LABEL_CLASS}>
           <input
             type="checkbox"
             checked={keepMarkings}
             onChange={() => dispatch(markingsToggled())}
-            className="mt-0.5 size-4 shrink-0 accent-blue-600"
+            className={MARKINGS_CHECKBOX_CLASS}
           />
           <span>
             Keep measure numbers &amp; tempo marks
@@ -127,7 +141,7 @@ export function ScorePartsPanel({
           type="button"
           onClick={onExtract}
           disabled={isBusy || regionCount === 0}
-          className="mt-4 w-full rounded-lg bg-blue-600 px-3 py-2 font-medium text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+          className={EXTRACT_BUTTON_CLASS}
         >
           {isBusy
             ? 'Extracting…'
@@ -136,7 +150,7 @@ export function ScorePartsPanel({
 
         {replaceTarget &&
           (confirmingReplace ? (
-            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
+            <div className={REPLACE_CONFIRM_CLASS}>
               <p className="text-red-800 text-xs">
                 Replace{' '}
                 <span className="font-medium">{replaceTarget.name}</span> with
@@ -152,14 +166,14 @@ export function ScorePartsPanel({
                     replaceTarget.onReplace();
                   }}
                   disabled={isBusy}
-                  className="flex-1 rounded-lg bg-red-600 px-2 py-1.5 font-medium text-white text-xs hover:bg-red-500 disabled:opacity-50"
+                  className={REPLACE_CONFIRM_BUTTON_CLASS}
                 >
                   Replace
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingReplace(false)}
-                  className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-slate-700 text-xs hover:border-slate-400"
+                  className={REPLACE_CANCEL_BUTTON_CLASS}
                 >
                   Cancel
                 </button>
@@ -170,7 +184,7 @@ export function ScorePartsPanel({
               type="button"
               onClick={() => setConfirmingReplace(true)}
               disabled={isBusy || regionCount === 0}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-700 text-xs hover:border-slate-400 disabled:opacity-40"
+              className={REPLACE_BUTTON_CLASS}
             >
               Extract into {replaceTarget.name}
             </button>
@@ -205,7 +219,7 @@ export function ScorePartsPanel({
           type="button"
           onClick={() => dispatch(regionsReset())}
           disabled={!isManual}
-          className="mt-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-slate-700 text-xs hover:border-slate-400 disabled:opacity-40"
+          className={RESET_REGIONS_BUTTON_CLASS}
         >
           Reset to detected staves
         </button>
@@ -223,7 +237,7 @@ export function ScorePartsPanel({
           line leave "Fingering" and "Performance" different widths, and these
           are picked up and put down constantly.
         */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className={PLACE_BUTTON_GRID_CLASS}>
           <PlaceButton
             active={placing === 'fingering'}
             onClick={() => dispatch(toolToggled('fingering'))}
