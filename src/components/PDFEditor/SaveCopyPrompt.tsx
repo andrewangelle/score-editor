@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import {
+  SAVE_COPY_CANCEL_CLASS,
+  SAVE_COPY_FORM_CLASS,
+  SAVE_COPY_NAME_INPUT_CLASS,
+  SAVE_COPY_SUBMIT_CLASS,
+} from '#/components/PDFEditor/PDFEditor.styles';
 
 type SaveCopyPromptProps = {
   /** What the copy would have been called; the box opens holding it. */
@@ -7,12 +13,6 @@ type SaveCopyPromptProps = {
   onCancel: () => void;
 };
 
-/**
- * Names the copy before it is written. A download cannot be taken back or
- * renamed from here, so the name is asked for on the way out. It opens holding
- * the default, selected up to the extension: Enter is still a one-click save,
- * and typing replaces just the part worth changing.
- */
 export function SaveCopyPrompt({
   suggestion,
   onSave,
@@ -29,7 +29,7 @@ export function SaveCopyPrompt({
       onKeyDown={(event) => {
         if (event.key === 'Escape') onCancel();
       }}
-      className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2"
+      className={SAVE_COPY_FORM_CLASS}
     >
       <label
         htmlFor="save-copy-name"
@@ -47,20 +47,17 @@ export function SaveCopyPrompt({
         }}
         value={typed}
         onChange={(event) => setTyped(event.target.value)}
-        className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+        className={SAVE_COPY_NAME_INPUT_CLASS}
       />
 
-      <button
-        type="submit"
-        className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-sm text-white hover:bg-blue-500"
-      >
+      <button type="submit" className={SAVE_COPY_SUBMIT_CLASS}>
         Save
       </button>
 
       <button
         type="button"
         onClick={onCancel}
-        className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 text-sm hover:border-slate-400"
+        className={SAVE_COPY_CANCEL_CLASS}
       >
         Cancel
       </button>

@@ -1,3 +1,5 @@
+import { TOOLBAR_BUTTON_CLASS } from '#/components/ToolbarButton/ToolbarButton.styles';
+
 type ToolbarButtonProps = {
   onClick: () => void;
   disabled?: boolean;
@@ -14,7 +16,7 @@ export function ToolbarButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+      className={TOOLBAR_BUTTON_CLASS}
     >
       {children}
     </button>

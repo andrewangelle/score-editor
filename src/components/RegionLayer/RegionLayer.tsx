@@ -1,4 +1,13 @@
 import { useRef, useState } from 'react';
+import {
+  getEdgeHandleStyles,
+  getRegionStyles,
+  getSurfaceStyles,
+  MOVE_HANDLE_CLASS,
+  PREVIEW_CLASS,
+  REGION_LABEL_CLASS,
+  REMOVE_BUTTON_CLASS,
+} from '#/components/RegionLayer/RegionLayer.styles';
 import { rectToScreen, toPdfPoint } from '#/lib/pdf/pageCoordinates';
 import {
   clampRect,
@@ -21,12 +30,10 @@ import { selectRegions } from '#/store/selectors';
 import { selectIsEditingRegions } from '#/store/tool.slice';
 
 /**
- * Draws and edits the rectangles that extraction will cut. Detection seeds them,
- * but nothing here assumes they came from staves, which is what makes the tool
- * usable on a misread score and on documents with no staves at all.
+ * Draws and edits the rectangles for extraction.
  *
- * A drag in progress is local and only its result is dispatched, so the store
- * hears about a move once rather than sixty times a second.
+ * A drag in progress is local and only its result is dispatched,
+ * so the store  hears about a move once.
  */
 
 const EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
@@ -66,10 +73,6 @@ export function RegionLayer({
     return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
   };
 
-  /**
-   * Pins the surface's geometry and routes the rest of the pointer stream here
-   * wherever it goes.
-   */
   function captureGesture(event: React.PointerEvent) {
     surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
     surface.current?.setPointerCapture(event.pointerId);
@@ -84,7 +87,6 @@ export function RegionLayer({
     (region) => region.pageIndex === pageIndex,
   );
 
-  /** The live version of a region while it is being dragged. */
   function shown(region: Region): Region {
     return drag && drag.kind !== 'new' && drag.region.id === region.id
       ? drag.region
@@ -156,9 +158,7 @@ export function RegionLayer({
   return (
     <div
       ref={surface}
-      className={`absolute inset-0 ${interactive ? '' : 'pointer-events-none'} ${
-        interactive && !drag ? 'cursor-crosshair' : ''
-      }`}
+      className={getSurfaceStyles(interactive, Boolean(drag))}
       onPointerDown={(event) => {
         if (!interactive || event.target !== event.currentTarget) return;
         captureGesture(event);
@@ -179,11 +179,7 @@ export function RegionLayer({
         return (
           <div
             key={region.id}
-            className={`absolute border-2 ${
-              isSelected
-                ? 'border-blue-600 bg-blue-500/10'
-                : 'border-blue-400/70 bg-blue-400/5'
-            }`}
+            className={getRegionStyles(isSelected)}
             style={box}
           >
             <button
@@ -204,12 +200,10 @@ export function RegionLayer({
                   region,
                 });
               }}
-              className="absolute inset-0 size-full cursor-move disabled:cursor-default"
+              className={MOVE_HANDLE_CLASS}
             />
 
-            <span className="pointer-events-none absolute top-0.5 left-1 rounded bg-white/75 px-1 font-medium text-[10px] text-blue-800">
-              {region.label}
-            </span>
+            <span className={REGION_LABEL_CLASS}>{region.label}</span>
 
             {isSelected && interactive ? (
               <button
@@ -219,7 +213,7 @@ export function RegionLayer({
                 onClick={() =>
                   dispatch(regionRemoved({ visible: regions, id: region.id }))
                 }
-                className="-top-3 -right-3 absolute size-6 rounded-full border border-slate-300 bg-white text-slate-600 text-xs shadow hover:bg-red-50 hover:text-red-700"
+                className={REMOVE_BUTTON_CLASS}
               >
                 ✕
               </button>
@@ -242,11 +236,7 @@ export function RegionLayer({
                         region,
                       });
                     }}
-                    className={`absolute ${
-                      edge === 'top' || edge === 'bottom'
-                        ? 'left-0 h-2 w-full cursor-ns-resize'
-                        : 'top-0 h-full w-2 cursor-ew-resize'
-                    }`}
+                    className={getEdgeHandleStyles(edge)}
                     style={{
                       top: edge === 'top' ? -HANDLE / 2 : undefined,
                       bottom: edge === 'bottom' ? -HANDLE / 2 : undefined,
@@ -263,7 +253,7 @@ export function RegionLayer({
       {preview ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute border-2 border-blue-600 border-dashed bg-blue-500/10"
+          className={PREVIEW_CLASS}
           style={rectToScreen(preview, pageHeight, scale)}
         />
       ) : null}

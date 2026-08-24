@@ -1,7 +1,7 @@
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
-import { StoreProvider } from '#/components/StoreProvider';
+import { StoreProvider } from '#/components/StoreProvider/StoreProvider';
 
 import appCss from '../styles.css?url';
 

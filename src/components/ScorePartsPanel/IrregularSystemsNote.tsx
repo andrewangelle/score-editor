@@ -1,10 +1,11 @@
+import { IRREGULAR_SYSTEMS_NOTE_CLASS } from '#/components/ScorePartsPanel/ScorePartsPanel.styles';
 import { useAppSelector } from '#/store/hooks';
 import { selectIrregularSystems } from '#/store/score.slice';
 
 export function IrregularSystemsNote() {
   const irregularSystems = useAppSelector(selectIrregularSystems);
   return (
-    <p className="mt-3 rounded bg-amber-50 p-2 text-amber-800 text-xs">
+    <p className={IRREGULAR_SYSTEMS_NOTE_CLASS}>
       {irregularSystems.length}{' '}
       {irregularSystems.length === 1 ? 'system has' : 'systems have'} a
       different number of staves than the first. Those systems are extracted by

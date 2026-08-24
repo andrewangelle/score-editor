@@ -1,3 +1,5 @@
+import { getStripButtonStyles } from '#/components/StripButton/StripButton.styles';
+
 type StripButtonProps = {
   label: string;
   onClick: () => void;
@@ -20,9 +22,7 @@ export function StripButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`h-6 w-6 rounded text-xs leading-none text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30 ${
-        destructive ? 'hover:bg-red-100 hover:text-red-700' : ''
-      }`}
+      className={getStripButtonStyles(destructive)}
     >
       {children}
     </button>

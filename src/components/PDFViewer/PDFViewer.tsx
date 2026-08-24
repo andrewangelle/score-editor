@@ -2,9 +2,18 @@ import { useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { PDFPageStrip } from '#/components/PDFPageStrip';
-import { RegionLayer } from '#/components/RegionLayer';
-import { ScoreOverlay } from '#/components/ScoreOverlay';
+import { PDFPageStrip } from '#/components/PDFPageStrip/PDFPageStrip';
+import {
+  DOCUMENT_CLASS,
+  PAGE_FRAME_CLASS,
+  PAGE_NAV_CLASS,
+  ROTATED_NOTICE_CLASS,
+  STAGE_CLASS,
+  VIEWER_ERROR_CLASS,
+  VIEWER_MESSAGE_CLASS,
+} from '#/components/PDFViewer/PDFViewer.styles';
+import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
+import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
 import { useEdgeScrollPaging } from '#/hooks/useEdgeScrollPaging';
 import { useElementWidth } from '#/hooks/useElementWidth';
 import type { TurnDirection } from '#/lib/edgeScrollPaging';
@@ -64,7 +73,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
 
   if (loadError) {
     return (
-      <p className="p-8 text-red-700 text-sm" role="alert">
+      <p className={VIEWER_ERROR_CLASS} role="alert">
         This PDF could not be displayed: {loadError}
       </p>
     );
@@ -74,27 +83,21 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
     <Document
       file={file}
       onLoadError={(error) => setLoadError(error.message)}
-      loading={<p className="p-8 text-slate-500 text-sm">Rendering PDF…</p>}
+      loading={<p className={VIEWER_MESSAGE_CLASS}>Rendering PDF…</p>}
       error={
-        <p className="p-8 text-red-700 text-sm" role="alert">
+        <p className={VIEWER_ERROR_CLASS} role="alert">
           This PDF could not be displayed.
         </p>
       }
-      className="flex min-h-0 flex-1"
+      className={DOCUMENT_CLASS}
     >
-      <nav
-        aria-label="Pages"
-        className="w-40 shrink-0 overflow-y-auto border-slate-200 border-r bg-slate-100"
-      >
+      <nav aria-label="Pages" className={PAGE_NAV_CLASS}>
         <PDFPageStrip />
       </nav>
 
-      <div
-        ref={setStage}
-        className="flex-1 overflow-auto overscroll-contain bg-slate-200 p-4"
-      >
+      <div ref={setStage} className={STAGE_CLASS}>
         {selected && pageWidth ? (
-          <div className="relative mx-auto w-fit shadow-lg">
+          <div className={PAGE_FRAME_CLASS}>
             <Page
               key={selected.id}
               pageNumber={selected.sourceIndex + 1}
@@ -134,7 +137,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
       </div>
 
       {analysis && selected && selected.rotation !== 0 ? (
-        <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded bg-slate-900/80 px-3 py-1 text-white text-xs">
+        <p className={ROTATED_NOTICE_CLASS}>
           Score tools are hidden while this page is rotated.
         </p>
       ) : null}

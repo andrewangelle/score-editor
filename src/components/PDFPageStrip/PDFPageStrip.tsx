@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Page } from 'react-pdf';
-import { StripButton } from '#/components/StripButton';
+import {
+  getThumbnailStyles,
+  PAGE_CONTROLS_CLASS,
+  PAGE_LABEL_CLASS,
+  PAGE_LIST_CLASS,
+} from '#/components/PDFPageStrip/PDFPageStrip.styles';
+import { StripButton } from '#/components/StripButton/StripButton';
 import {
   pageDeleted,
   pageMoved,
@@ -29,7 +35,7 @@ export function PDFPageStrip() {
   }, [selectedId]);
 
   return (
-    <ol className="flex h-full flex-col gap-3 overflow-y-auto p-3">
+    <ol className={PAGE_LIST_CLASS}>
       {pages.map((page, index) => {
         const isSelected = page.id === selectedId;
 
@@ -39,11 +45,7 @@ export function PDFPageStrip() {
               type="button"
               onClick={() => dispatch(pageSelected(page.id))}
               aria-current={isSelected}
-              className={`block w-full rounded-lg border-2 bg-white p-1 transition-colors ${
-                isSelected
-                  ? 'border-blue-500 ring-2 ring-blue-200'
-                  : 'border-slate-200 hover:border-slate-400'
-              }`}
+              className={getThumbnailStyles(isSelected)}
             >
               <span className="flex justify-center overflow-hidden">
                 <Page
@@ -55,12 +57,10 @@ export function PDFPageStrip() {
                   loading=""
                 />
               </span>
-              <span className="mt-1 block text-center text-xs text-slate-500">
-                Page {index + 1}
-              </span>
+              <span className={PAGE_LABEL_CLASS}>Page {index + 1}</span>
             </button>
 
-            <div className="mt-1 flex items-center justify-center gap-0.5">
+            <div className={PAGE_CONTROLS_CLASS}>
               <StripButton
                 label={`Rotate page ${index + 1} left`}
                 onClick={() =>
