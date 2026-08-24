@@ -3,9 +3,9 @@ import { ColorPicker } from '#/components/ScorePartsPanel/ColorPicker';
 import { IrregularSystemsNote } from '#/components/ScorePartsPanel/IrregularSystemsNote';
 import { ManualInfo } from '#/components/ScorePartsPanel/ManualInfo';
 import { PlaceButton } from '#/components/ScorePartsPanel/PlaceButton';
-import { useAppDispatch, useAppSelector } from '#/hooks';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { regionsReset, selectIsManual } from '#/store/regions.slice';
 import {
   markingsToggled,

@@ -1,4 +1,4 @@
-import { useAppSelector } from '#/hooks';
+import { useAppSelector } from '#/store/hooks';
 import { selectIrregularSystems } from '#/store/score.slice';
 
 export function IrregularSystemsNote() {

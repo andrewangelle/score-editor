@@ -6,7 +6,6 @@ import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
 import { ToolbarButton } from '#/components/ToolbarButton';
-import { useAppDispatch, useAppSelector } from '#/hooks';
 import { downloadBytes } from '#/lib/download';
 import {
   buildEditedPdf,
@@ -45,6 +44,7 @@ import {
   selectRevision,
   undone,
 } from '#/store/document.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { selectIsManual } from '#/store/regions.slice';
 import {
   scoreAnalysed,

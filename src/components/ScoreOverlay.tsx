@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { useAppDispatch, useAppSelector } from '#/hooks';
 import {
   ANNOTATION_COLORS,
   type AnnotationKind,
@@ -16,6 +15,7 @@ import {
   annotationRetitled,
   selectAnnotations,
 } from '#/store/annotations.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   selectAnnotationColor,
   selectIsEditingRegions,

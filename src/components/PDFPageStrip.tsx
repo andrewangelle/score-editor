@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Page } from 'react-pdf';
 import { StripButton } from '#/components/StripButton';
-import { useAppDispatch, useAppSelector } from '#/hooks';
 import {
   pageDeleted,
   pageMoved,
@@ -10,6 +9,7 @@ import {
   selectPages,
   selectSelectedPageId,
 } from '#/store/document.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 
 const THUMBNAIL_WIDTH = 108;
 
