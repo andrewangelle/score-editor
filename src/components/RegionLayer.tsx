@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { useAppDispatch, useAppSelector } from '#/hooks';
 import { rectToScreen, toPdfPoint } from '#/lib/pdf/pageCoordinates';
 import {
   clampRect,
@@ -10,6 +9,7 @@ import {
   rectFromPoints,
   resizeRegion,
 } from '#/lib/pdf/regions';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   regionAdded,
   regionChanged,

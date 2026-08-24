@@ -5,16 +5,16 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { PDFPageStrip } from '#/components/PDFPageStrip';
 import { RegionLayer } from '#/components/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay';
-import { useAppDispatch, useAppSelector } from '#/hooks';
+import { useEdgeScrollPaging } from '#/hooks/useEdgeScrollPaging';
+import { useElementWidth } from '#/hooks/useElementWidth';
 import type { TurnDirection } from '#/lib/edgeScrollPaging';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
-import { useEdgeScrollPaging } from '#/lib/useEdgeScrollPaging';
-import { useElementWidth } from '#/lib/useElementWidth';
 import {
   pageSelected,
   selectPages,
   selectSelectedPageId,
 } from '#/store/document.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { selectAnalysis, selectParts } from '#/store/score.slice';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
@@ -34,22 +34,14 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   const pages = useAppSelector(selectPages);
   const selectedId = useAppSelector(selectSelectedPageId);
   const analysis = useAppSelector(selectAnalysis);
-  // Not `analysis.parts`: a renamed part's name lives beside the analysis.
   const parts = useAppSelector(selectParts);
-
-  // pdf.js detaches the buffer it is handed, so it gets a copy and the pristine
-  // `bytes` stay usable by pdf-lib on save. Memoized because a new `file`
-  // identity would make react-pdf reload the document every render.
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
 
   const selected = pages.find((page) => page.id === selectedId) ?? pages[0];
   const pageWidth = stageWidth
     ? Math.min(stageWidth - 32, MAX_PAGE_WIDTH)
     : undefined;
-
   const sourcePage = analysis?.pages[selected?.sourceIndex ?? -1];
-  // The overlay maps PDF points to pixels, which only holds while the page is
-  // upright; a rotated page would need the transform composed in as well.
   const overlay =
     analysis && sourcePage && pageWidth && selected && selected.rotation === 0
       ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
