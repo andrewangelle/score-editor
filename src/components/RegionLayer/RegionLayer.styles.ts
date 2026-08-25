@@ -43,7 +43,7 @@ export const REGION_LABEL_CLASS =
   'pointer-events-none absolute top-0.5 left-1 rounded bg-white/75 px-1 font-medium text-[10px] text-blue-800';
 
 export const REMOVE_BUTTON_CLASS =
-  '-top-3 -right-3 absolute size-6 rounded-full border border-slate-300 bg-white text-slate-600 text-xs shadow hover:bg-red-50 hover:text-red-700';
+  '-top-3 -right-3 absolute size-6 rounded-full border border-slate-300 bg-white text-slate-600 text-xs shadow hover:bg-red-50 hover:text-red-700 cursor-pointer';
 
 export const PREVIEW_CLASS =
   'pointer-events-none absolute border-2 border-blue-600 border-dashed bg-blue-500/10';

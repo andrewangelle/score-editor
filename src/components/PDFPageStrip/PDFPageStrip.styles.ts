@@ -2,7 +2,7 @@ export const PAGE_LIST_CLASS = 'flex h-full flex-col gap-3 overflow-y-auto p-3';
 
 export function getThumbnailStyles(isSelected: boolean) {
   let baseClass =
-    'block w-full rounded-lg border-2 bg-white p-1 transition-colors';
+    'block w-full rounded-lg border-2 bg-white p-1 transition-colors cursor-pointer';
 
   if (isSelected) {
     baseClass += ' border-blue-500 ring-2 ring-blue-200';
