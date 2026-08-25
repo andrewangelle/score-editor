@@ -10,21 +10,25 @@ import {
   PANEL_CLASS,
   PART_CHECKBOX_CLASS,
   PART_NAME_INPUT_CLASS,
+  PARTS_HEADING_ROW_CLASS,
   PLACE_BUTTON_GRID_CLASS,
   REPLACE_BUTTON_CLASS,
   REPLACE_CANCEL_BUTTON_CLASS,
   REPLACE_CONFIRM_BUTTON_CLASS,
   REPLACE_CONFIRM_CLASS,
   RESET_REGIONS_BUTTON_CLASS,
+  TOGGLE_ALL_PARTS_BUTTON_CLASS,
 } from '#/components/ScorePartsPanel/ScorePartsPanel.styles';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { regionsReset, selectIsManual } from '#/store/regions.slice';
 import {
+  allPartsToggled,
   markingsToggled,
   partRenamed,
   partToggled,
+  selectAllPartsSelected,
   selectIrregularSystems,
   selectKeepMarkings,
   selectMarkingCounts,
@@ -67,6 +71,7 @@ export function ScorePartsPanel({
   const annotationCount = useAppSelector(selectAnnotationCount);
   const parts = useAppSelector(selectParts);
   const selectedOrdinals = useAppSelector(selectSelectedOrdinals);
+  const allSelected = useAppSelector(selectAllPartsSelected);
   const irregularSystems = useAppSelector(selectIrregularSystems);
   const systems = useAppSelector(selectSystemCount);
   const regionCount = useAppSelector(selectRegions).length;
@@ -80,7 +85,18 @@ export function ScorePartsPanel({
   return (
     <aside className={PANEL_CLASS}>
       <section>
-        <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
+        <div className={PARTS_HEADING_ROW_CLASS}>
+          <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
+          <button
+            type="button"
+            onClick={() => dispatch(allPartsToggled())}
+            disabled={isManual || parts.length === 0}
+            className={TOGGLE_ALL_PARTS_BUTTON_CLASS}
+          >
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        </div>
+
         <p className="mt-0.5 text-slate-500 text-xs">
           {parts.length} staves · {systems} systems detected
         </p>

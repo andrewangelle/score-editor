@@ -44,6 +44,20 @@ export const regionsSlice = createSlice({
     },
 
     regionAdded: {
+      // `createRegion` mints a random id, so it must not run in the reducer:
+      // replaying the same action would otherwise produce different state.
+      prepare(input: {
+        visible: readonly Region[];
+        pageIndex: number;
+        rect: Rect;
+      }) {
+        return {
+          payload: {
+            visible: input.visible,
+            region: createRegion(input.pageIndex, input.rect),
+          },
+        };
+      },
       reducer(
         state,
         action: PayloadAction<{
@@ -58,20 +72,6 @@ export const regionsSlice = createSlice({
           ...base,
           { ...action.payload.region, label: `Region ${base.length + 1}` },
         ];
-      },
-      // `createRegion` mints a random id, so it must not run in the reducer:
-      // replaying the same action would otherwise produce different state.
-      prepare(input: {
-        visible: readonly Region[];
-        pageIndex: number;
-        rect: Rect;
-      }) {
-        return {
-          payload: {
-            visible: input.visible,
-            region: createRegion(input.pageIndex, input.rect),
-          },
-        };
       },
     },
 
@@ -102,7 +102,7 @@ export const regionsSlice = createSlice({
       return initialState;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers(builder) {
     builder
       .addCase(documentOpened, () => initialState)
       .addCase(documentClosed, () => initialState)
