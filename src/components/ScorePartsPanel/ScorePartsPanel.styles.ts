@@ -4,6 +4,12 @@ export const IRREGULAR_SYSTEMS_NOTE_CLASS =
 export const PANEL_CLASS =
   'flex w-64 shrink-0 flex-col gap-4 overflow-y-auto border-l border-slate-200 bg-white p-4';
 
+export const PARTS_HEADING_ROW_CLASS =
+  'flex items-center justify-between gap-2';
+
+export const TOGGLE_ALL_PARTS_BUTTON_CLASS =
+  'shrink-0 rounded px-1.5 py-0.5 font-medium text-blue-600 text-xs hover:bg-blue-50 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer';
+
 export const PART_CHECKBOX_CLASS =
   'size-4 shrink-0 accent-blue-600 disabled:opacity-40';
 

@@ -133,6 +133,12 @@ export const scoreSlice = createSlice({
       }
     },
 
+    allPartsToggled(state) {
+      const detected = state.analysis?.parts.map((part) => part.ordinal) ?? [];
+      state.selectedOrdinals =
+        state.selectedOrdinals.length === detected.length ? [] : detected;
+    },
+
     markingsToggled(state) {
       state.keepMarkings = !state.keepMarkings;
     },
@@ -171,6 +177,13 @@ export const scoreSlice = createSlice({
     selectParts: selectRenamedParts,
     selectPartNames: createSelector([selectRenamedParts], (parts) =>
       parts.map((part) => part.name),
+    ),
+    /** Whether the checkboxes are all ticked — what the toggle reads to label
+     * itself, and false with nothing detected so it never offers to clear an
+     * empty list. */
+    selectAllPartsSelected: createSelector(
+      [selectRenamedParts, (state: ScoreState) => state.selectedOrdinals],
+      (parts, ordinals) => parts.length > 0 && ordinals.length === parts.length,
     ),
     selectSelectedParts: createSelector(
       [selectRenamedParts, (state: ScoreState) => state.selectedOrdinals],
@@ -212,6 +225,7 @@ export const {
   scoreAnalysed,
   scoreAnalysisFailed,
   partToggled,
+  allPartsToggled,
   partRenamed,
   markingsToggled,
 } = scoreSlice.actions;
@@ -222,6 +236,7 @@ export const {
   selectSelectedOrdinals,
   selectParts,
   selectPartNames,
+  selectAllPartsSelected,
   selectSelectedParts,
   selectRenames,
   selectIrregularSystems,

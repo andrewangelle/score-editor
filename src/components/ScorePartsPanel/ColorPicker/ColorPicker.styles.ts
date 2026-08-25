@@ -1,4 +1,5 @@
-export const COLOR_PICKER_FIELDSET_CLASS = 'mt-3 flex items-center gap-2';
+export const COLOR_PICKER_FIELDSET_CLASS =
+  'relative mt-3 flex items-center gap-2';
 
 export function getSwatchStyles(selected: boolean) {
   let baseClass =

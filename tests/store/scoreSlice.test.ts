@@ -1,6 +1,7 @@
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 import {
+  allPartsToggled,
   partRenamed,
   partToggled,
   scoreAnalysed,
@@ -136,6 +137,34 @@ describe('partToggled', () => {
     const state = run(partToggled(0), partToggled(1), partToggled(2));
 
     expect(state.selectedOrdinals).toEqual([]);
+  });
+});
+
+describe('allPartsToggled', () => {
+  const { selectAllPartsSelected } = scoreSlice.selectors;
+
+  it('clears a full selection', () => {
+    const state = run(allPartsToggled());
+
+    expect(state.selectedOrdinals).toEqual([]);
+    expect(selectAllPartsSelected({ score: state })).toBe(false);
+  });
+
+  it('fills an empty one', () => {
+    const state = run(allPartsToggled(), allPartsToggled());
+
+    expect(state.selectedOrdinals).toEqual([0, 1, 2]);
+    expect(selectAllPartsSelected({ score: state })).toBe(true);
+  });
+
+  it('fills a part-way one rather than clearing it', () => {
+    const state = run(partToggled(1), allPartsToggled());
+
+    expect(state.selectedOrdinals).toEqual([0, 1, 2]);
+  });
+
+  it('reports nothing selected when nothing was detected', () => {
+    expect(selectAllPartsSelected({ score: OPENED })).toBe(false);
   });
 });
 

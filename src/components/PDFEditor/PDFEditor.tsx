@@ -4,13 +4,30 @@ import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
 import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
 import {
+  EDITOR_DESCRIPTION,
+  LOADING_STAVES,
+  PARTS,
+  READING_PDF,
+  RESET,
+  ROTATE_LEFT,
+  ROTATE_RIGHT,
+  SAVE_A_COPY,
+  SCORE_EDITOR,
+  UNDO,
+} from '#/components/PDFEditor/PDFEditor.constants';
+import {
   HEADER_CLASS,
   INTRO_CONTAINER_CLASS,
   INTRO_ERROR_CLASS,
   PARTS_ASIDE_CLASS,
   SAVE_BUTTON_CLASS,
+  STATUS_DISMISS_BUTTON_CLASS,
   STATUS_MESSAGE_CLASS,
 } from '#/components/PDFEditor/PDFEditor.styles';
+import {
+  getSaveButtonCTA,
+  getSaveButtonTitle,
+} from '#/components/PDFEditor/PDFEditor.utils';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
 import { ToolbarButton } from '#/components/ToolbarButton/ToolbarButton';
@@ -220,10 +237,6 @@ export function PDFEditor() {
    * Writes the edited document out. Builds from the pristine upload rather than
    * whatever was last written, which is what lets the same file be saved over
    * repeatedly without edits compounding.
-   *
-   * Marks go out as annotation objects rather than flattened, so a file saved
-   * here can be reopened here and picked up where it was left. Extraction still
-   * flattens: a part is a print artifact handed to a player.
    */
   async function saveWith(
     write: (edited: Uint8Array) => Promise<string> | string,
@@ -252,7 +265,6 @@ export function PDFEditor() {
     }
   }
 
-  /** Overwrites the file that was opened. */
   function handleSaveToFile() {
     if (!fileHandle) return;
 
@@ -264,7 +276,7 @@ export function PDFEditor() {
   }
 
   /** Leaves the original alone and downloads an edited copy beside it. */
-  function handleSaveCopy(typed: string) {
+  function handleSaveACopy(typed: string) {
     setNamingCopy(false);
 
     return saveWith((edited) => {
@@ -274,10 +286,6 @@ export function PDFEditor() {
     });
   }
 
-  /**
-   * The score, region, annotation and tool slices all reset themselves on
-   * `documentClosed`, so this only has to deal with its own banners.
-   */
   function handleClose() {
     dispatch(documentClosed());
     releaseDocumentBytes();
@@ -297,16 +305,12 @@ export function PDFEditor() {
   if (!bytes) {
     return (
       <div className={INTRO_CONTAINER_CLASS}>
-        <h1 className="text-3xl font-bold text-slate-900">Score Editor</h1>
-        <p className="mt-2 mb-8 text-slate-600">
-          Upload a PDF to rotate, reorder, and remove pages. Upload an engraved
-          score and you can also split out individual instruments and mark up
-          fingerings, string numbers, left-hand positions and performance notes.
-        </p>
+        <h1 className="text-3xl font-bold text-slate-900">{SCORE_EDITOR}</h1>
+        <p className="mt-2 mb-8 text-slate-600">{EDITOR_DESCRIPTION}</p>
 
         <PDFDropzone onFile={handleFile} onError={setError} disabled={isBusy} />
 
-        {isBusy && <p className="mt-4 text-sm text-slate-500">Reading PDF…</p>}
+        {isBusy && <p className="mt-4 text-sm text-slate-500">{READING_PDF}</p>}
 
         {error && (
           <p className={INTRO_ERROR_CLASS} role="alert">
@@ -330,34 +334,29 @@ export function PDFEditor() {
           </p>
         </div>
 
-        <ToolbarButton onClick={rotateLeft}>Rotate all left</ToolbarButton>
+        <ToolbarButton onClick={rotateLeft}>{ROTATE_LEFT}</ToolbarButton>
 
-        <ToolbarButton onClick={rotateRight}>Rotate all right</ToolbarButton>
+        <ToolbarButton onClick={rotateRight}>{ROTATE_RIGHT}</ToolbarButton>
 
         <ToolbarButton onClick={() => dispatch(undone())} disabled={!canUndo}>
-          Undo
+          {UNDO}
         </ToolbarButton>
 
         <ToolbarButton
           onClick={() => dispatch(documentReset())}
           disabled={!dirty}
         >
-          Reset
+          {RESET}
         </ToolbarButton>
 
         <ToolbarButton onClick={handleClose}>Close</ToolbarButton>
 
-        {/*
-          With a handle there are two saves and the destructive one is the one
-          being asked for, so it leads; without one, saving a copy is the only
-          save there is and takes the primary button back.
-        */}
         {fileHandle && (
           <ToolbarButton
             onClick={() => setNamingCopy(true)}
             disabled={isBusy || isNamingCopy}
           >
-            Save a copy
+            {SAVE_A_COPY}
           </ToolbarButton>
         )}
 
@@ -365,29 +364,46 @@ export function PDFEditor() {
           type="button"
           onClick={fileHandle ? handleSaveToFile : () => setNamingCopy(true)}
           disabled={isBusy || (!fileHandle && isNamingCopy)}
-          title={
-            fileHandle
-              ? `Overwrite ${fileHandle.name}`
-              : 'Name and download an edited copy'
-          }
+          title={getSaveButtonTitle(fileHandle)}
           className={SAVE_BUTTON_CLASS}
         >
-          {isBusy ? 'Saving…' : fileHandle ? 'Save' : 'Save a copy'}
+          {getSaveButtonCTA(isBusy, fileHandle)}
         </button>
       </header>
 
-      {isNamingCopy && (
-        <SaveCopyPrompt
-          suggestion={editedFileName(name)}
-          onSave={handleSaveCopy}
-          onCancel={() => setNamingCopy(false)}
-        />
-      )}
+      <SaveCopyPrompt
+        open={isNamingCopy}
+        suggestion={editedFileName(name)}
+        onSave={handleSaveACopy}
+        onCancel={() => setNamingCopy(false)}
+      />
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
 
       {status && status.revision === revision && (
-        <p className={STATUS_MESSAGE_CLASS}>{status.message}</p>
+        <div className={STATUS_MESSAGE_CLASS} role="status">
+          <p className="min-w-0 flex-1 truncate">{status.message}</p>
+
+          <button
+            type="button"
+            onClick={() => setStatus(null)}
+            title="Dismiss"
+            aria-label="Dismiss"
+            className={STATUS_DISMISS_BUTTON_CLASS}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              className="size-3.5"
+            >
+              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+            </svg>
+          </button>
+        </div>
       )}
 
       <main className="flex min-h-0 flex-1">
@@ -411,20 +427,15 @@ export function PDFEditor() {
 
         {analysisNote && !analysis && (
           <aside className={PARTS_ASIDE_CLASS}>
-            <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">{PARTS}</h2>
             <p className="mt-2 text-slate-500 text-xs">{analysisNote}</p>
           </aside>
         )}
 
-        {/*
-          Detection takes a moment on a dense score. Without this the side of
-          the window is empty until it lands, which reads as a panel that never
-          arrives rather than one still being worked out.
-        */}
         {!analysis && !analysisNote && (
           <aside className={PARTS_ASIDE_CLASS}>
-            <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
-            <p className="mt-2 text-slate-500 text-xs">Looking for staves…</p>
+            <h2 className="font-semibold text-slate-900 text-sm">{PARTS}</h2>
+            <p className="mt-2 text-slate-500 text-xs">{LOADING_STAVES}</p>
           </aside>
         )}
       </main>
