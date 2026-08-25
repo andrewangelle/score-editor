@@ -30,7 +30,7 @@ export function ColorPicker({ value, onPick }: ColorPickerProps) {
               value={color}
               checked={selected}
               onChange={() => onPick(color)}
-              className="peer sr-only"
+              className="peer sr-only cursor-pointer"
             />
             <span
               aria-hidden
