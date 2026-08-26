@@ -125,6 +125,20 @@ export type DetectionOptions = {
  */
 const UNAMBIGUOUS_STAFF_LINES = 4;
 
+/**
+ * How far a chain of ink may step, in staff line spacings. Ledger lines are
+ * spaced by the staff's own line spacing, so a step is allowed to be a little
+ * wider than that and no more — but only a little: dynamics are engraved
+ * roughly one line spacing clear of the outermost line, and at 1.5 a `ff` set
+ * a shade lower than usual falls out of reach and is sliced by the band edge.
+ */
+const CHAIN_REACH_FACTOR = 1.75;
+
+/**
+ * How far below its baseline a glyph reaches, as a fraction of the font size.
+ */
+const TEXT_DESCENT = 0.25;
+
 export const DEFAULT_DETECTION: DetectionOptions = {
   maxRuleThickness: 2.5,
   minRuleWidthRatio: 0.5,
@@ -729,6 +743,12 @@ export function groupIntoStaves(
  *
  * The staff's own lines seed the run at full width, so the first step outwards
  * can begin anywhere along it; from there it narrows to whatever it caught.
+ *
+ * `seed` joins them: ink already sitting across the lines is the staff's beyond
+ * doubt, and a stem that descends below the staff is the thing a beam group or
+ * tuplet number hanging under it is attached to. Without it the run can only
+ * step off the lines themselves, and anything further out than one `reach` from
+ * them — however plainly it belongs to the part — is unreachable.
  */
 function chainOutwards(
   staff: Staff,
@@ -736,6 +756,7 @@ function chainOutwards(
   reach: number,
   direction: 1 | -1,
   start: number,
+  seed: readonly Box[] = [],
 ): number {
   const up = direction === 1;
   const pool = candidates
@@ -749,6 +770,7 @@ function chainOutwards(
       bottom: staff.bottom,
       top: staff.top,
     },
+    ...seed,
   ];
   const taken = new Set<number>();
   let frontier = start;
@@ -829,9 +851,7 @@ export function attachContentBounds(
     const staffBelow = ordered[index + 1];
     const ceiling = staffAbove ? staffAbove.bottom : staff.top + room;
     const floor = staffBelow ? staffBelow.top : staff.bottom - room;
-    // Ledger lines are spaced by the staff's own line spacing, so a chain step
-    // is allowed to be a little wider than that and no more.
-    const reach = (staff.lineSpacing || 1) * 1.5;
+    const reach = (staff.lineSpacing || 1) * CHAIN_REACH_FACTOR;
 
     // Both bounds are clamped to the ceiling and floor and chaining only travels
     // outwards, so ink outside that window cannot change either answer.
@@ -848,21 +868,46 @@ export function attachContentBounds(
     let top = staff.top;
     let bottom = staff.bottom;
 
-    // Anything sitting across the staff's own lines is unambiguously its own.
+    // Anything sitting across the staff's own lines is unambiguously its own,
+    // so it both widens the band directly and carries the chain onwards: a stem
+    // is how the run reaches a beam group hanging off the far end of it.
+    const straddling: Box[] = [];
     for (const box of near) {
       if (box.bottom <= staff.top && box.top >= staff.bottom) {
         top = Math.max(top, box.top);
         bottom = Math.min(bottom, box.bottom);
+        straddling.push(box);
       }
     }
 
+    /**
+     * Extends an edge past anything small it lands in the middle of.
+     */
+    const whole = (edge: number, direction: 1 | -1): number => {
+      const up = direction === 1;
+      const limit = up ? edge + reach : edge - reach;
+      let moved = edge;
+      for (const box of near) {
+        if (box.top <= edge || box.bottom >= edge) continue;
+        if (up ? box.top > limit : box.bottom < limit) continue;
+        moved = up ? Math.max(moved, box.top) : Math.min(moved, box.bottom);
+      }
+      return moved;
+    };
+
+    const reachedTop = Math.min(
+      chainOutwards(staff, near, reach, 1, top, straddling),
+      ceiling,
+    );
+    const reachedBottom = Math.max(
+      chainOutwards(staff, near, reach, -1, bottom, straddling),
+      floor,
+    );
+
     return {
       ...staff,
-      contentTop: Math.min(chainOutwards(staff, near, reach, 1, top), ceiling),
-      contentBottom: Math.max(
-        chainOutwards(staff, near, reach, -1, bottom),
-        floor,
-      ),
+      contentTop: Math.min(whole(reachedTop, 1), ceiling),
+      contentBottom: Math.max(whole(reachedBottom, -1), floor),
     };
   });
 }
@@ -977,9 +1022,11 @@ export async function detectPageStaves(
   const staves = groupIntoStaves(rules, options);
 
   // Text counts as ink a staff can claim, so lyrics, dynamics and tempo marks
-  // travel with the music they sit against.
+  // travel with the music they sit against. Only here is it dropped to its
+  // descent: the rects themselves are reported as read, since markings compare
+  // them against each other and a uniform shift would tell them nothing.
   const text = await readVisibleText(page, clips);
-  const ink = [...boxes, ...text.map((item) => item.rect)];
+  const ink = [...boxes, ...text.map((item) => withDescent(item.rect))];
   const systems = groupIntoSystems(
     attachContentBounds(staves, ink, options),
     verticalsFromBoxes(boxes, options),
@@ -1014,6 +1061,12 @@ function textItemBox(item: TextItem): Box {
     bottom: y,
     top: y + (item.height ?? 0),
   };
+}
+
+/** A text rect dropped onto its baseline, so descenders fall inside it. */
+function withDescent(rect: Rect): Rect {
+  const drop = (rect.top - rect.bottom) * TEXT_DESCENT;
+  return { ...rect, top: rect.top - drop, bottom: rect.bottom - drop };
 }
 
 export type PageTextItem = {
