@@ -56,13 +56,14 @@ export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
 /**
  * The values a kind can be picked from a menu rather than typed. Only the kinds
  * whose whole vocabulary is a short list of numbers appear here: a left hand has
- * four fingers, and no instrument this edits has more than eight strings.
- * Positions and performance notes are open-ended, so they stay typed.
+ * four fingers plus 0 for an open string, and no instrument this edits has more
+ * than eight strings. Positions and performance notes are open-ended, so they
+ * stay typed.
  */
 export const ANNOTATION_VALUE_CHOICES: Partial<
   Record<AnnotationKind, readonly string[]>
 > = {
-  fingering: ['1', '2', '3', '4'],
+  fingering: ['0', '1', '2', '3', '4'],
   string: ['1', '2', '3', '4', '5', '6', '7', '8'],
 };
 
