@@ -7,7 +7,7 @@ import {
   unlock,
   type WheelInput,
   wheelPixels,
-} from '#/lib/edgeScrollPaging';
+} from '#/lib/scrollEdgePaging';
 
 function panel(scrollTop: number): Omit<WheelInput, 'deltaY' | 'at'> {
   return { scrollTop, scrollHeight: 1600, clientHeight: 800 };
@@ -40,7 +40,7 @@ function scroll(
   return { state: current, turns };
 }
 
-describe('edge scroll paging', () => {
+describe('scroll edge paging', () => {
   it('leaves a scroll that has page left to it alone', () => {
     const { turns } = scroll(initialPagingState, 100, 20, MID_PAGE);
     expect(turns).toEqual([]);

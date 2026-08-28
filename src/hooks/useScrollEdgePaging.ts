@@ -6,7 +6,7 @@ import {
   type TurnDirection,
   unlock,
   wheelPixels,
-} from '#/lib/edgeScrollPaging';
+} from '#/lib/scrollEdgePaging';
 
 type EdgeScrollPagingOptions = {
   container: HTMLElement | null;
@@ -19,7 +19,7 @@ function alignTo(container: HTMLElement, edge: 'top' | 'bottom') {
     edge === 'top' ? 0 : container.scrollHeight - container.clientHeight;
 }
 
-export function useEdgeScrollPaging({
+export function useScrollEdgePaging({
   container,
   pageKey,
   onTurn,
