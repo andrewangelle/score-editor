@@ -14,10 +14,10 @@ import {
 } from '#/components/PDFViewer/PDFViewer.styles';
 import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
-import { useEdgeScrollPaging } from '#/hooks/useEdgeScrollPaging';
 import { useElementWidth } from '#/hooks/useElementWidth';
-import type { TurnDirection } from '#/lib/edgeScrollPaging';
+import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
+import type { TurnDirection } from '#/lib/scrollEdgePaging';
 import {
   pageSelected,
   selectPages,
@@ -64,7 +64,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
     return true;
   }
 
-  useEdgeScrollPaging({
+  useScrollEdgePaging({
     container: stage,
     pageKey: selected?.id ?? null,
     onTurn: turnPage,
