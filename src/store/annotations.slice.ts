@@ -37,6 +37,8 @@ export const annotationsSlice = createSlice({
         y: number;
         kind: AnnotationKind;
         color?: AnnotationColor;
+        /** Picked off the menu; omitted when the mark is about to be typed. */
+        text?: string;
       }) {
         return {
           payload: createAnnotation(
@@ -44,7 +46,7 @@ export const annotationsSlice = createSlice({
             input.x,
             input.y,
             input.kind,
-            '',
+            input.text ?? '',
             input.color,
           ),
         };

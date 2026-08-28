@@ -53,6 +53,30 @@ export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
   note: 7.5,
 };
 
+/**
+ * The values a kind can be picked from a menu rather than typed. Only the kinds
+ * whose whole vocabulary is a short list of numbers appear here: a left hand has
+ * four fingers, and no instrument this edits has more than eight strings.
+ * Positions and performance notes are open-ended, so they stay typed.
+ */
+export const ANNOTATION_VALUE_CHOICES: Partial<
+  Record<AnnotationKind, readonly string[]>
+> = {
+  fingering: ['1', '2', '3', '4'],
+  string: ['1', '2', '3', '4', '5', '6', '7', '8'],
+};
+
+/** The values `kind` offers, or empty for the kinds that are typed. */
+export function annotationValueChoices(
+  kind: AnnotationKind,
+): readonly string[] {
+  return ANNOTATION_VALUE_CHOICES[kind] ?? [];
+}
+
+export function hasAnnotationValueMenu(kind: AnnotationKind): boolean {
+  return annotationValueChoices(kind).length > 0;
+}
+
 /** Highest position a left hand reaches; past this the numeral is unreadable. */
 const MAX_POSITION = 20;
 

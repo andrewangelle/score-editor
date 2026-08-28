@@ -57,6 +57,22 @@ describe('annotationPlaced', () => {
     expect(run(place())[0].color).toBe(DEFAULT_COLOR);
   });
 
+  it('places a mark carrying the value picked off the menu', () => {
+    const [placed] = run(
+      annotationPlaced({
+        pageIndex: 0,
+        x: 100,
+        y: 400,
+        kind: 'string',
+        text: '6',
+      }),
+    );
+
+    // Normalized on the way in, so a menu value is engravable immediately and
+    // never needs the editor a blank mark opens.
+    expect(placed.text).toBe('6');
+  });
+
   it('mints the id outside the reducer, so replaying is stable', () => {
     // The same action object applied twice must produce the same state; an id
     // generated inside the reducer would differ on every replay.

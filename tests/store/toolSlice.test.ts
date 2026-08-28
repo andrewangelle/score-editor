@@ -2,6 +2,7 @@ import { DEFAULT_COLOR } from '#/lib/pdf/annotations';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 import {
   annotationColorPicked,
+  annotationValuePicked,
   toolSlice,
   toolToggled,
 } from '#/store/tool.slice';
@@ -78,7 +79,60 @@ describe('choosing the ink', () => {
     expect(run(annotationColorPicked('green'), toolToggled('note'))).toEqual({
       active: 'note',
       color: 'green',
+      value: null,
     });
+  });
+});
+
+describe('picking a value off the menu', () => {
+  const { selectAnnotationValue } = toolSlice.selectors;
+
+  it('starts with nothing picked', () => {
+    expect(IDLE.value).toBeNull();
+  });
+
+  it('holds the value the next mark will carry', () => {
+    expect(
+      run(toolToggled('string'), annotationValuePicked('6')).value,
+    ).toBe('6');
+  });
+
+  it('puts the same value back down when it is picked again', () => {
+    // Deselecting is how someone gets back to typing a value by hand.
+    expect(
+      run(
+        toolToggled('fingering'),
+        annotationValuePicked('3'),
+        annotationValuePicked('3'),
+      ).value,
+    ).toBeNull();
+  });
+
+  it('drops the value when another tool is picked up', () => {
+    // A 6 picked for strings has no meaning as a fingering.
+    expect(
+      run(
+        toolToggled('string'),
+        annotationValuePicked('6'),
+        toolToggled('fingering'),
+      ).value,
+    ).toBeNull();
+  });
+
+  it('drops the value when the tool is put away', () => {
+    expect(
+      run(
+        toolToggled('string'),
+        annotationValuePicked('6'),
+        toolToggled('string'),
+      ).value,
+    ).toBeNull();
+  });
+
+  it('reads as nothing carried while regions are being edited', () => {
+    const state = { tool: { ...IDLE, active: 'regions' as const, value: '3' } };
+
+    expect(selectAnnotationValue(state)).toBeNull();
   });
 });
 

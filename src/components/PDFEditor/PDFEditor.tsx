@@ -1,5 +1,6 @@
 import { ClientOnly } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
+import { AnnotationValueMenu } from '#/components/AnnotationValueMenu/AnnotationValueMenu';
 import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
 import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
@@ -370,6 +371,8 @@ export function PDFEditor() {
           {getSaveButtonCTA(isBusy, fileHandle)}
         </button>
       </header>
+
+      <AnnotationValueMenu />
 
       <SaveCopyPrompt
         open={isNamingCopy}
