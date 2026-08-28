@@ -242,7 +242,7 @@ describe('appearance streams', () => {
   });
 
   it('draws a separate form for the same mark in another ink', async () => {
-    // The colour is drawn into the stream, so sharing one form between two
+    // The color is drawn into the stream, so sharing one form between two
     // inks would silently repaint one of them.
     const { reopened } = await roundTrip([
       at('fingering', '3'),
@@ -399,7 +399,7 @@ describe('reading a document that is not ours', () => {
     ).toEqual([]);
   });
 
-  it('opens a mark written before this app had colours', async () => {
+  it('opens a mark written before this app had colors', async () => {
     const { doc, page, font } = await blank();
     writeAnnotationObjects(doc, page, [at('fingering', '3')], font);
     annots(doc)[0].delete(PDFName.of('PdfEditorColor'));
@@ -411,7 +411,7 @@ describe('reading a document that is not ours', () => {
     expect(restored[0].color).toBe(DEFAULT_COLOR);
   });
 
-  it('keeps a mark whose colour this version does not know', async () => {
+  it('keeps a mark whose color this version does not know', async () => {
     // Unlike an unknown kind, which changes what the mark *means*, an unknown
     // ink only changes how it looks — so it opens in the default.
     const { doc, page, font } = await blank();

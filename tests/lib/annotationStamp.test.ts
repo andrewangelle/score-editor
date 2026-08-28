@@ -115,9 +115,9 @@ describe('stampAnnotation', () => {
     expect(inks[0]).toEqual(annotationInk('green'));
   });
 
-  it('falls back to the default ink for a colour it does not know', () => {
+  it('falls back to the default ink for a color it does not know', () => {
     // Only reachable from a file written by a newer version; drawing the mark
-    // in the wrong colour beats not drawing it.
+    // in the wrong color beats not drawing it.
     const unknown = 'chartreuse' as AnnotationColor;
 
     expect(annotationInk(unknown)).toEqual(annotationInk('blue'));
