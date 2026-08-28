@@ -19,6 +19,7 @@ import {
   RESET_REGIONS_BUTTON_CLASS,
   TOGGLE_ALL_PARTS_BUTTON_CLASS,
 } from '#/components/ScorePartsPanel/ScorePartsPanel.styles';
+import { hasAnnotationValueMenu } from '#/lib/pdf/annotations';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
@@ -46,14 +47,9 @@ import {
 } from '#/store/tool.slice';
 
 type ScorePartsPanelProps = {
-  /** Extraction needs the document bytes, so it stays with the editor. */
-  onExtract: () => void;
-  /**
-   * Where the regions can be written in place, if anywhere. Null when the file
-   * was not opened through a picker that gives a writable handle.
-   */
   replaceTarget: { name: string; onReplace: () => void } | null;
   isBusy: boolean;
+  onExtract: () => void;
 };
 
 export function ScorePartsPanel({
@@ -62,11 +58,6 @@ export function ScorePartsPanel({
   isBusy,
 }: ScorePartsPanelProps) {
   const dispatch = useAppDispatch();
-  /**
-   * The one thing here that cannot be undone: the score the file held is gone
-   * from disk afterwards, and only the copy in this tab can put it back. So it
-   * asks rather than acting on the click that lands on it.
-   */
   const [confirmingReplace, setConfirmingReplace] = useState(false);
   const annotationCount = useAppSelector(selectAnnotationCount);
   const parts = useAppSelector(selectParts);
@@ -248,11 +239,6 @@ export function ScorePartsPanel({
           follow into every part you extract.
         </p>
 
-        {/*
-          A grid rather than a row: four labels of different lengths in one flex
-          line leave "Fingering" and "Performance" different widths, and these
-          are picked up and put down constantly.
-        */}
         <div className={PLACE_BUTTON_GRID_CLASS}>
           <PlaceButton
             active={placing === 'fingering'}
@@ -284,6 +270,13 @@ export function ScorePartsPanel({
           value={annotationColor}
           onPick={(color) => dispatch(annotationColorPicked(color))}
         />
+
+        {placing && hasAnnotationValueMenu(placing) && (
+          <p className="mt-2 text-slate-500 text-xs">
+            Pick a number from the menu above the page and click to place it, or
+            place a blank one and type.
+          </p>
+        )}
 
         {placing === 'position' && (
           <p className="mt-2 text-slate-500 text-xs">

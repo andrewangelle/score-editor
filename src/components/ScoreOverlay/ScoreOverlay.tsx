@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import {
+  ANNOTATION_ANCHOR_CLASS,
+  cursorMarkInk,
   DRAFT_INPUT_CLASS,
   getAnnotationStyles,
+  getCursorMarkStyles,
   getSurfaceStyles,
   STAFF_HINT_CLASS,
   STAFF_LABEL_CLASS,
@@ -25,6 +28,7 @@ import {
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   selectAnnotationColor,
+  selectAnnotationValue,
   selectIsEditingRegions,
   selectPlacing,
 } from '#/store/tool.slice';
@@ -48,6 +52,8 @@ type ScoreOverlayProps = {
 
 type Drag = { id: string; x: number; y: number };
 
+type Cursor = { clientX: number; clientY: number };
+
 const PLACEHOLDER: Record<AnnotationKind, string> = {
   fingering: 'e.g. 1 3 2 4',
   string: 'String, e.g. 3',
@@ -66,12 +72,15 @@ export function ScoreOverlay({
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
   const color = useAppSelector(selectAnnotationColor);
+  const value = useAppSelector(selectAnnotationValue);
   const interactive = !useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
   const surfaceBox = useRef<DOMRect | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const carrying = placing && value ? { kind: placing, text: value } : null;
 
   const toPdf = (clientX: number, clientY: number) => {
     const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
@@ -110,10 +119,16 @@ export function ScoreOverlay({
       ref={surface}
       className={getSurfaceStyles(interactive, Boolean(placing))}
       onPointerMove={(event) => {
-        if (!drag) return;
-        const point = toPdf(event.clientX, event.clientY);
-        if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
+        if (drag) {
+          const point = toPdf(event.clientX, event.clientY);
+          if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
+          return;
+        }
+        if (carrying) {
+          setCursor({ clientX: event.clientX, clientY: event.clientY });
+        }
       }}
+      onPointerLeave={() => setCursor(null)}
       onPointerUp={(event) => {
         // A note being dragged also releases here; that is not a placement.
         if (drag) {
@@ -123,7 +138,6 @@ export function ScoreOverlay({
         if (!placing || event.target !== event.currentTarget) return;
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
-        // Opens straight into its editor, which needs the id just minted.
         const placed = dispatch(
           annotationPlaced({
             pageIndex,
@@ -131,14 +145,20 @@ export function ScoreOverlay({
             y: point.y,
             kind: placing,
             color,
+            text: carrying?.text,
           }),
         );
+        // A value off the menu arrives finished, and the tool stays loaded with
+        // it — the next click puts down another. Only a blank one opens an
+        // editor, which needs the id just minted.
+        if (carrying) return;
         setEditing(placed.payload.id);
         setDraft('');
       }}
       onPointerCancel={() => {
         surfaceBox.current = null;
         setDrag(null);
+        setCursor(null);
       }}
     >
       {systems.map((system) =>
@@ -179,12 +199,8 @@ export function ScoreOverlay({
         return (
           <div
             key={annotation.id}
-            className="absolute"
-            style={{
-              left: screen.x,
-              top: screen.y,
-              transform: 'translateY(-100%)',
-            }}
+            className={ANNOTATION_ANCHOR_CLASS}
+            style={{ left: screen.x, top: screen.y }}
           >
             {editing === annotation.id ? (
               <input
@@ -238,6 +254,20 @@ export function ScoreOverlay({
           </div>
         );
       })}
+
+      {carrying && cursor ? (
+        <div
+          aria-hidden
+          className={getCursorMarkStyles(carrying.kind === 'string')}
+          style={{
+            left: cursor.clientX,
+            top: cursor.clientY,
+            ...cursorMarkInk(carrying.kind, color, scale),
+          }}
+        >
+          {carrying.text}
+        </div>
+      ) : null}
     </div>
   );
 }

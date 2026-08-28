@@ -16,9 +16,19 @@ type ToolState = {
   /** Null means plain page editing: no overlay is taking clicks. */
   active: Tool | null;
   color: AnnotationColor;
+  /**
+   * The value picked from the menu, carried by every mark placed until it is
+   * picked again. Null means the mark opens an editor to be typed into, which
+   * is the only way positions and performance notes are ever written.
+   */
+  value: string | null;
 };
 
-const initialState: ToolState = { active: null, color: DEFAULT_COLOR };
+const initialState: ToolState = {
+  active: null,
+  color: DEFAULT_COLOR,
+  value: null,
+};
 
 export const toolSlice = createSlice({
   name: 'tool',
@@ -27,10 +37,18 @@ export const toolSlice = createSlice({
     /** Picks a tool, or puts the active one away when it is picked again. */
     toolToggled(state, action: PayloadAction<Tool>) {
       state.active = state.active === action.payload ? null : action.payload;
+      // A value belongs to the kind it was picked for: a 6 chosen for strings
+      // must not follow the cursor into fingerings, where there is no sixth.
+      state.value = null;
     },
 
     annotationColorPicked(state, action: PayloadAction<AnnotationColor>) {
       state.color = action.payload;
+    },
+
+    /** Picks a value off the menu, or puts it back when it is picked again. */
+    annotationValuePicked(state, action: PayloadAction<string>) {
+      state.value = state.value === action.payload ? null : action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -49,10 +67,18 @@ export const toolSlice = createSlice({
     selectPlacing: (state): AnnotationKind | null =>
       state.active === 'regions' ? null : state.active,
     selectAnnotationColor: (state) => state.color,
+    /** The menu value the next mark carries, if one is picked. */
+    selectAnnotationValue: (state): string | null =>
+      state.active === 'regions' ? null : state.value,
   },
 });
 
-export const { toolToggled, annotationColorPicked } = toolSlice.actions;
+export const { toolToggled, annotationColorPicked, annotationValuePicked } =
+  toolSlice.actions;
 
-export const { selectIsEditingRegions, selectPlacing, selectAnnotationColor } =
-  toolSlice.selectors;
+export const {
+  selectIsEditingRegions,
+  selectPlacing,
+  selectAnnotationColor,
+  selectAnnotationValue,
+} = toolSlice.selectors;
