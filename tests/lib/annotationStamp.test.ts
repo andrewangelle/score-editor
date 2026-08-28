@@ -120,7 +120,7 @@ describe('stampAnnotation', () => {
     // in the wrong color beats not drawing it.
     const unknown = 'chartreuse' as AnnotationColor;
 
-    expect(annotationInk(unknown)).toEqual(annotationInk('blue'));
+    expect(annotationInk(unknown)).toEqual(annotationInk('black'));
   });
 
   it('says nothing for a mark with no text', () => {
