@@ -16,7 +16,7 @@ type ColorPickerProps = {
 export function ColorPicker({ value, onPick }: ColorPickerProps) {
   return (
     <fieldset className={COLOR_PICKER_FIELDSET_CLASS}>
-      <legend className="sr-only">Note colour</legend>
+      <legend className="sr-only">Note color</legend>
 
       {ANNOTATION_COLOR_ORDER.map((color) => {
         const { label, css } = ANNOTATION_COLORS[color];
