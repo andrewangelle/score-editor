@@ -13,25 +13,15 @@ import {
   writeEditorState,
 } from '#/lib/pdf/editorState';
 
-/**
- * Everything is parsed in-memory in the browser, so this is a guard against
- * locking up the tab rather than a server-side resource limit.
- */
 export const MAX_PDF_BYTES = 100 * 1024 * 1024;
 
 /** A PDF header may be preceded by junk bytes; the spec-tolerant scan window. */
 const HEADER_SCAN_BYTES = 1024;
 
-/**
- * One page of the document being edited. `sourceIndex` always points back into
- * the uploaded bytes, which are never mutated, so reordering and deleting are
- * just list operations and the document is only rebuilt on save.
- */
 export type PageEdit = {
   /** Stable identity for React keys and selection, unrelated to position. */
   id: string;
   sourceIndex: number;
-  /** Absolute rotation in degrees, normalized to 0 | 90 | 180 | 270. */
   rotation: number;
 };
 
@@ -71,13 +61,6 @@ function formatBytes(bytes: number): string {
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/**
- * Reads a user-selected file, verifies it really is a PDF, derives the initial
- * page list, and recovers any work this app saved into it — all in one pass,
- * because parsing a 239-page score is the expensive part of opening one.
- *
- * Throws `PdfLoadError` with a message meant for the UI.
- */
 export async function readPdfFile(file: File): Promise<LoadedPdf> {
   if (file.size === 0) {
     throw new PdfLoadError(`"${file.name}" is empty.`);
@@ -122,9 +105,6 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
 
   const annotations = readAnnotationObjects(source);
   const state = readEditorState(source);
-  // Re-serializing is only worth it when there was something to take out: most
-  // documents opened here were never saved from here, and rewriting 100 MB to
-  // remove nothing is a real cost for no change.
   const stripped = stripAnnotationObjects(source);
 
   return {
@@ -137,21 +117,10 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
 }
 
 export type SaveOptions = {
-  /**
-   * `objects` writes each mark as a PDF annotation carrying its own fields, so
-   * reopening gets it back as something retypable and draggable. `flattened`
-   * draws it into the page content, which is what a part handed to a player
-   * wants: ink no viewer can decide not to print.
-   */
   marks?: 'objects' | 'flattened';
-  /** Written only alongside `objects`; flattened output has no session. */
   state?: EditorState | null;
 };
 
-/**
- * Rebuilds the document from the original bytes, applying the page order and
- * rotations. Pure pdf-lib, so this is safe to call from a server function too.
- */
 export async function buildEditedPdf(
   source: Uint8Array,
   pages: readonly PageEdit[],
@@ -175,18 +144,15 @@ export async function buildEditedPdf(
   const font = annotations.length
     ? await output.embedFont(StandardFonts.Helvetica)
     : null;
-  // Shared across pages so the same fingering, at the same size, is one drawing
-  // in the file however many staves it appears on.
+
   const appearances = appearanceCache();
 
   copied.forEach((page, index) => {
-    // `pages` and `copied` are index-aligned by construction above.
     page.setRotation(degrees(normalizeAngle(pages[index].rotation)));
     output.addPage(page);
 
     if (!font) return;
-    // Marks are anchored in the source page's user space, which is what drawText
-    // expects — the page's own rotation carries them along.
+
     const onPage = annotations.filter(
       (annotation) => annotation.pageIndex === pages[index].sourceIndex,
     );
@@ -212,8 +178,6 @@ export async function buildEditedPdf(
   output.setCreator(original.getCreator() ?? '');
   output.setModificationDate(new Date());
 
-  // The output starts from `PDFDocument.create()`, so the attachment has to be
-  // written afresh every build, exactly like the metadata above.
   if (asObjects && options.state) {
     await writeEditorState(output, options.state);
   }

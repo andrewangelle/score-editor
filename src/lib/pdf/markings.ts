@@ -1,24 +1,5 @@
 /**
  * Measure numbers and tempo marks: the text that tells a player where they are.
- *
- * A score engraves these once per system, in the strip above its top staff.
- * Cutting one instrument out is a horizontal slice that stops well below that
- * strip, so every part but the topmost comes out unnumbered — and an unnumbered
- * part cannot be rehearsed from.
- *
- * Nothing here matches placement against a template, because engravers vary all
- * of it: every bar or the first of each system, above the top staff or below the
- * bottom one, bare or boxed. Both are read from evidence that survives any house
- * style instead:
- *
- *  - a **measure number** is a bare number printed in the same place relative to
- *    a staff throughout the document, whose values only ever increase — which is
- *    precisely what tuplet digits, fingerings and time signatures are not.
- *  - a **tempo mark** is text in a text font (not the notation font) sitting in
- *    the free strip above a system, space notation itself does not use.
- *
- * Page numbers pass the first test too, so they are told apart by the one thing
- * that makes them page numbers: their value is the page they are printed on.
  */
 
 import type {
@@ -55,10 +36,6 @@ export const DEFAULT_MARKINGS: MarkingOptions = {
   padding: 1.5,
 };
 
-/**
- * A marking-shaped piece of text, before the document as a whole has had its say
- * about whether it is one. `offset`, `rightGap` and `size` are in staff heights.
- */
 export type Candidate = {
   pageIndex: number;
   systemIndex: number;
@@ -66,9 +43,7 @@ export type Candidate = {
   side: 'above' | 'below';
   text: string;
   rect: Rect;
-  /** Distance from the staff's outermost line. */
   offset: number;
-  /** How far short of the system's right edge it stops. */
   rightGap: number;
   size: number;
   value: number | null;
@@ -136,8 +111,6 @@ export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
   const usable = items.filter((item) => item.str.trim().length > 0);
   if (usable.length === 0) return [];
 
-  // Baselines rather than boxes: superscripts and a mid-line notation glyph
-  // rarely share a box height, but they do share where they sit.
   const sorted = [...usable].sort(
     (a, b) => b.rect.bottom - a.rect.bottom || a.rect.left - b.rect.left,
   );
@@ -162,8 +135,6 @@ export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
     for (const item of ordered) {
       const group = groups.at(-1);
       const previous = group?.[group.length - 1];
-      // Roughly a character's width of space: wider than that and the engraver
-      // meant two separate things, not two words of one.
       const allowance = previous
         ? (previous.rect.top - previous.rect.bottom) * 0.9
         : 0;
@@ -183,15 +154,6 @@ export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
   return runs;
 }
 
-/**
- * Which of the page's fonts are notation fonts.
- *
- * Noteheads, clefs and rests reach the text layer exactly as words do, so "text
- * above the staff" would otherwise collect every high note on the page. They are
- * told apart by where they land: a font whose glyphs mostly fall between staff
- * lines is the notation font. Reading this from usage rather than a list of font
- * names is what keeps it working on the next score.
- */
 export function notationFonts(
   items: readonly PageTextItem[],
   systems: readonly System[],

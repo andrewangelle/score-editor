@@ -1,16 +1,3 @@
-/**
- * Single place that hands out a configured pdf.js.
- *
- * react-pdf touches browser globals as it is imported, so every export here is
- * async and imports it lazily — which makes this module itself safe to
- * reference from server-rendered components.
- */
-
-/**
- * The worker is published as a plain file by the `pdf-worker` plugin in
- * `vite.config.ts` — see there for why it must not go through Vite's module
- * pipeline. A root-relative string, so evaluating it on the server is harmless.
- */
 export const WORKER_SRC = '/pdf.worker.min.mjs';
 
 let configured: Promise<typeof import('react-pdf').pdfjs> | null = null;

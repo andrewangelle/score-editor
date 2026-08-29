@@ -1,16 +1,5 @@
 /**
- * The session state that has no annotation to ride on. A mark can be a PDF
- * annotation because it is a thing on a page; the rest describes the document as
- * a whole, so it goes in a versioned JSON attachment.
- *
- * Two things this deliberately does not hold. Staff detection's output is
- * derived and stale-prone — a detection improvement would make a stored analysis
- * a lie — so it is recomputed on every open and only the *decisions* taken
- * against it are kept. Page arrangement is absent for the opposite reason: a
- * deleted page's content is genuinely gone from the saved file.
- *
- * Reading is total. A blob that is corrupt, truncated or written by a later
- * version must never stop a document opening; the worst outcome is unmarked.
+ * Holds the annotation state that is stored in the PDF as metadata
  */
 
 import {
@@ -28,11 +17,6 @@ import type { Region } from '#/lib/pdf/regions';
 
 export const EDITOR_STATE_FILE = 'pdf-editor-state.json';
 
-/**
- * Bumped only for a change this version could not read correctly. An older file
- * with a lower `v` would be migrated here; a higher one is refused, because
- * guessing at a format from the future is how state gets silently mangled.
- */
 export const EDITOR_STATE_VERSION = 1;
 
 export type EditorState = {
@@ -71,7 +55,6 @@ function findEmbeddedFile(
 ): PDFDict | null {
   const names = doc.context.lookupMaybe(node.get(NAMES), PDFArray);
   if (names) {
-    // A name tree's leaf is one flat array of alternating key, value, key, value.
     for (let index = 0; index + 1 < names.size(); index += 2) {
       const key = doc.context.lookupMaybe(
         names.get(index),
@@ -97,10 +80,6 @@ function findEmbeddedFile(
   return null;
 }
 
-/**
- * pdf-lib's attaching is one-way with no public read API, so the name tree is
- * walked by hand: catalog → Names → EmbeddedFiles → file spec → its stream.
- */
 export function readEditorState(doc: PDFDocument): EditorState | null {
   try {
     const names = doc.context.lookupMaybe(doc.catalog.get(NAMES), PDFDict);

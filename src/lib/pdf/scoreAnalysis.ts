@@ -1,12 +1,7 @@
 /**
  * Runs staff detection across a whole document and turns it into a part list.
- *
- * A part is identified by its *position* within a system, never by its name:
- * engravers print instrument names only on the first system, but staff order is
- * fixed for the whole score. Names are read off the first system purely so the
- * UI has something human to show.
+ * A part is identified by its *position* within a system
  */
-
 import { detectMarkings, type Marking } from '#/lib/pdf/markings';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { loadPdfjs } from '#/lib/pdf/pdfjsClient';
@@ -16,10 +11,6 @@ import {
   type PageStaves,
 } from '#/lib/pdf/staffDetection';
 
-/**
- * Markings can only be settled with the whole document in view, so they are
- * attached here rather than by the per-page staff finder.
- */
 export type ScorePage = PageStaves & { markings: Marking[] };
 
 export type ScoreAnalysis = {
@@ -47,7 +38,6 @@ function ordinalName(index: number, guessed: string | null): string {
 
 export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
   const pdfjs = await loadPdfjs();
-  // pdf.js detaches the buffer it is given, so it never sees the pristine copy.
   const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
 
   try {

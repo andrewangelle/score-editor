@@ -2,8 +2,7 @@
  * Regions: the rectangles that extraction actually operates on.
  *
  * A region is a plain rectangle on a source page, so the same extraction path
- * serves "give me the guitar staves" and "give me this box I drew". Staff
- * detection only proposes them; the user disposes.
+ * serves "give me the guitar staves" and "give me this box I drew".
  */
 
 import {
@@ -20,43 +19,18 @@ export type Region = {
   pageIndex: number;
   rect: Rect;
   label: string;
-  /**
-   * Regions sharing this key are kept together on one output page. Derived
-   * regions use their source system, so simultaneous music is never split.
-   */
   groupKey: string;
-  /** Which part ordinals this came from, when derived from detection. */
   ordinals?: number[];
-  /**
-   * Measure numbers and tempo marks that belong to this region's music but are
-   * engraved outside its rectangle, to be stamped back above it. Empty when the
-   * region already contains everything its system says.
-   */
   markings?: Marking[];
 };
 
 export type LayoutOptions = {
-  /** Extra space kept above the top staff of a band, in staff-heights. */
   headroom: number;
-  /** Extra space kept below the bottom staff of a band, in staff-heights. */
   legroom: number;
-  /** Page margin of the produced document, in points. */
   margin: number;
-  /** Vertical space between regions in the output, in points. */
   bandGap: number;
-  /**
-   * Keep the full page width rather than trimming to the system. Scores put
-   * instrument names and rehearsal marks outside the staff, so this is the safe
-   * default: nothing else competes for horizontal space on a system.
-   */
   fullWidth: boolean;
-  /**
-   * Carry the system's measure numbers and tempo marks into every band cut from
-   * it. A score engraves those once, above the top staff, so without this every
-   * part but the topmost comes out unnumbered and with no tempo.
-   */
   keepMarkings: boolean;
-  /** Vertical space between a band and the markings stamped above it, in points. */
   markingGap: number;
 };
 
@@ -70,14 +44,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   markingGap: 4,
 };
 
-/** Smallest region worth keeping, in points; guards against stray click-drags. */
 export const MIN_REGION_SIZE = 6;
-
-/**
- * How far a band stops short of the next staff's outermost line, in points.
- * Enough that the neighbour's line never shows up as a stray rule along the
- * edge of an extracted part.
- */
 const NEIGHBOUR_CLEARANCE = 1;
 
 export type Edge = 'top' | 'bottom' | 'left' | 'right';
@@ -86,11 +53,6 @@ function midpoint(near: number, far: number): number {
   return (near + far) / 2;
 }
 
-/**
- * The nearest staff above this one, whatever system it belongs to. Found by
- * geometry rather than list position, so it does not depend on how the systems
- * came to be ordered.
- */
 function staffAbove(staff: Staff, page: readonly System[]): Staff | null {
   let found: Staff | null = null;
   for (const system of page) {
@@ -115,36 +77,17 @@ function staffBelow(staff: Staff, page: readonly System[]): Staff | null {
   return found;
 }
 
-/**
- * Vertical extent to give each staff.
- *
- * Within a system the band is the larger of `contentTop`/`contentBottom` and
- * half the space to each neighbour, stopped just short of the neighbour's own
- * lines: staves of one system are read together, so two bands cut from it
- * sharing the ink between them is the point, and a slur in the gap that
- * detection assigned to the other side is not sliced in two.
- *
- * Across systems it is the opposite — the next system is different music. The
- * content bounds cannot be trusted to stop there, since they chain outwards
- * through whatever ink they find and a column of performance marks in the gap
- * bridges one system to the next quite happily. So that gap is simply halved:
- * both sides compute the same midpoint and their bands meet without overlapping.
- */
 export function staffBounds(
   system: System,
   index: number,
-  /** The page's systems, so a staff can see its true neighbours. */
   page: readonly System[] = [system],
   options: LayoutOptions = DEFAULT_LAYOUT,
 ): { top: number; bottom: number } {
   const staff = system.staves[index];
-  // Nominal, so a one-line percussion staff still gets real padding.
   const height = staffHeight(staff);
   const above = system.staves[index - 1];
   const below = system.staves[index + 1];
 
-  // Only consulted at the edges of a system, where the neighbour — if there is
-  // one at all — belongs to different music.
   const overhead = above ? null : staffAbove(staff, page);
   const underfoot = below ? null : staffBelow(staff, page);
 
@@ -177,7 +120,6 @@ export function staffBounds(
   };
 }
 
-/** Builds a rectangle from two corners, in either drag direction. */
 export function rectFromPoints(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -190,7 +132,6 @@ export function rectFromPoints(
   };
 }
 
-/** Keeps a rectangle inside the page and the right way up. */
 export function clampRect(
   rect: Rect,
   pageWidth: number,
@@ -228,8 +169,6 @@ export function moveRegion(
 ): Region {
   const width = region.rect.right - region.rect.left;
   const height = region.rect.top - region.rect.bottom;
-  // Clamp the offset rather than the result, so dragging into an edge slides
-  // along it instead of squashing the region.
   const left = Math.max(0, Math.min(pageWidth - width, region.rect.left + dx));
   const bottom = Math.max(
     0,
@@ -265,7 +204,6 @@ export function removeRegion(regions: readonly Region[], id: string): Region[] {
   return regions.filter((region) => region.id !== id);
 }
 
-/** Splits a sorted ordinal list into runs of consecutive values. */
 function contiguousRuns(ordinals: number[]): number[][] {
   const runs: number[][] = [];
   for (const ordinal of [...ordinals].sort((a, b) => a - b)) {
@@ -281,16 +219,12 @@ export type DerivedSource = {
   width: number;
   height: number;
   systems: System[];
-  /** Markings read off this page, when the document has been analysed for them. */
   markings?: readonly Marking[];
 };
 
-/** A line of markings, stamped together because they were engraved together. */
 export type MarkingRow = {
   markings: Marking[];
-  /** Lowest edge in the row, which each marking's own height is measured from. */
   bottom: number;
-  /** What the row occupies once stamped. */
   height: number;
 };
 
@@ -302,13 +236,7 @@ function extent(markings: readonly Marking[]): { bottom: number; top: number } {
 }
 
 /**
- * Groups a region's markings into the lines they were engraved on. Sharing more
- * than half a height makes them one line: marks that merely graze each other are
- * two lines sitting close, and stacking those as one is how a section title
- * lands on top of a tempo mark.
- *
- * Rows come back nearest-first — the line lowest in the score is the one closest
- * to the music it describes.
+ * Groups a region's markings into the lines they were engraved on.
  */
 export function markingRows(region: Region): MarkingRow[] {
   const markings = [...(region.markings ?? [])].sort(
@@ -354,13 +282,6 @@ export function markingStackHeight(
   );
 }
 
-/**
- * The markings a rectangle should carry: everything its system says that the
- * rectangle does not already contain. A repeated marking counts as contained
- * when *any* of its copies falls inside — a score numbering every instrumental
- * group puts the same number in seven places down one system, and a band holding
- * one of them must not have a second stamped above it.
- */
 export function markingsFor(
   rect: Rect,
   systemIndex: number,
@@ -378,14 +299,6 @@ export function markingsFor(
   );
 }
 
-/**
- * Derives regions from detected staves and a part selection.
- *
- * Adjacent selected staves become one region so the barlines and bracket joining
- * them survive. Systems whose staff count differs from the selection contribute
- * whatever ordinals they do have, so a condensed system degrades rather than
- * failing.
- */
 export function regionsFromParts(
   pages: readonly DerivedSource[],
   selectedOrdinals: readonly number[],
@@ -432,7 +345,6 @@ export function regionsFromParts(
   return regions;
 }
 
-/** Document order: page, then down the page. */
 export function sortRegions(regions: readonly Region[]): Region[] {
   return [...regions].sort(
     (a, b) => a.pageIndex - b.pageIndex || b.rect.top - a.rect.top,
