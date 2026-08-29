@@ -29,7 +29,6 @@ const SIZE = PDFName.of('PdfEditorSize');
 const COLOR = PDFName.of('PdfEditorColor');
 const X = PDFName.of('PdfEditorX');
 const Y = PDFName.of('PdfEditorY');
-
 const ANNOTS = PDFName.of('Annots');
 const AP = PDFName.of('AP');
 const N = PDFName.of('N');

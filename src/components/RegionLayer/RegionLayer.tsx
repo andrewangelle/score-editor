@@ -29,13 +29,6 @@ import {
 import { selectRegions } from '#/store/selectors';
 import { selectIsEditingRegions } from '#/store/tool.slice';
 
-/**
- * Draws and edits the rectangles for extraction.
- *
- * A drag in progress is local and only its result is dispatched,
- * so the store  hears about a move once.
- */
-
 const EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 const HANDLE = 9;
 
@@ -95,6 +88,7 @@ export function RegionLayer({
 
   function handleMove(event: React.PointerEvent) {
     if (!drag) return;
+
     const point = toPdf(event.clientX, event.clientY);
     if (!point) return;
 
@@ -102,6 +96,7 @@ export function RegionLayer({
       setDrag({ ...drag, current: point });
       return;
     }
+
     if (drag.kind === 'move') {
       setDrag({
         ...drag,
@@ -115,8 +110,10 @@ export function RegionLayer({
       });
       return;
     }
+
     const value =
       drag.edge === 'top' || drag.edge === 'bottom' ? point.y : point.x;
+
     setDrag({
       ...drag,
       region: resizeRegion(
@@ -136,6 +133,7 @@ export function RegionLayer({
         pageWidth,
         pageHeight,
       );
+
       // A click without a drag should not leave an invisible sliver behind.
       if (isUsableRect(rect)) {
         dispatch(regionAdded({ visible: regions, pageIndex, rect }));
@@ -205,7 +203,7 @@ export function RegionLayer({
 
             <span className={REGION_LABEL_CLASS}>{region.label}</span>
 
-            {isSelected && interactive ? (
+            {isSelected && interactive && (
               <button
                 type="button"
                 aria-label={`Remove region ${region.label}`}
@@ -217,46 +215,45 @@ export function RegionLayer({
               >
                 ✕
               </button>
-            ) : null}
+            )}
 
-            {interactive
-              ? EDGES.map((edge) => (
-                  <button
-                    key={edge}
-                    type="button"
-                    aria-label={`Drag ${edge} edge of ${region.label}`}
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      captureGesture(event);
-                      dispatch(regionSelected(region.id));
-                      setDrag({
-                        kind: 'edge',
-                        origin: region,
-                        edge,
-                        region,
-                      });
-                    }}
-                    className={getEdgeHandleStyles(edge)}
-                    style={{
-                      top: edge === 'top' ? -HANDLE / 2 : undefined,
-                      bottom: edge === 'bottom' ? -HANDLE / 2 : undefined,
-                      left: edge === 'left' ? -HANDLE / 2 : undefined,
-                      right: edge === 'right' ? -HANDLE / 2 : undefined,
-                    }}
-                  />
-                ))
-              : null}
+            {interactive &&
+              EDGES.map((edge) => (
+                <button
+                  key={edge}
+                  type="button"
+                  aria-label={`Drag ${edge} edge of ${region.label}`}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    captureGesture(event);
+                    dispatch(regionSelected(region.id));
+                    setDrag({
+                      kind: 'edge',
+                      origin: region,
+                      edge,
+                      region,
+                    });
+                  }}
+                  className={getEdgeHandleStyles(edge)}
+                  style={{
+                    top: edge === 'top' ? -HANDLE / 2 : undefined,
+                    bottom: edge === 'bottom' ? -HANDLE / 2 : undefined,
+                    left: edge === 'left' ? -HANDLE / 2 : undefined,
+                    right: edge === 'right' ? -HANDLE / 2 : undefined,
+                  }}
+                />
+              ))}
           </div>
         );
       })}
 
-      {preview ? (
+      {preview && (
         <div
           aria-hidden
           className={PREVIEW_CLASS}
           style={rectToScreen(preview, pageHeight, scale)}
         />
-      ) : null}
+      )}
     </div>
   );
 }

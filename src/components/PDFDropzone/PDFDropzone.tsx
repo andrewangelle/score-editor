@@ -11,8 +11,11 @@ import {
   getDragContainerStyles,
 } from '#/components/PDFDropzone/PDFDropzone.styles';
 import {
+  CHOOSE_FILE,
+  CHOOSE_FILE_DISCLAIMER,
+  DROP_INSTRUCTION_DESCRIPTION,
+  DROP_INSTRUCTION_HEADING,
   getFileOpenErrorMessage,
-  megabytes,
 } from '#/components/PDFDropzone/PDFDropzone.utils';
 import {
   droppedFileHandle,
@@ -107,10 +110,11 @@ export function PDFDropzone({
       onDrop={handleDrop}
       className={getDragContainerStyles(isDragging, disabled)}
     >
-      <p className="text-lg font-medium text-slate-800">Drop a PDF here</p>
-      <p className="text-sm text-slate-500">
-        or choose one from your machine — up to {megabytes} MB
+      <p className="text-lg font-medium text-slate-800">
+        {DROP_INSTRUCTION_HEADING}
       </p>
+
+      <p className="text-sm text-slate-500">{DROP_INSTRUCTION_DESCRIPTION}</p>
 
       {canPick && (
         <button
@@ -119,7 +123,7 @@ export function PDFDropzone({
           disabled={disabled}
           className={CHOOSE_FILE_BUTTON_CLASS}
         >
-          Choose file
+          {CHOOSE_FILE}
         </button>
       )}
 
@@ -135,14 +139,12 @@ export function PDFDropzone({
             onChange={onInputChange}
           />
           <label htmlFor={inputId} className={CHOOSE_FILE_INPUT_LABEL_CLASS}>
-            Choose file
+            {CHOOSE_FILE}
           </label>
         </>
       )}
 
-      <p className="mt-2 text-slate-400 text-xs">
-        Your file stays in this browser tab. Nothing is uploaded to a server.
-      </p>
+      <p className="mt-2 text-slate-400 text-xs">{CHOOSE_FILE_DISCLAIMER}</p>
     </div>
   );
 }

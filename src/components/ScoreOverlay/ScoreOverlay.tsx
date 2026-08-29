@@ -178,9 +178,7 @@ export function ScoreOverlay({
                 height: (bounds.top - bounds.bottom) * scale,
               }}
             >
-              {part ? (
-                <span className={STAFF_LABEL_CLASS}>{part.name}</span>
-              ) : null}
+              {part && <span className={STAFF_LABEL_CLASS}>{part.name}</span>}
             </div>
           );
         }),
@@ -255,7 +253,7 @@ export function ScoreOverlay({
         );
       })}
 
-      {carrying && cursor ? (
+      {carrying && cursor && (
         <div
           aria-hidden
           className={getCursorMarkStyles(carrying.kind === 'string')}
@@ -267,7 +265,7 @@ export function ScoreOverlay({
         >
           {carrying.text}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
