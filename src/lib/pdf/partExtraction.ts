@@ -1,12 +1,6 @@
 /**
  * Turns regions into a new PDF containing only those rectangles.
- *
- * `pdf-lib`'s `embedPage` clips to a rectangle, so a region is lifted as vector
- * content and the output stays crisp and selectable, unlike render-and-crop.
- * Nothing here knows about music: regions come from staff detection or from the
- * user dragging boxes on the page.
  */
-
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { stampAnnotation } from '#/lib/pdf/annotationStamp';
 import { annotationsWithin, type ScoreAnnotation } from '#/lib/pdf/annotations';
@@ -25,12 +19,10 @@ export { DEFAULT_LAYOUT, type LayoutOptions, staffBounds };
 
 export type Part = {
   id: string;
-  /** Position within each system. This, not the name, identifies the part. */
   ordinal: number;
   name: string;
 };
 
-/** Kept as an alias: a band is just a region derived from staff detection. */
 export type Band = Region;
 
 export function planBands(
@@ -43,11 +35,6 @@ export function planBands(
 
 type PlacedRegion = { region: Region; x: number; y: number };
 
-/**
- * Flows regions down output pages. Regions sharing a group key are placed
- * together: for derived bands that means one source system, and splitting a
- * system across a page break would separate music meant to be read at once.
- */
 export function layoutBands(
   regions: readonly Region[],
   pageHeight: number,
@@ -55,12 +42,9 @@ export function layoutBands(
 ): PlacedRegion[][] {
   const usableTop = pageHeight - options.margin;
   const usableBottom = options.margin;
-
-  // Grouped by key rather than adjacency: a hand-edited region sorts to wherever
-  // its new geometry puts it, which a run-length scan would split into several
-  // unrelated groups. First-appearance order keeps document order driving flow.
   const groups: Region[][] = [];
   const byKey = new Map<string, Region[]>();
+
   for (const region of regions) {
     const group = byKey.get(region.groupKey);
     if (group) {
@@ -76,7 +60,6 @@ export function layoutBands(
   let current: PlacedRegion[] = [];
   let cursor = usableTop;
 
-  /** What a region occupies: its own rectangle plus anything stamped above it. */
   const occupied = (region: Region): number =>
     region.rect.top - region.rect.bottom + markingStackHeight(region, options);
 
@@ -85,8 +68,7 @@ export function layoutBands(
       group.reduce((sum, region) => sum + occupied(region), 0) +
       options.bandGap * (group.length - 1);
 
-    // Unless nothing has been placed yet: a group taller than one page has to
-    // overflow somewhere.
+    // Unless nothing has been placed yet: a group taller than one page has to overflow somewhere.
     if (cursor - groupHeight < usableBottom && current.length > 0) {
       pages.push(current);
       current = [];
@@ -94,8 +76,6 @@ export function layoutBands(
     }
 
     for (const region of group) {
-      // Markings sit above the band, so it starts that much further down; `y` is
-      // where the band's own rectangle is drawn.
       const height = occupied(region);
       current.push({
         region,
@@ -114,15 +94,9 @@ export function layoutBands(
 export type ExtractOptions = {
   layout?: LayoutOptions;
   annotations?: readonly ScoreAnnotation[];
-  /** Output page size; defaults to the first source page's size. */
   pageSize?: { width: number; height: number };
 };
 
-/**
- * Produces the output PDF. Regions are scaled to fit the printable width when
- * the source is wider, which keeps a full-width region from running under the
- * margin.
- */
 export async function extractRegions(
   sourceBytes: Uint8Array,
   regions: readonly Region[],
@@ -208,7 +182,9 @@ export async function extractRegions(
       // than re-typeset, so a metronome mark keeps its note glyph and a boxed
       // rehearsal letter keeps its box.
       let stack = placed.y + embed.height + layout.markingGap;
+
       const rows = layout.keepMarkings ? markingRows(placed.region) : [];
+
       for (const row of rows) {
         for (const marking of row.markings) {
           const stamp = embedded.get(

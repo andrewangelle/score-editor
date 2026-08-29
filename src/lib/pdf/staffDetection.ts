@@ -8,8 +8,6 @@
  * Everything is in PDF user space, the same space `pdf-lib` clips and draws in,
  * so a detected staff can go straight to `embedPage` with no conversion.
  */
-
-/** `pdfjs.OPS` satisfies this. */
 export type PdfOps = {
   transform: number;
   save: number;
@@ -35,21 +33,14 @@ export type Rect = {
 };
 
 export type Staff = {
-  /** y of the topmost rule. */
   top: number;
-  /** y of the bottommost rule. Equal to `top` on a one-line staff. */
   bottom: number;
   left: number;
   right: number;
-  /** Distance between adjacent rules. A one-line staff inherits the page's. */
   lineSpacing: number;
   /** 5 for standard notation, 6 for guitar TAB, 1 for some percussion. */
   lineCount: number;
-  /**
-   * Extent of everything that visually belongs to this staff — ledger lines,
-   * dynamics, ottava brackets — not just the lines. Never reaches into a
-   * neighbouring staff's own lines.
-   */
+  /** Extent of everything that visually belongs to this staff — ledger lines, dynamics, etc */
   contentTop: number;
   contentBottom: number;
 };
@@ -67,17 +58,8 @@ export type PageStaves = {
   width: number;
   height: number;
   systems: System[];
-  /**
-   * Regions the page's form XObjects clip their content to. Carried so the text
-   * layer — which pdf.js reports unclipped — can be filtered by the same
-   * visibility rules the geometry already respects.
-   */
   clips?: Rect[] | null;
-  /**
-   * Every box drawn on the page, so a second reader (`markings.ts`) need not
-   * re-walk the operators. Thousands of these on a dense page: callers holding a
-   * page beyond the read that produced it are expected to drop this first.
-   */
+  /** Every box drawn on the page, so a second reader (`markings.ts`) doesn't need to recompute re-walk. */
   ink?: Rect[];
   /** Bulky for the same reason `ink` is, and to be dropped on the same terms. */
   text?: PageTextItem[];
@@ -101,36 +83,17 @@ export type DetectionOptions = {
    * current staff and begins the next.
    */
   staffBreakFactor: number;
-  /**
-   * How far the topmost and bottommost staves on a page may grow beyond their
-   * own lines, in staff-heights. Staves in between are bounded by their
-   * neighbours instead; this only stops a title or page number from dragging an
-   * outer band across the page.
-   */
+
   maxContentGrowth: number;
-  /**
-   * How far a rule's ends may sit from the staff's, as a fraction of the staff's
-   * width, and still be one of its lines. Sharing the system's edges is the one
-   * thing separating a staff line from the other long horizontals a score is
-   * full of: a rule stopping short is an 8va bracket, hairpin, bend or gliss,
-   * however neatly spaced — and admitting one invents a part, shifting every
-   * ordinal beneath it.
-   */
+  /** How far a rule's ends may sit from the staff's, */
   staffEdgeTolerance: number;
 };
 
-/**
- * Nothing else in engraving stacks this many evenly spaced rules, so this many
- * lines is a staff on its own evidence. Fewer has to look like one in width too.
- */
 const UNAMBIGUOUS_STAFF_LINES = 4;
 
 /**
  * How far a chain of ink may step, in staff line spacings. Ledger lines are
- * spaced by the staff's own line spacing, so a step is allowed to be a little
- * wider than that and no more — but only a little: dynamics are engraved
- * roughly one line spacing clear of the outermost line, and at 1.5 a `ff` set
- * a shade lower than usual falls out of reach and is sliced by the band edge.
+ * spaced by the staff's own line spacing
  */
 const CHAIN_REACH_FACTOR = 1.75;
 
@@ -144,8 +107,6 @@ export const DEFAULT_DETECTION: DetectionOptions = {
   minRuleWidthRatio: 0.5,
   ruleMergeTolerance: 1,
   spacingTolerance: 0.25,
-  // Wide enough for one-line percussion through standard notation (5) and
-  // guitar or bass TAB (6), with headroom for the unusual.
   minLinesPerStaff: 1,
   maxLinesPerStaff: 8,
   staffBreakFactor: 1.75,
@@ -153,7 +114,6 @@ export const DEFAULT_DETECTION: DetectionOptions = {
   staffEdgeTolerance: 0.02,
 };
 
-/** Nominal vertical extent of a staff, so a one-line staff still has a size. */
 export function staffHeight(staff: Staff): number {
   return Math.max(staff.top - staff.bottom, staff.lineSpacing * 4);
 }
@@ -167,6 +127,7 @@ function median(values: number[]): number {
 }
 
 type Matrix = [number, number, number, number, number, number];
+
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
 
 function multiply(m: Matrix, n: Matrix): Matrix {
@@ -186,13 +147,8 @@ function applyMatrix(m: Matrix, x: number, y: number): [number, number] {
 
 /** A horizontal rule: a candidate staff line. */
 type Rule = { y: number; left: number; right: number };
-
 type Box = { left: number; bottom: number; right: number; top: number };
 
-/**
- * pdf.js encodes a path as a flat run of `[op, ...coords]`. These are its
- * `DrawOPS` values; the coordinate counts are 2, 2, 6 and 0 respectively.
- */
 const DRAW_MOVE_TO = 0;
 const DRAW_LINE_TO = 1;
 const DRAW_CURVE_TO = 2;
@@ -206,14 +162,7 @@ function grow(box: Box, x: number, y: number): void {
 }
 
 /**
- * Splits one path buffer into a bounding box per subpath, so a path holding a
- * staff's five lines yields five boxes rather than one 18pt-tall box that no
- * thickness test would accept. Curve control points are folded in, which can
- * only overstate a height — and overstating means "not a rule", so a curve is
- * never mistaken for a staff line.
- *
- * Returns null on an unrecognised encoding, so the caller can fall back to the
- * aggregate bounding box pdf.js supplies.
+ * Splits one path buffer into a bounding box per subpath
  */
 export function subpathBoxes(buffer: ArrayLike<number>): Box[] | null {
   const boxes: Box[] = [];
@@ -255,12 +204,12 @@ export function subpathBoxes(buffer: ArrayLike<number>): Box[] | null {
   return boxes;
 }
 
-/** The raw path buffer pdf.js puts in `args[1]`, if it is one. */
 function pathBuffer(arg: unknown): ArrayLike<number> | null {
   const data = arg as ArrayLike<unknown> | undefined;
   if (!data || typeof data !== 'object' || data.length === 0) return null;
 
   const first = data[0] as ArrayLike<number> | undefined;
+
   // Once rendered, pdf.js swaps the buffer for a Path2D we cannot read.
   if (
     !first ||
@@ -315,24 +264,13 @@ function toMatrix(value: unknown): Matrix | null {
 }
 
 export type PageGeometry = {
-  /** Page-space box per subpath drawn, already clipped to what is visible. */
   boxes: Box[];
-  /**
-   * Regions the page's form XObjects clip to, null when nothing clips. Only
-   * meaningful for filtering things measured outside this pass, i.e. text.
-   */
   clips: Box[] | null;
 };
 
 /**
  * The single geometry pass: staff lines, barlines and "ink near a staff" are all
  * read off its result rather than by re-walking the operators.
- *
- * Form XObjects matter twice over. Their matrix has to be composed in or boxes
- * land in the wrong place, and their `BBox` *clips* — a form may carry a whole
- * source page while showing only a sliver, which is exactly what an extracted
- * part is. Ignoring it means re-reading a part finds every staff of the score it
- * came from.
  */
 export function collectGeometry(
   operators: OperatorList,
@@ -343,10 +281,8 @@ export function collectGeometry(
   let ctm: Matrix = IDENTITY;
   let clip: Box | null = null;
   const stack: { ctm: Matrix; clip: Box | null }[] = [];
-
-  // Once anything is drawn with no clip at all, the collected clips are useless
-  // as a visibility test: the page shows everything, so they rule out nothing.
   let unclipped = false;
+
   const recorded = new Set<Box>();
 
   const push = (box: Box): void => {
@@ -354,13 +290,11 @@ export function collectGeometry(
     if (!visible) return;
     boxes.push(visible);
 
-    // Record the clip actually in force, not every form's bbox: an outer form
-    // often spans the whole page, and collecting those makes the set rule out
-    // nothing — which is how a part counts the score it was cut from as visible.
     if (!clip) {
       unclipped = true;
       return;
     }
+
     if (!recorded.has(clip)) {
       recorded.add(clip);
       clips.push(clip);
@@ -375,26 +309,28 @@ export function collectGeometry(
       stack.push({ ctm, clip });
       continue;
     }
+
     if (fn === ops.restore) {
       const previous = stack.pop();
       ctm = previous?.ctm ?? IDENTITY;
       clip = previous?.clip ?? null;
       continue;
     }
+
     if (fn === ops.transform) {
       const m = toMatrix(args);
       if (m) ctm = multiply(ctm, m);
       continue;
     }
+
     if (
       ops.paintFormXObjectBegin !== undefined &&
       fn === ops.paintFormXObjectBegin
     ) {
       stack.push({ ctm, clip });
-      // pdf.js hands us [matrix, bbox]; the bbox is in the form's own space, so
-      // it is measured after the matrix is composed in.
-      const m = toMatrix(args?.[0]);
-      if (m) ctm = multiply(ctm, m);
+
+      const matrix = toMatrix(args?.[0]);
+      if (matrix) ctm = multiply(ctm, matrix);
 
       const bbox = args?.[1] as ArrayLike<number> | undefined;
       if (bbox && bbox.length >= 4) {
@@ -404,12 +340,14 @@ export function collectGeometry(
           right: Math.max(bbox[0], bbox[2]),
           top: Math.max(bbox[1], bbox[3]),
         });
+
         // Nested forms that miss each other clip everything away; `null` would
         // read as "unclipped", so keep an impossible box instead.
         clip = clip ? (intersect(clip, region) ?? EMPTY_CLIP) : region;
       }
       continue;
     }
+
     if (
       ops.paintFormXObjectEnd !== undefined &&
       fn === ops.paintFormXObjectEnd
@@ -421,7 +359,6 @@ export function collectGeometry(
     }
     if (fn !== ops.constructPath) continue;
 
-    // Nothing inside the clip can be drawn, so skip the path decode entirely.
     if (clip && clip.left > clip.right) continue;
 
     // pdf.js hands us [drawOp, [pathBuffer], [minX, minY, maxX, maxY]].
@@ -472,11 +409,6 @@ export function rulesFromBoxes(
 /** A vertical rule: a candidate barline or system bracket. */
 export type VerticalRule = { x: number; bottom: number; top: number };
 
-/**
- * Vertical rules: narrow, and clearly taller than wide. Note stems qualify too,
- * which is harmless — the only question asked of these is whether one reaches
- * from one staff's lines to the next staff's, and a stem never does.
- */
 export function verticalsFromBoxes(
   boxes: readonly Box[],
   options: DetectionOptions = DEFAULT_DETECTION,
@@ -526,17 +458,6 @@ function unionLength(spans: [number, number][]): number {
 /**
  * Merges rules at the same height and drops anything too short to be a staff
  * line, relative to the longest rule on the page.
- *
- * Length is what a rule *covers*, not its leftmost-to-rightmost span: a staff
- * line interrupted by barlines is still near-continuous and survives, while a
- * row of ledger lines spans as far but covers almost none of it. Measuring the
- * span instead lets ledger lines masquerade as a staff line.
- *
- * A group takes the y of its *longest* rule, never the average. Beams sit a
- * fraction of a point off a staff line and there are dozens of them, so
- * averaging drags the line until it is no longer evenly spaced from its
- * neighbours and the whole staff is discarded — which is how an inner part
- * silently disappears and every ordinal below it shifts up one.
  */
 export function consolidateRules(
   rules: Rule[],
@@ -583,13 +504,7 @@ export function consolidateRules(
 
 /**
  * Groups consecutive rules into staves by segmenting wherever the vertical gap
- * jumps above the page's typical line spacing. Line count is an *output* rather
- * than an assumption, which is what lets standard notation (5), TAB (6) and
- * one-line percussion coexist in one system.
- *
- * Typical spacing is the median gap: within-staff gaps outnumber between-staff
- * gaps several times over, so the median lands on the line spacing without
- * needing to know the staff size first.
+ * jumps above the page's typical line spacing.
  */
 export function groupIntoStaves(
   rules: Rule[],
@@ -615,12 +530,6 @@ export function groupIntoStaves(
     );
   };
 
-  /**
-   * Drops rules that do not share the run's edges, which edges are the run's own
-   * being settled by vote: a staff's lines agree, and whatever landed among them
-   * does not. Intruders are removed rather than allowed to split the run — a
-   * staff cut in half at its third line is two staves no instrument plays.
-   */
   const staffLinesOnly = (segment: Rule[]): Rule[] => {
     if (segment.length < 2) return segment;
 
@@ -655,12 +564,6 @@ export function groupIntoStaves(
     (segment) => segment.length >= UNAMBIGUOUS_STAFF_LINES,
   );
 
-  /**
-   * Does a run too short to vouch for itself line up with the full staves around
-   * it? Compared against the *nearest* full staff, not the page as a whole,
-   * because a piece's first system is indented and genuinely does not reach as
-   * far left as the rest — page-wide, its percussion staff would be discarded.
-   */
   const alignsWithStaves = (segment: Rule[]): boolean => {
     if (full.length === 0) return true; // A page of nothing but short staves.
 
@@ -676,6 +579,7 @@ export function groupIntoStaves(
   };
 
   const staves: Staff[] = [];
+
   for (const segment of segments) {
     if (
       segment.length < options.minLinesPerStaff ||
@@ -684,9 +588,6 @@ export function groupIntoStaves(
       continue;
     }
 
-    // Too few lines to be a staff on the stack alone, so it has to be one on
-    // position: a percussion staff spans the system exactly as its neighbours
-    // do, a pair of gliss lines drawn between two staves does not.
     if (
       segment.length < UNAMBIGUOUS_STAFF_LINES &&
       !alignsWithStaves(segment)
@@ -712,6 +613,7 @@ export function groupIntoStaves(
 
     const top = segment[0].y;
     const bottom = segment[segment.length - 1].y;
+
     staves.push({
       top,
       bottom,
@@ -734,21 +636,6 @@ export function groupIntoStaves(
 /**
  * Follows a run of ink outwards from a staff (`direction` 1 up, -1 down) and
  * reports how far it reaches.
- *
- * A box joins the run only if it sits within `reach` of something already in it
- * *and* overlaps that horizontally — a ledger-line stack is a column rising out
- * of one point on the staff, not a licence to absorb anything at that height.
- * Without the horizontal test a dense page chains straight through the gap into
- * the next instrument's music, because on some row there is always ink.
- *
- * The staff's own lines seed the run at full width, so the first step outwards
- * can begin anywhere along it; from there it narrows to whatever it caught.
- *
- * `seed` joins them: ink already sitting across the lines is the staff's beyond
- * doubt, and a stem that descends below the staff is the thing a beam group or
- * tuplet number hanging under it is attached to. Without it the run can only
- * step off the lines themselves, and anything further out than one `reach` from
- * them — however plainly it belongs to the part — is unreachable.
  */
 function chainOutwards(
   staff: Staff,
@@ -811,11 +698,6 @@ function chainOutwards(
 /**
  * Widens each staff's band to cover everything drawn that belongs to it, rather
  * than stopping at the outermost staff line.
- *
- * A box is claimable only if it overlaps no staff's lines but that one's. That
- * single rule discards the page background, the system bracket and every barline
- * joining two staves, leaving exactly the ink that should travel with the part.
- * It also means a band can grow right up to — never into — the staff next door.
  */
 export function attachContentBounds(
   staves: readonly Staff[],
@@ -826,12 +708,11 @@ export function attachContentBounds(
 
   const ordered = [...staves].sort((a, b) => b.top - a.top);
 
-  // Ink crossing two staves' lines belongs to neither: that is the page
-  // background, the system bracket, and every barline joining staves together.
   const spans = ordered.map((staff) => ({
     top: staff.top,
     bottom: staff.bottom,
   }));
+
   const claimable = ink.filter((box) => {
     let crossed = 0;
     for (const span of spans) {
@@ -843,20 +724,11 @@ export function attachContentBounds(
 
   return ordered.map((staff, index) => {
     const room = staffHeight(staff) * options.maxContentGrowth;
-    // A staff with a neighbour is already bounded by that neighbour's lines,
-    // which claimable ink can never cross. The allowance is only needed at the
-    // open ends of the page, where a title or page number is otherwise the
-    // nearest thing to chain onto.
     const staffAbove = ordered[index - 1];
     const staffBelow = ordered[index + 1];
     const ceiling = staffAbove ? staffAbove.bottom : staff.top + room;
     const floor = staffBelow ? staffBelow.top : staff.bottom - room;
     const reach = (staff.lineSpacing || 1) * CHAIN_REACH_FACTOR;
-
-    // Both bounds are clamped to the ceiling and floor and chaining only travels
-    // outwards, so ink outside that window cannot change either answer.
-    // Excluding it up front keeps this affordable on an extracted part, which
-    // still holds the whole score's ink, clipped out of sight but present.
     const near = claimable.filter(
       (box) =>
         box.right >= staff.left &&
@@ -868,10 +740,8 @@ export function attachContentBounds(
     let top = staff.top;
     let bottom = staff.bottom;
 
-    // Anything sitting across the staff's own lines is unambiguously its own,
-    // so it both widens the band directly and carries the chain onwards: a stem
-    // is how the run reaches a beam group hanging off the far end of it.
     const straddling: Box[] = [];
+
     for (const box of near) {
       if (box.bottom <= staff.top && box.top >= staff.bottom) {
         top = Math.max(top, box.top);
@@ -914,8 +784,6 @@ export function attachContentBounds(
 
 /**
  * Does a vertical rule run from the upper staff's lines to the lower staff's?
- * A barline or bracket doing so is the engraving's own statement that the two
- * staves are played together.
  */
 function bridged(
   above: Staff,
@@ -930,14 +798,6 @@ function bridged(
   );
 }
 
-/**
- * Splits staves into systems. Vertical rules decide it where known, because
- * spacing alone cannot tell an eight-stave orchestral system from eight evenly
- * spaced one-staff systems on a lead sheet — the gaps look identical.
- *
- * Without them, fall back to the widest proportional jump in the sorted gaps,
- * which adapts to the engraving's own scale.
- */
 export function groupIntoSystems(
   staves: Staff[],
   verticals?: readonly VerticalRule[],
@@ -1020,11 +880,6 @@ export async function detectPageStaves(
   const { boxes, clips } = collectGeometry(operators, ops);
   const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
   const staves = groupIntoStaves(rules, options);
-
-  // Text counts as ink a staff can claim, so lyrics, dynamics and tempo marks
-  // travel with the music they sit against. Only here is it dropped to its
-  // descent: the rects themselves are reported as read, since markings compare
-  // them against each other and a uniform shift would tell them nothing.
   const text = await readVisibleText(page, clips);
   const ink = [...boxes, ...text.map((item) => withDescent(item.rect))];
   const systems = groupIntoSystems(
@@ -1072,14 +927,9 @@ function withDescent(rect: Rect): Rect {
 export type PageTextItem = {
   str: string;
   rect: Rect;
-  /**
-   * Most engravers subset fonts per page, so this pdf.js handle identifies a
-   * font *within* a page and nowhere else.
-   */
   fontName: string;
 };
 
-/** The page's text, boxed and filtered to what is actually visible. */
 export async function readVisibleText(
   page: StaffSourcePage,
   clips?: readonly Rect[] | null,
@@ -1089,7 +939,6 @@ export async function readVisibleText(
     const content = await page.getTextContent();
     items = content.items as TextItem[];
   } catch {
-    // A scanned score simply has no text layer.
     return [];
   }
 
@@ -1105,11 +954,6 @@ export async function readVisibleText(
   return read;
 }
 
-/**
- * Guesses part names from the instrument labels left of the first system. Most
- * scores label only that system in full, so callers must treat position within
- * the system — not the name — as a part's identity, and these as titles only.
- */
 export async function guessPartNames(
   page: StaffSourcePage,
   system: System,
@@ -1122,12 +966,9 @@ export async function guessPartNames(
       (item): item is TextItem =>
         typeof (item as TextItem)?.str === 'string' &&
         Array.isArray((item as TextItem)?.transform) &&
-        // Labels of parts that were clipped away are still in the text layer;
-        // reading one would name a staff after a part that is not there.
         isVisible(textItemBox(item as TextItem), clips),
     );
   } catch {
-    // A scanned score simply has no text layer.
     return system.staves.map(() => null);
   }
 
@@ -1142,8 +983,7 @@ export async function guessPartNames(
 
     const candidates = nearestLines(inBand, staff);
     if (candidates.length === 0) return null;
-    // Read top-to-bottom, then left-to-right, so both a two-line label and a
-    // multi-word one ("Gtr 1") come back in reading order.
+
     return (
       candidates
         .sort(
@@ -1158,16 +998,6 @@ export async function guessPartNames(
   });
 }
 
-/**
- * Narrows label candidates to the text line closest to the staff, plus any line
- * close enough to be a second line of the same label.
- *
- * The candidate band is deliberately generous — engravers place labels above,
- * beside and below the staff — which also lets a neighbour's label in, and an
- * extracted part carries hidden copies of every label in the score. So the
- * nearest line wins and only a line within a couple of staff spaces of it (a
- * wrapped label, never the next staff's) may join it.
- */
 function nearestLines(items: TextItem[], staff: Staff): TextItem[] {
   if (items.length === 0) return [];
 

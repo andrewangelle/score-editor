@@ -1,15 +1,9 @@
 /**
  * The one conversion between PDF user space and screen space.
- *
- * PDF measures points from the bottom-left with y increasing upward; CSS
- * measures pixels from the top-left with y increasing downward. Getting it wrong
- * puts every annotation on the wrong side of the page, so it lives here as a
- * pair of pure, mutually inverse functions rather than inline in a component.
  */
 
 export type Point = { x: number; y: number };
 
-/** Screen offset within the rendered page -> PDF user space. */
 export function toPdfPoint(
   offsetX: number,
   offsetY: number,
@@ -22,7 +16,6 @@ export function toPdfPoint(
   };
 }
 
-/** PDF user space -> screen offset within the rendered page. */
 export function toScreenPoint(
   point: Point,
   pageHeight: number,
@@ -41,10 +34,6 @@ export type ScreenBox = {
   height: number;
 };
 
-/**
- * A PDF rectangle as CSS box geometry. The vertical flip means the rectangle's
- * *top* edge supplies the CSS `top`, which is the easiest thing to get backwards.
- */
 export function rectToScreen(
   rect: { left: number; bottom: number; right: number; top: number },
   pageHeight: number,

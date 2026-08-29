@@ -1,13 +1,3 @@
-/**
- * Performance marks as real PDF annotations, so they survive a reopen.
- *
- * Each mark is a `/Stamp` whose appearance stream draws what `stampAnnotation`
- * draws, and whose dictionary carries the `ScoreAnnotation` fields in a private
- * `PdfEditor*` namespace. The ink lives in the annotation rather than the page,
- * so removing it recovers the unstamped original — which is what lets a file be
- * opened, stripped to pristine bytes and saved over without marks compounding.
- */
-
 import {
   degrees,
   drawEllipse,
@@ -32,11 +22,6 @@ import {
   isAnnotationColor,
 } from '#/lib/pdf/annotations';
 
-/**
- * The prefix is what makes our marks identifiable: a source score may carry
- * links, outline targets or form fields, and both reading and stripping filter
- * strictly on it so someone else's annotations are never claimed or deleted.
- */
 const KIND = PDFName.of('PdfEditorKind');
 const TEXT = PDFName.of('PdfEditorText');
 const ID = PDFName.of('PdfEditorId');
@@ -53,15 +38,9 @@ const FONT_KEY = 'PdfEditorFont';
 
 /** Print flag: the mark is part of the music, not a viewer-only sticky note. */
 const PRINT_FLAG = 4;
-
 const KINDS: readonly AnnotationKind[] = Object.keys(
   DEFAULT_SIZE,
 ) as AnnotationKind[];
-
-/**
- * Vertical room the glyphs get in the appearance box, as a fraction of point
- * size. Generous on purpose: too small clips the mark, too large costs nothing.
- */
 const GLYPH_ASCENT = 1;
 const GLYPH_DESCENT = 0.35;
 
@@ -90,11 +69,6 @@ function appearanceKey(annotation: ScoreAnnotation): string {
   return `${annotation.kind}:${annotation.size}:${annotation.color}:${annotation.text}`;
 }
 
-/**
- * A draw sink that accumulates pdf-lib operators instead of pushing them into a
- * page, and tracks what they reach so the form can be given a bounding box.
- * Everything is drawn against the origin — see `Appearance`.
- */
 function appearanceSink(font: PDFFont) {
   const operators: PDFOperator[] = [];
   let box: Box | null = null;
@@ -160,11 +134,6 @@ function appearanceSink(font: PDFFont) {
   return { sink, operators, box: () => box };
 }
 
-/**
- * The Form XObject for one mark, built once per distinct kind/text/size. Null
- * when the mark draws nothing — a note whose editor was open but empty at save
- * time — which is not written out, exactly as it is not stamped.
- */
 function annotationAppearance(
   doc: PDFDocument,
   annotation: ScoreAnnotation,
@@ -277,11 +246,6 @@ function readText(dict: PDFDict, key: PDFName): string | null {
   return typeof value?.decodeText === 'function' ? value.decodeText() : null;
 }
 
-/**
- * A file can be edited by anything, so nothing here is assumed: a mark missing
- * its anchor or carrying a kind this version does not know is dropped rather
- * than restored as a broken object.
- */
 function toAnnotation(
   dict: PDFDict,
   pageIndex: number,
@@ -311,11 +275,6 @@ function toAnnotation(
   };
 }
 
-/**
- * Every mark this app wrote into the document. `pageIndex` comes from where the
- * annotation sits *now*, not from anything stored: pages may have been reordered
- * or deleted before the file was saved.
- */
 export function readAnnotationObjects(doc: PDFDocument): ScoreAnnotation[] {
   const restored: ScoreAnnotation[] = [];
 
@@ -329,16 +288,6 @@ export function readAnnotationObjects(doc: PDFDocument): ScoreAnnotation[] {
   return restored;
 }
 
-/**
- * Takes our marks back out, leaving every other annotation where it is. This is
- * what an opened document works from, with the marks lifted into the store. It
- * also settles a rendering problem: pdf.js paints annotations onto its canvas
- * whether or not the HTML annotation layer is off, so the overlay would
- * otherwise draw every mark twice.
- *
- * Returns whether anything was removed, sparing an untouched document a
- * pointless re-serialization.
- */
 export function stripAnnotationObjects(doc: PDFDocument): boolean {
   let stripped = false;
 
@@ -355,8 +304,6 @@ export function stripAnnotationObjects(doc: PDFDocument): boolean {
       doc.context.obj(annots.asArray().filter((entry) => !drop.has(entry))),
     );
 
-    // The appearance streams are ours alone, and nothing else can be pointing
-    // at them. Left behind they would accumulate over an open/save cycle.
     for (const { dict } of ours) {
       const ref = doc.context.lookupMaybe(dict.get(AP), PDFDict)?.get(N);
       if (ref) doc.context.delete(ref as PDFRef);

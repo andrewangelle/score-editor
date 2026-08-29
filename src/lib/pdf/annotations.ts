@@ -1,11 +1,6 @@
 /**
  * Everything the performer writes on the score: fingerings, string numbers,
  * left-hand positions and performance notes.
- *
- * An annotation is anchored in the *original* document's user space, never in
- * the extracted output. That is the whole trick: mark up the full score, extract
- * the guitar parts, extract them again differently, and every note stays welded
- * to the music it describes — extraction only asks which fall inside a band.
  */
 export type AnnotationKind = 'fingering' | 'string' | 'position' | 'note';
 
@@ -35,9 +30,7 @@ export function isAnnotationColor(value: unknown): value is AnnotationColor {
 
 export type ScoreAnnotation = {
   id: string;
-  /** Page of the uploaded document this note is anchored to. */
   pageIndex: number;
-  /** Anchor in source-page user space; the text's left edge and baseline. */
   x: number;
   y: number;
   text: string;
@@ -53,13 +46,6 @@ export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
   note: 7.5,
 };
 
-/**
- * The values a kind can be picked from a menu rather than typed. Only the kinds
- * whose whole vocabulary is a short list of numbers appear here: a left hand has
- * four fingers plus 0 for an open string, and no instrument this edits has more
- * than eight strings. Positions and performance notes are open-ended, so they
- * stay typed.
- */
 export const ANNOTATION_VALUE_CHOICES: Partial<
   Record<AnnotationKind, readonly string[]>
 > = {
@@ -67,7 +53,6 @@ export const ANNOTATION_VALUE_CHOICES: Partial<
   string: ['1', '2', '3', '4', '5', '6', '7', '8'],
 };
 
-/** The values `kind` offers, or empty for the kinds that are typed. */
 export function annotationValueChoices(
   kind: AnnotationKind,
 ): readonly string[] {
@@ -95,18 +80,12 @@ const ROMAN_UNITS = [
 ];
 const ROMAN_TENS = ['', 'X', 'XX'];
 
-/** `5` -> `V`. Only the range a left hand can actually reach is supported. */
 export function toRomanNumeral(value: number): string | null {
   if (!Number.isInteger(value) || value < 1 || value > MAX_POSITION)
     return null;
   return ROMAN_TENS[Math.floor(value / 10)] + ROMAN_UNITS[value % 10];
 }
 
-/**
- * Puts committed text into the form its kind is engraved in. Returning empty is
- * meaningful: the overlay drops the annotation rather than leaving a blank
- * circle behind.
- */
 export function normalizeAnnotationText(
   kind: AnnotationKind,
   text: string,
@@ -120,8 +99,6 @@ export function normalizeAnnotationText(
       : (toRomanNumeral(arabic) ?? '');
   }
 
-  // Two digits so a 12-string or a lute course still fits; more than that is
-  // not a string number and would burst the circle.
   if (kind === 'string') return trimmed.replace(/\D/g, '').slice(0, 2);
 
   return trimmed;
@@ -154,7 +131,6 @@ export function removeAnnotation(
   return annotations.filter((annotation) => annotation.id !== id);
 }
 
-/** Annotations whose anchor lies inside `rect`. */
 export function annotationsWithin(
   annotations: readonly ScoreAnnotation[],
   pageIndex: number,

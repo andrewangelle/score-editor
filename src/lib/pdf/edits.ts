@@ -26,10 +26,6 @@ export function removePage(pages: readonly PageEdit[], id: string): PageEdit[] {
   return pages.filter((page) => page.id !== id);
 }
 
-/**
- * Swaps a page with its neighbour. Returns the original list unchanged when the
- * page is already at the edge, so callers can skip pushing a no-op onto undo.
- */
 export function movePage(
   pages: readonly PageEdit[],
   id: string,
@@ -45,7 +41,6 @@ export function movePage(
   return next;
 }
 
-/** True when the page list still matches the document as uploaded. */
 export function isUnchanged(
   pages: readonly PageEdit[],
   original: readonly PageEdit[],

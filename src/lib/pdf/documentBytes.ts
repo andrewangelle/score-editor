@@ -28,15 +28,10 @@ export function holdDocumentBytes(
   held = { id, bytes, handle };
 }
 
-/** Null once that document has been closed or replaced by another. */
 export function documentBytes(id: string | null): Uint8Array | null {
   return id !== null && held?.id === id ? held.bytes : null;
 }
 
-/**
- * The open document's file handle, or null when it has none — a drop or an
- * `<input>` outside Chromium — in which case it can only be saved as a copy.
- */
 export function documentFileHandle(id: string | null): PdfFileHandle | null {
   return id !== null && held?.id === id ? held.handle : null;
 }
