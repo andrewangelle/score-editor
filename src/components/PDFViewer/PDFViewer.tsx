@@ -4,6 +4,11 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { PDFPageStrip } from '#/components/PDFPageStrip/PDFPageStrip';
 import {
+  RENDER_ERROR,
+  RENDERING,
+  TOOLS_HIDDEN,
+} from '#/components/PDFViewer/PDFViewer.constants';
+import {
   DOCUMENT_CLASS,
   PAGE_FRAME_CLASS,
   PAGE_NAV_CLASS,
@@ -73,7 +78,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   if (loadError) {
     return (
       <p className={VIEWER_ERROR_CLASS} role="alert">
-        This PDF could not be displayed: {loadError}
+        {RENDER_ERROR}: {loadError}
       </p>
     );
   }
@@ -82,10 +87,10 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
     <Document
       file={file}
       onLoadError={(error) => setLoadError(error.message)}
-      loading={<p className={VIEWER_MESSAGE_CLASS}>Rendering PDF…</p>}
+      loading={<p className={VIEWER_MESSAGE_CLASS}>{RENDERING}</p>}
       error={
         <p className={VIEWER_ERROR_CLASS} role="alert">
-          This PDF could not be displayed.
+          {RENDER_ERROR}.
         </p>
       }
       className={DOCUMENT_CLASS}
@@ -127,11 +132,9 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
         ) : null}
       </div>
 
-      {analysis && selected && selected.rotation !== 0 ? (
-        <p className={ROTATED_NOTICE_CLASS}>
-          Score tools are hidden while this page is rotated.
-        </p>
-      ) : null}
+      {analysis && selected && selected.rotation !== 0 && (
+        <p className={ROTATED_NOTICE_CLASS}>{TOOLS_HIDDEN}</p>
+      )}
     </Document>
   );
 }

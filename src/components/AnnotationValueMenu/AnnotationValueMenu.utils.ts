@@ -8,7 +8,6 @@ export function getAnnotationSelectionPrompt(value: string | null) {
   return 'Pick a number to place it by clicking, or click the page to type one.';
 }
 
-/** Whether a keystroke landed somewhere text is being typed. */
 export function isTextField(target: HTMLElement) {
   return (
     target.tagName === 'INPUT' ||
