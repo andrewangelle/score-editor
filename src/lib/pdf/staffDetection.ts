@@ -59,9 +59,11 @@ export type PageStaves = {
   height: number;
   systems: System[];
   clips?: Rect[] | null;
-  /** Every box drawn on the page, so a second reader (`markings.ts`) doesn't need to recompute re-walk. */
+  /**
+   * ink and text represent ever annotation on the page,
+   * so a second reader (`markings.ts`) doesn't need to recompute
+   */
   ink?: Rect[];
-  /** Bulky for the same reason `ink` is, and to be dropped on the same terms. */
   text?: PageTextItem[];
 };
 
@@ -83,7 +85,6 @@ export type DetectionOptions = {
    * current staff and begins the next.
    */
   staffBreakFactor: number;
-
   maxContentGrowth: number;
   /** How far a rule's ends may sit from the staff's, */
   staffEdgeTolerance: number;
@@ -113,6 +114,37 @@ export const DEFAULT_DETECTION: DetectionOptions = {
   maxContentGrowth: 4,
   staffEdgeTolerance: 0.02,
 };
+
+export async function detectPageStaves(
+  page: StaffSourcePage,
+  pageIndex: number,
+  ops: PdfOps,
+  options: DetectionOptions = DEFAULT_DETECTION,
+): Promise<PageStaves> {
+  const viewport = page.getViewport({ scale: 1 });
+  const operators = await page.getOperatorList();
+
+  const { boxes, clips } = collectGeometry(operators, ops);
+  const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
+  const staves = groupIntoStaves(rules, options);
+  const text = await readVisibleText(page, clips);
+  const ink = [...boxes, ...text.map((item) => withDescent(item.rect))];
+  const systems = groupIntoSystems(
+    attachContentBounds(staves, ink, options),
+    verticalsFromBoxes(boxes, options),
+    options,
+  );
+
+  return {
+    pageIndex,
+    width: viewport.width,
+    height: viewport.height,
+    systems,
+    clips,
+    ink: boxes,
+    text,
+  };
+}
 
 export function staffHeight(staff: Staff): number {
   return Math.max(staff.top - staff.bottom, staff.lineSpacing * 4);
@@ -866,37 +898,6 @@ function isVisible(
 ): boolean {
   if (!clips || clips.length === 0) return true;
   return clips.some((clip) => intersect(box, clip) !== null);
-}
-
-export async function detectPageStaves(
-  page: StaffSourcePage,
-  pageIndex: number,
-  ops: PdfOps,
-  options: DetectionOptions = DEFAULT_DETECTION,
-): Promise<PageStaves> {
-  const viewport = page.getViewport({ scale: 1 });
-  const operators = await page.getOperatorList();
-
-  const { boxes, clips } = collectGeometry(operators, ops);
-  const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
-  const staves = groupIntoStaves(rules, options);
-  const text = await readVisibleText(page, clips);
-  const ink = [...boxes, ...text.map((item) => withDescent(item.rect))];
-  const systems = groupIntoSystems(
-    attachContentBounds(staves, ink, options),
-    verticalsFromBoxes(boxes, options),
-    options,
-  );
-
-  return {
-    pageIndex,
-    width: viewport.width,
-    height: viewport.height,
-    systems,
-    clips,
-    ink: boxes,
-    text,
-  };
 }
 
 type TextItem = {

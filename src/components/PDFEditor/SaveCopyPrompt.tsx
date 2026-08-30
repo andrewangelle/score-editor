@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  CANCEL,
+  SAVE,
+  SAVE_COPY_AS,
+} from '#/components/PDFEditor/PDFEditor.constants';
+import {
   getSaveCopyRevealStyles,
   SAVE_COPY_CANCEL_CLASS,
   SAVE_COPY_FORM_CLASS,
@@ -58,7 +63,7 @@ export function SaveCopyPrompt({
             htmlFor="save-copy-name"
             className="font-medium text-slate-700 text-sm"
           >
-            Save copy as
+            {SAVE_COPY_AS}
           </label>
 
           <input
@@ -70,7 +75,7 @@ export function SaveCopyPrompt({
           />
 
           <button type="submit" className={SAVE_COPY_SUBMIT_CLASS}>
-            Save
+            {SAVE}
           </button>
 
           <button
@@ -78,7 +83,7 @@ export function SaveCopyPrompt({
             onClick={onCancel}
             className={SAVE_COPY_CANCEL_CLASS}
           >
-            Cancel
+            {CANCEL}
           </button>
         </form>
       </div>
