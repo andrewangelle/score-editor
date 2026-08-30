@@ -26,8 +26,12 @@ import {
   STATUS_MESSAGE_CLASS,
 } from '#/components/PDFEditor/PDFEditor.styles';
 import {
+  getAnalyseScoreError,
+  getExtractError,
+  getFileHandleError,
   getSaveButtonCTA,
   getSaveButtonTitle,
+  getSaveError,
 } from '#/components/PDFEditor/PDFEditor.utils';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
@@ -37,7 +41,6 @@ import {
   buildEditedPdf,
   downloadFileName,
   editedFileName,
-  PdfLoadError,
   readPdfFile,
 } from '#/lib/pdf/document';
 import {
@@ -131,9 +134,11 @@ export function PDFEditor() {
     try {
       const loaded = await readPdfFile(file);
       const id = crypto.randomUUID();
+
       // Hand off the bytes before announcing the document
       holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
+
       // Strictly after the open: every slice empties itself on that.
       if (loaded.annotations.length > 0 || loaded.state) {
         dispatch(
@@ -145,11 +150,7 @@ export function PDFEditor() {
       }
       void analyseScore(id, loaded.bytes);
     } catch (cause) {
-      setError(
-        cause instanceof PdfLoadError
-          ? cause.message
-          : `Could not open that file: ${cause instanceof Error ? cause.message : String(cause)}`,
-      );
+      setError(getFileHandleError(cause));
     } finally {
       setIsBusy(false);
     }
@@ -168,10 +169,7 @@ export function PDFEditor() {
       dispatch(
         scoreAnalysisFailed({
           documentId: id,
-          message:
-            cause instanceof Error
-              ? cause.message
-              : 'This document could not be analysed as a score.',
+          message: getAnalyseScoreError(cause),
         }),
       );
     }
@@ -194,11 +192,7 @@ export function PDFEditor() {
       );
       reportSaved(await write(extracted));
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Something went wrong while extracting those parts.',
-      );
+      setError(getExtractError(cause));
     } finally {
       setIsBusy(false);
     }
@@ -256,11 +250,7 @@ export function PDFEditor() {
         ),
       );
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Something went wrong while saving.',
-      );
+      setError(getSaveError(cause));
     } finally {
       setIsBusy(false);
     }
