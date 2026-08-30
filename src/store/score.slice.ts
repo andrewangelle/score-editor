@@ -12,41 +12,18 @@ import {
 } from '#/store/document.slice';
 
 /**
- * What staff detection made of the open document. A best-effort enrichment: it
- * runs after the document is on screen, and a document it cannot read leaves the
- * plain page editor perfectly usable. `analysis` and `note` are the two outcomes
- * of one attempt, never both at once.
+ * What staff detection made of the open document.
  */
 type ScoreState = {
   analysis: ScoreAnalysis | null;
   /** Why analysis produced nothing, when it failed. */
   note: string | null;
-  /** Ordinals of the parts currently checked for extraction. */
   selectedOrdinals: number[];
-  /**
-   * Carry each system's measure numbers and tempo marks into the parts cut from
-   * it. On by default: a score prints them only above its top staff, and a part
-   * without them is hard to rehearse from.
-   */
   keepMarkings: boolean;
-  /**
-   * Names the user typed, by ordinal. Kept beside the analysis rather than in
-   * it, since detection output is thrown away on every open. `selectParts`
-   * applies the two together, so a rename for an ordinal detection no longer
-   * finds simply never shows, and works again if that ordinal comes back.
-   */
+  /** Names the user typed, by ordinal. */
   renames: Record<number, string>;
-  /**
-   * A restored part selection waiting for the analysis it describes: ordinals
-   * name parts, and there are no parts until detection has run.
-   */
+  /** A restored part selection waiting for the analysis it describes */
   pendingOrdinals: number[] | null;
-  /**
-   * The document detection is currently describing, or being run for. Analysis
-   * on a dense score can still be running when the next document is opened and
-   * nothing cancels it, so an outcome that no longer matches this is dropped
-   * rather than attributed to whatever is on screen now.
-   */
   documentId: string | null;
 };
 
@@ -88,9 +65,10 @@ export const scoreSlice = createSlice({
       action: PayloadAction<{ documentId: string; analysis: ScoreAnalysis }>,
     ) {
       if (action.payload.documentId !== state.documentId) return;
+
       state.analysis = action.payload.analysis;
       state.note = null;
-      // Everything detected starts checked; the user narrows from there.
+
       const detected = action.payload.analysis.parts.map(
         (part) => part.ordinal,
       );
@@ -100,10 +78,7 @@ export const scoreSlice = createSlice({
       if (!pending) return;
       state.pendingOrdinals = null;
 
-      // Reconcile rather than trust: a detection now finding eleven staves where
-      // it once found twelve has stored ordinals naming different parts, or
-      // none. A selection surviving none of that gives way to the detected
-      // default rather than leaving the panel mysteriously empty.
+      // Ex: a detection now finding eleven staves where it once found twelve
       const kept = pending.filter((ordinal) => detected.includes(ordinal));
       if (kept.length > 0 || pending.length === 0) {
         state.selectedOrdinals = kept;
@@ -150,7 +125,7 @@ export const scoreSlice = createSlice({
       state.renames[action.payload.ordinal] = action.payload.name;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers(builder) {
     // Detection describes one specific document, so it cannot outlive it.
     builder
       .addCase(documentOpened, (_state, action) => ({
@@ -158,7 +133,6 @@ export const scoreSlice = createSlice({
         documentId: action.payload.id,
       }))
       .addCase(documentClosed, () => initialState)
-      // Dispatched after the open, which every slice resets itself on.
       .addCase(documentRestored, (state, action) => {
         const restored = action.payload.state;
         if (!restored) return;
@@ -178,9 +152,6 @@ export const scoreSlice = createSlice({
     selectPartNames: createSelector([selectRenamedParts], (parts) =>
       parts.map((part) => part.name),
     ),
-    /** Whether the checkboxes are all ticked — what the toggle reads to label
-     * itself, and false with nothing detected so it never offers to clear an
-     * empty list. */
     selectAllPartsSelected: createSelector(
       [selectRenamedParts, (state: ScoreState) => state.selectedOrdinals],
       (parts, ordinals) => parts.length > 0 && ordinals.length === parts.length,
@@ -190,7 +161,6 @@ export const scoreSlice = createSlice({
       (parts, ordinals) =>
         parts.filter((part) => ordinals.includes(part.ordinal)),
     ),
-    /** The renames as the saved file stores them. */
     selectRenames: createSelector(
       [(state: ScoreState) => state.renames],
       (renames) =>
@@ -199,9 +169,12 @@ export const scoreSlice = createSlice({
           name,
         })),
     ),
+
     selectIrregularSystems: (state) =>
       state.analysis?.irregularSystems ?? NO_IRREGULAR,
+
     selectKeepMarkings: (state) => state.keepMarkings,
+
     /** How many measure numbers and tempo marks detection found, by kind. */
     selectMarkingCounts: createSelector(
       [(state: ScoreState) => state.analysis?.pages],

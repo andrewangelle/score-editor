@@ -2,7 +2,6 @@ import { ClientOnly } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
 import { AnnotationValueMenu } from '#/components/AnnotationValueMenu/AnnotationValueMenu';
 import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
-import { ErrorMessage } from '#/components/PDFEditor/ErrorMessage';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
 import {
   EDITOR_DESCRIPTION,
@@ -17,6 +16,7 @@ import {
   UNDO,
 } from '#/components/PDFEditor/PDFEditor.constants';
 import {
+  ERROR_MESSAGE_CLASS,
   HEADER_CLASS,
   INTRO_CONTAINER_CLASS,
   INTRO_ERROR_CLASS,
@@ -371,7 +371,11 @@ export function PDFEditor() {
         onCancel={() => setNamingCopy(false)}
       />
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
+      {error && (
+        <p className={ERROR_MESSAGE_CLASS} role="alert">
+          {error}
+        </p>
+      )}
 
       {status && status.revision === revision && (
         <div className={STATUS_MESSAGE_CLASS} role="status">
