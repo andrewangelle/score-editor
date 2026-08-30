@@ -12,17 +12,6 @@ import {
   documentRestored,
 } from '#/store/document.slice';
 
-/**
- * The rectangles extraction will cut.
- *
- * Detection proposes a set derived from the checked parts; the moment the user
- * draws or drags one, their list becomes the truth. `manual` holds that
- * takeover, and is null while the part checkboxes are still in charge.
- *
- * The proposal lives in the score slice, so the first hand edit has to be told
- * what was on screen to take over from — the `visible` field on these payloads,
- * read only while `manual` is still null.
- */
 type RegionsState = {
   manual: Region[] | null;
   selectedId: string | null;

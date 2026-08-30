@@ -6,17 +6,17 @@ import {
   useState,
 } from 'react';
 import {
-  CHOOSE_FILE_BUTTON_CLASS,
-  CHOOSE_FILE_INPUT_LABEL_CLASS,
-  getDragContainerStyles,
-} from '#/components/PDFDropzone/PDFDropzone.styles';
-import {
   CHOOSE_FILE,
   CHOOSE_FILE_DISCLAIMER,
   DROP_INSTRUCTION_DESCRIPTION,
   DROP_INSTRUCTION_HEADING,
-  getFileOpenErrorMessage,
-} from '#/components/PDFDropzone/PDFDropzone.utils';
+} from '#/components/PDFDropzone/PDFDropzone.constants';
+import {
+  CHOOSE_FILE_BUTTON_CLASS,
+  CHOOSE_FILE_INPUT_LABEL_CLASS,
+  getDragContainerStyles,
+} from '#/components/PDFDropzone/PDFDropzone.styles';
+import { getFileOpenErrorMessage } from '#/components/PDFDropzone/PDFDropzone.utils';
 import {
   droppedFileHandle,
   type PdfFileHandle,

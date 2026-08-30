@@ -19,21 +19,16 @@ import {
 } from '#/components/PDFViewer/PDFViewer.styles';
 import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
-import { useElementWidth } from '#/hooks/useElementWidth';
+import { usePageWidth } from '#/hooks/usePageWidth';
 import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
 import type { TurnDirection } from '#/lib/scrollEdgePaging';
-import {
-  pageSelected,
-  selectPages,
-  selectSelectedPageId,
-} from '#/store/document.slice';
+import { pageSelected, selectPages } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { selectAnalysis, selectParts } from '#/store/score.slice';
+import { selectOverlay, selectSelectedPage } from '#/store/selectors';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
-
-const MAX_PAGE_WIDTH = 900;
 
 type PdfViewerProps = {
   bytes: Uint8Array;
@@ -42,26 +37,17 @@ type PdfViewerProps = {
 export function PDFViewer({ bytes }: PdfViewerProps) {
   const dispatch = useAppDispatch();
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
-  const stageWidth = useElementWidth(stage);
+  const pageWidth = usePageWidth(stage);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pages = useAppSelector(selectPages);
-  const selectedId = useAppSelector(selectSelectedPageId);
   const analysis = useAppSelector(selectAnalysis);
   const parts = useAppSelector(selectParts);
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
-
-  const selected = pages.find((page) => page.id === selectedId) ?? pages[0];
-  const pageWidth = stageWidth
-    ? Math.min(stageWidth - 32, MAX_PAGE_WIDTH)
-    : undefined;
-  const sourcePage = analysis?.pages[selected?.sourceIndex ?? -1];
-  const overlay =
-    analysis && sourcePage && pageWidth && selected && selected.rotation === 0
-      ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
-      : null;
+  const selectedPage = useAppSelector(selectSelectedPage);
+  const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
 
   function turnPage(direction: TurnDirection) {
-    const index = pages.findIndex((page) => page.id === selected?.id);
+    const index = pages.findIndex((page) => page.id === selectedPage?.id);
     const next = pages[index + direction];
     if (index === -1 || !next) return false;
 
@@ -71,7 +57,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
 
   useScrollEdgePaging({
     container: stage,
-    pageKey: selected?.id ?? null,
+    pageKey: selectedPage?.id ?? null,
     onTurn: turnPage,
   });
 
@@ -100,39 +86,40 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
       </nav>
 
       <div ref={setStage} className={STAGE_CLASS}>
-        {selected && pageWidth ? (
+        {selectedPage && pageWidth && (
           <div className={PAGE_FRAME_CLASS}>
             <Page
-              key={selected.id}
-              pageNumber={selected.sourceIndex + 1}
-              rotate={selected.rotation}
+              key={selectedPage.id}
+              pageNumber={selectedPage.sourceIndex + 1}
+              rotate={selectedPage.rotation}
               width={pageWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
               className="isolate"
             />
-            {overlay ? (
+
+            {overlay && (
               <>
                 <ScoreOverlay
-                  pageIndex={selected.sourceIndex}
+                  pageIndex={selectedPage.sourceIndex}
                   pageHeight={overlay.sourcePage.height}
                   scale={overlay.scale}
                   systems={overlay.sourcePage.systems}
                   parts={parts}
                 />
                 <RegionLayer
-                  pageIndex={selected.sourceIndex}
+                  pageIndex={selectedPage.sourceIndex}
                   pageWidth={overlay.sourcePage.width}
                   pageHeight={overlay.sourcePage.height}
                   scale={overlay.scale}
                 />
               </>
-            ) : null}
+            )}
           </div>
-        ) : null}
+        )}
       </div>
 
-      {analysis && selected && selected.rotation !== 0 && (
+      {analysis && selectedPage && selectedPage.rotation !== 0 && (
         <p className={ROTATED_NOTICE_CLASS}>{TOOLS_HIDDEN}</p>
       )}
     </Document>
