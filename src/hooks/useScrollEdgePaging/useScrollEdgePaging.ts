@@ -6,7 +6,7 @@ import {
   type TurnDirection,
   unlock,
   wheelPixels,
-} from '#/lib/scrollEdgePaging';
+} from '#/hooks/useScrollEdgePaging/useScrollEdgePaging.utils';
 
 type EdgeScrollPagingOptions = {
   container: HTMLElement | null;

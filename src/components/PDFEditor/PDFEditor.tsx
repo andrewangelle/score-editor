@@ -26,6 +26,7 @@ import {
   STATUS_MESSAGE_CLASS,
 } from '#/components/PDFEditor/PDFEditor.styles';
 import {
+  downloadBytes,
   getAnalyseScoreError,
   getExtractError,
   getFileHandleError,
@@ -36,7 +37,6 @@ import {
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
 import { ToolbarButton } from '#/components/ToolbarButton/ToolbarButton';
-import { downloadBytes } from '#/lib/download';
 import {
   buildEditedPdf,
   downloadFileName,
