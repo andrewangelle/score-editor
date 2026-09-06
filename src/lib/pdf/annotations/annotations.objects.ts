@@ -14,13 +14,19 @@ import {
   type PDFRef,
   type PDFString,
 } from 'pdf-lib';
-import { type DrawSink, stampAnnotation } from '#/lib/pdf/annotationStamp';
-import type { AnnotationKind, ScoreAnnotation } from '#/lib/pdf/annotations';
+import type {
+  AnnotationKind,
+  ScoreAnnotation,
+} from '#/lib/pdf/annotations/annotations';
 import {
   DEFAULT_COLOR,
   DEFAULT_SIZE,
   isAnnotationColor,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
+import {
+  type DrawSink,
+  stampAnnotation,
+} from '#/lib/pdf/annotations/annotations.stamp';
 
 const KIND = PDFName.of('PdfEditorKind');
 const TEXT = PDFName.of('PdfEditorText');
@@ -54,9 +60,7 @@ type Box = { left: number; bottom: number; right: number; top: number };
 type Appearance = { ref: PDFRef; box: Box };
 
 /**
- * Form XObjects already built, keyed by what determines their geometry. A
- * well-marked score carries hundreds of "3"s at one size: one drawing repeated,
- * and the file should say so once.
+ * So that we only have one instance of each annotation drawing that is re-used throughout the document
  */
 export type AppearanceCache = Map<string, Appearance>;
 
@@ -73,14 +77,16 @@ function appearanceSink(font: PDFFont) {
   let box: Box | null = null;
 
   function reach(next: Box) {
-    box = box
-      ? {
-          left: Math.min(box.left, next.left),
-          bottom: Math.min(box.bottom, next.bottom),
-          right: Math.max(box.right, next.right),
-          top: Math.max(box.top, next.top),
-        }
-      : next;
+    if (box) {
+      box = {
+        left: Math.min(box.left, next.left),
+        bottom: Math.min(box.bottom, next.bottom),
+        right: Math.max(box.right, next.right),
+        top: Math.max(box.top, next.top),
+      };
+    } else {
+      box = next;
+    }
   }
 
   const sink: DrawSink = {
@@ -113,12 +119,12 @@ function appearanceSink(font: PDFFont) {
           xScale: options.size,
           yScale: options.size,
           rotate: degrees(0),
-          // Unfilled, so the engraving underneath still shows through.
           color: undefined,
           borderColor: options.borderColor,
           borderWidth: options.borderWidth,
         }),
       );
+
       // The stroke straddles the path, so half of it lies outside the radius.
       const outer = options.size + options.borderWidth / 2;
       reach({
@@ -171,9 +177,10 @@ function annotationAppearance(
 }
 
 /**
- * Writes the marks belonging to one page as annotation objects on it. `cache` is
- * a parameter, not a local, so a document's pages share appearance streams; a
- * per-page cache would emit the same fingering once per page it appears on.
+ * Writes the marks belonging to one page as annotation objects on it.
+ *
+ * `cache` is a parameter, not a local, so a document's pages share appearance streams;
+ *  a per-page cache would emit the same fingering once per page it appears on.
  */
 export function writeAnnotationObjects(
   doc: PDFDocument,
@@ -187,13 +194,14 @@ export function writeAnnotationObjects(
     if (!appearance) continue;
 
     const { ref, box } = appearance;
-    // Drawn against the origin and measured there, so placing the box at the
-    // anchor is the whole of the positioning. Box and rect matching in size
-    // keeps the viewer's appearance transform a pure translation, so the mark
-    // lands exactly where it was flattened.
+
     const dict = doc.context.obj({
       Type: 'Annot',
       Subtype: 'Stamp',
+      // Drawn against the origin and measured there, so placing the box at the
+      // anchor is the whole of the positioning. Box and rect matching in size
+      // keeps the viewer's appearance transform a pure translation, so the mark
+      // lands exactly where it was flattened.
       Rect: [
         annotation.x + box.left,
         annotation.y + box.bottom,
@@ -226,10 +234,13 @@ function ourAnnotations(
   if (!annots) return [];
 
   const found: { entry: PDFObject; dict: PDFDict }[] = [];
+
   for (const entry of annots.asArray()) {
-    // A malformed or unresolvable entry is someone else's problem, not ours.
     const dict = doc.context.lookupMaybe(entry, PDFDict);
-    if (dict?.has(ID)) found.push({ entry, dict });
+
+    if (dict?.has(ID)) {
+      found.push({ entry, dict });
+    }
   }
   return found;
 }
@@ -292,12 +303,19 @@ export function stripAnnotationObjects(doc: PDFDocument): boolean {
 
   for (const page of doc.getPages()) {
     const ours = ourAnnotations(doc, page);
-    if (ours.length === 0) continue;
+
+    if (ours.length === 0) {
+      continue;
+    }
 
     const annots = page.node.Annots();
-    if (!annots) continue;
+
+    if (!annots) {
+      continue;
+    }
 
     const drop = new Set(ours.map(({ entry }) => entry));
+
     page.node.set(
       ANNOTS,
       doc.context.obj(annots.asArray().filter((entry) => !drop.has(entry))),

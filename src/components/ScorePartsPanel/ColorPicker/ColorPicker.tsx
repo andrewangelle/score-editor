@@ -6,7 +6,7 @@ import {
   ANNOTATION_COLOR_ORDER,
   ANNOTATION_COLORS,
   type AnnotationColor,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 
 type ColorPickerProps = {
   value: AnnotationColor;

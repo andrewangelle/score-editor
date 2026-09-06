@@ -14,14 +14,14 @@ import {
   createAnnotation,
   DEFAULT_COLOR,
   type ScoreAnnotation,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 import {
   appearanceCache,
   readAnnotationObjects,
   stripAnnotationObjects,
   writeAnnotationObjects,
-} from '#/lib/pdf/annotationObjects';
-import { stampAnnotation } from '#/lib/pdf/annotationStamp';
+} from '#/lib/pdf/annotations/annotations.objects';
+import { stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
 import { recorder } from '#tests/lib/stampRecorder';
 
 const SUBTYPE = PDFName.of('Subtype');

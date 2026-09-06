@@ -6,7 +6,7 @@ import {
   type PDFNumber,
 } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createAnnotation } from '#/lib/pdf/annotations';
+import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import { extractParts, layoutBands, planBands } from '#/lib/pdf/partExtraction';
 import { regionsFromParts } from '#/lib/pdf/regions';
 import {

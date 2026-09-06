@@ -2,7 +2,7 @@ import {
   type AnnotationKind,
   DEFAULT_COLOR,
   DEFAULT_SIZE,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 import {
   annotationMoved,
   annotationPlaced,

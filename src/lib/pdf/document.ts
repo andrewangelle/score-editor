@@ -1,12 +1,12 @@
 import { degrees, PDFDocument, StandardFonts } from 'pdf-lib';
+import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
 import {
   appearanceCache,
   readAnnotationObjects,
   stripAnnotationObjects,
   writeAnnotationObjects,
-} from '#/lib/pdf/annotationObjects';
-import { stampAnnotation } from '#/lib/pdf/annotationStamp';
-import type { ScoreAnnotation } from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations.objects';
+import { stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
 import {
   type EditorState,
   readEditorState,
@@ -30,9 +30,7 @@ export type LoadedPdf = {
   /**
    * Pristine bytes of the upload. Never handed to pdf.js, which detaches
    * buffers. "Pristine" means without this app's own marks: they are lifted out
-   * into `annotations` rather than left in the page, which is what lets a file
-   * be saved over repeatedly without marks compounding, and keeps pdf.js from
-   * painting a mark the overlay is about to draw itself.
+   * into `annotations` rather than left in the page.
    */
   bytes: Uint8Array;
   pages: PageEdit[];
@@ -41,7 +39,6 @@ export type LoadedPdf = {
   state: EditorState | null;
 };
 
-/** Thrown for problems worth showing the user verbatim. */
 export class PdfLoadError extends Error {
   constructor(message: string) {
     super(message);

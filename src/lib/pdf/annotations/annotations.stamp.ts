@@ -4,7 +4,7 @@ import {
   type AnnotationColor,
   DEFAULT_COLOR,
   type ScoreAnnotation,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 
 export function annotationInk(color: AnnotationColor): Color {
   const [r, g, b] = (

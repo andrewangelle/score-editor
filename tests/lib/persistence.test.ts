@@ -5,8 +5,8 @@
  */
 
 import { PDFDocument, PDFDict, PDFName, StandardFonts } from 'pdf-lib';
-import { createAnnotation } from '#/lib/pdf/annotations';
-import { readAnnotationObjects } from '#/lib/pdf/annotationObjects';
+import { createAnnotation } from '#/lib/pdf/annotations/annotations';
+import { readAnnotationObjects } from '#/lib/pdf/annotations/annotations.objects';
 import {
   buildEditedPdf,
   type PageEdit,
