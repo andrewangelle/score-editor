@@ -3,11 +3,8 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import { devtools } from '@tanstack/devtools-vite'
-
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-
-import viteReact, { reactCompilerPreset } from '@vitejs/plugin-react'
-import babel from '@rolldown/plugin-babel'
+import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import netlify from '@netlify/vite-plugin-tanstack-start'
 
@@ -54,8 +51,9 @@ const config = defineConfig({
     netlify(),
     tailwindcss(),
     tanstackStart(),
-    viteReact(),
-    babel({ presets: [reactCompilerPreset()] }),
+    viteReact({
+      compiler: true
+    }),
   ],
 })
 
