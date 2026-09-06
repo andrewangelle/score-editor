@@ -12,4 +12,11 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.claude/skills/playwright-cli/
+.playwright-cli/
 .claude/worktrees
+.DS_Store

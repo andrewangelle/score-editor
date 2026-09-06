@@ -1,5 +1,5 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "tests/e2e/tsconfig.json"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
