@@ -17,7 +17,7 @@ import {
   type AnnotationKind,
   annotationValueChoices,
   hasAnnotationValueMenu,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   annotationValuePicked,

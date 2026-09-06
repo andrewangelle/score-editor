@@ -14,7 +14,7 @@ import {
   type AnnotationKind,
   DEFAULT_COLOR,
   normalizeAnnotationText,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 import { toPdfPoint, toScreenPoint } from '#/lib/pdf/pageCoordinates';
 import { type Part, staffBounds } from '#/lib/pdf/partExtraction';
 import type { System } from '#/lib/pdf/staffDetection';

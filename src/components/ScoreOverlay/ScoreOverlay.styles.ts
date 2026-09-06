@@ -4,7 +4,7 @@ import {
   type AnnotationKind,
   DEFAULT_COLOR,
   DEFAULT_SIZE,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 
 export function getSurfaceStyles(interactive: boolean, placing: boolean) {
   let baseClass = 'absolute inset-0';

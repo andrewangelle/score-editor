@@ -4,7 +4,7 @@ import {
   current,
   type PayloadAction,
 } from '@reduxjs/toolkit';
-import type { ScoreAnnotation } from '#/lib/pdf/annotations';
+import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
 import type { PageEdit } from '#/lib/pdf/document';
 import type { EditorState } from '#/lib/pdf/editorState';
 import {

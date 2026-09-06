@@ -1,5 +1,5 @@
 /**
- * Measure numbers and tempo marks: the text that tells a player where they are.
+ * Utils for detecting and extracting measure numbers and tempo marks from a score.
  */
 
 import type {
@@ -163,7 +163,9 @@ export function notationFonts(
 
   for (const item of items) {
     const count = tally.get(item.fontName) ?? { on: 0, total: 0 };
+
     count.total += 1;
+
     if (
       staves.some(
         (staff) =>
@@ -175,15 +177,20 @@ export function notationFonts(
     ) {
       count.on += 1;
     }
+
     tally.set(item.fontName, count);
   }
 
   const notation = new Set<string>();
+
   for (const [font, count] of tally) {
     // Too small a sample to judge, and a font that rare cannot be carrying the
     // page's notation anyway.
-    if (count.total >= 4 && count.on / count.total >= 0.5) notation.add(font);
+    if (count.total >= 4 && count.on / count.total >= 0.5) {
+      notation.add(font);
+    }
   }
+
   return notation;
 }
 

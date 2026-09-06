@@ -9,7 +9,7 @@
  */
 
 import type { Color } from 'pdf-lib';
-import type { DrawSink } from '#/lib/pdf/annotationStamp';
+import type { DrawSink } from '#/lib/pdf/annotations/annotations.stamp';
 
 export type Circle = { x: number; y: number; size: number };
 export type Text = { text: string; x: number; y: number; size: number };

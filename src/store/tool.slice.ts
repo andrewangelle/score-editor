@@ -1,6 +1,9 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AnnotationColor, AnnotationKind } from '#/lib/pdf/annotations';
-import { DEFAULT_COLOR } from '#/lib/pdf/annotations';
+import type {
+  AnnotationColor,
+  AnnotationKind,
+} from '#/lib/pdf/annotations/annotations';
+import { DEFAULT_COLOR } from '#/lib/pdf/annotations/annotations';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 
 /**

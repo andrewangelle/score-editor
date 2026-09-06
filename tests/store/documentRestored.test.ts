@@ -1,4 +1,4 @@
-import { createAnnotation, DEFAULT_SIZE } from '#/lib/pdf/annotations';
+import { createAnnotation, DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
 import type { EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';

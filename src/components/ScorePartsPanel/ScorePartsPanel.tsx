@@ -19,7 +19,7 @@ import {
   RESET_REGIONS_BUTTON_CLASS,
   TOGGLE_ALL_PARTS_BUTTON_CLASS,
 } from '#/components/ScorePartsPanel/ScorePartsPanel.styles';
-import { hasAnnotationValueMenu } from '#/lib/pdf/annotations';
+import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';

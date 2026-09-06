@@ -12,7 +12,7 @@ import {
   DEFAULT_SIZE,
   normalizeAnnotationText,
   toRomanNumeral,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 
 describe('sizes', () => {
   it('ranks the shorthand: fingering, then string, then position', () => {

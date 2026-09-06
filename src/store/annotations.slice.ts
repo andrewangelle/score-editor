@@ -7,7 +7,7 @@ import {
   normalizeAnnotationText,
   removeAnnotation,
   type ScoreAnnotation,
-} from '#/lib/pdf/annotations';
+} from '#/lib/pdf/annotations/annotations';
 import {
   documentClosed,
   documentOpened,

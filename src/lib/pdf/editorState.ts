@@ -121,34 +121,46 @@ function isRegion(value: unknown): value is Region {
 
 /** What came out of the JSON, if it is state this version can act on. */
 function validate(parsed: unknown): EditorState | null {
-  if (typeof parsed !== 'object' || parsed === null) return null;
+  if (typeof parsed !== 'object' || parsed === null) {
+    return null;
+  }
 
   const state = parsed as Partial<EditorState>;
-  if (state.v !== EDITOR_STATE_VERSION) return null;
+
+  if (state.v !== EDITOR_STATE_VERSION) {
+    return null;
+  }
 
   const regions = state.regions;
+
   if (regions !== null && regions !== undefined && !Array.isArray(regions)) {
     return null;
+  }
+
+  let selectedOrdinals: number[] = [];
+  let partNames: Array<{ ordinal: number; name: string }> = [];
+
+  if (Array.isArray(state.selectedOrdinals))
+    selectedOrdinals = state.selectedOrdinals.filter(
+      (ordinal): ordinal is number =>
+        typeof ordinal === 'number' && Number.isInteger(ordinal),
+    );
+
+  if (Array.isArray(state.partNames)) {
+    partNames = state.partNames.filter(
+      (entry): entry is { ordinal: number; name: string } =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as { ordinal?: unknown }).ordinal === 'number' &&
+        typeof (entry as { name?: unknown }).name === 'string',
+    );
   }
 
   return {
     v: EDITOR_STATE_VERSION,
     regions: Array.isArray(regions) ? regions.filter(isRegion) : null,
     keepMarkings: state.keepMarkings !== false,
-    selectedOrdinals: Array.isArray(state.selectedOrdinals)
-      ? state.selectedOrdinals.filter(
-          (ordinal): ordinal is number =>
-            typeof ordinal === 'number' && Number.isInteger(ordinal),
-        )
-      : [],
-    partNames: Array.isArray(state.partNames)
-      ? state.partNames.filter(
-          (entry): entry is { ordinal: number; name: string } =>
-            typeof entry === 'object' &&
-            entry !== null &&
-            typeof (entry as { ordinal?: unknown }).ordinal === 'number' &&
-            typeof (entry as { name?: unknown }).name === 'string',
-        )
-      : [],
+    selectedOrdinals,
+    partNames,
   };
 }

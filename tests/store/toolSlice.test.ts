@@ -1,4 +1,4 @@
-import { DEFAULT_COLOR } from '#/lib/pdf/annotations';
+import { DEFAULT_COLOR } from '#/lib/pdf/annotations/annotations';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 import {
   annotationColorPicked,

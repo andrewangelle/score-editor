@@ -14,7 +14,7 @@ import {
   StandardFonts,
 } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createAnnotation } from '#/lib/pdf/annotations';
+import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import { extractRegions } from '#/lib/pdf/partExtraction';
 import { createRegion, type Region } from '#/lib/pdf/regions';
 

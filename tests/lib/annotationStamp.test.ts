@@ -1,21 +1,11 @@
-/**
- * What actually reaches the page.
- *
- * A string identifier is only a string identifier because of the circle around
- * it — an uncircled 3 sitting over a staff reads as a fingering, which is a
- * different instruction, to the player's other hand. So the ring is asserted
- * here, along with the thing that makes it look drawn rather than calculated:
- * that it is centred on the digit, whatever width that digit happens to be.
- */
-
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import type {
   AnnotationColor,
   AnnotationKind,
   ScoreAnnotation,
-} from '#/lib/pdf/annotations';
-import { ANNOTATION_COLORS, createAnnotation } from '#/lib/pdf/annotations';
-import { annotationInk, stampAnnotation } from '#/lib/pdf/annotationStamp';
+} from '#/lib/pdf/annotations/annotations';
+import { ANNOTATION_COLORS, createAnnotation } from '#/lib/pdf/annotations/annotations';
+import { annotationInk, stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
 import { recorder } from '#tests/lib/stampRecorder';
 
 const font = await (async () => {

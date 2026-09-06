@@ -2,8 +2,11 @@
  * Turns regions into a new PDF containing only those rectangles.
  */
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { stampAnnotation } from '#/lib/pdf/annotationStamp';
-import { annotationsWithin, type ScoreAnnotation } from '#/lib/pdf/annotations';
+import {
+  annotationsWithin,
+  type ScoreAnnotation,
+} from '#/lib/pdf/annotations/annotations';
+import { stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
 import {
   DEFAULT_LAYOUT,
   type LayoutOptions,

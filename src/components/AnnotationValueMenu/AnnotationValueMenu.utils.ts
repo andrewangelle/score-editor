@@ -1,4 +1,4 @@
-import type { AnnotationKind } from '#/lib/pdf/annotations';
+import type { AnnotationKind } from '#/lib/pdf/annotations/annotations';
 
 export function getAnnotationSelectionPrompt(value: string | null) {
   if (value) {
