@@ -20,9 +20,9 @@ import {
 import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
 import { usePageWidth } from '#/hooks/usePageWidth';
-import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging';
+import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging';
+import type { TurnDirection } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging.utils';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
-import type { TurnDirection } from '#/lib/scrollEdgePaging';
 import { pageSelected, selectPages } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { selectAnalysis, selectParts } from '#/store/score.slice';

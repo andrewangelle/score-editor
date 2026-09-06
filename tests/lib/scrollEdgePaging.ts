@@ -7,7 +7,7 @@ import {
   unlock,
   type WheelInput,
   wheelPixels,
-} from '#/lib/scrollEdgePaging';
+} from '#/hooks/useScrollEdgePaging/useScrollEdgePaging.utils';
 
 function panel(scrollTop: number): Omit<WheelInput, 'deltaY' | 'at'> {
   return { scrollTop, scrollHeight: 1600, clientHeight: 800 };
