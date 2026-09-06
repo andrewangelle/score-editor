@@ -22,7 +22,7 @@ import {
   writeAnnotationObjects,
 } from '#/lib/pdf/annotations/annotations.objects';
 import { stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
-import { recorder } from '#tests/lib/stampRecorder';
+import { recorder } from '#tests/unit/lib/stampRecorder';
 
 const SUBTYPE = PDFName.of('Subtype');
 const AP = PDFName.of('AP');

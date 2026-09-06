@@ -23,7 +23,7 @@ import { createAnnotation, type ScoreAnnotation } from '#/lib/pdf/annotations/an
 import { buildEditedPdf } from '#/lib/pdf/document';
 import { type Region, regionsFromParts, staffBounds } from '#/lib/pdf/regions';
 import { detectPageStaves, type PageStaves } from '#/lib/pdf/staffDetection';
-import { buildScoreFixture } from '#tests/lib/testScoreFixture';
+import { buildScoreFixture } from '#tests/unit/lib/testScoreFixture';
 
 async function analyse(bytes: Uint8Array): Promise<PageStaves[]> {
   const doc = await pdfjs.getDocument({
