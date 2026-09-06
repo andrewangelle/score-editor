@@ -6,7 +6,7 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { extractParts, planBands, staffBounds } from '#/lib/pdf/partExtraction';
 import { detectPageStaves, type PageStaves } from '#/lib/pdf/staffDetection';
-import { buildScoreFixture } from '#tests/lib/testScoreFixture';
+import { buildScoreFixture } from '#tests/unit/lib/testScoreFixture';
 
 async function analyse(bytes: Uint8Array): Promise<PageStaves[]> {
   const doc = await pdfjs.getDocument({

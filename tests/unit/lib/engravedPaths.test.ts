@@ -15,7 +15,7 @@ import {
   type PageStaves,
   subpathBoxes,
 } from '#/lib/pdf/staffDetection';
-import { buildScoreFixture } from '#tests/lib/testScoreFixture';
+import { buildScoreFixture } from '#tests/unit/lib/testScoreFixture';
 
 /** The widest a path can be and still not be a plausible staff line. */
 const STAFF_LINE_WIDTH = 400;

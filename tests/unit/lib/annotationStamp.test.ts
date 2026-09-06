@@ -6,7 +6,7 @@ import type {
 } from '#/lib/pdf/annotations/annotations';
 import { ANNOTATION_COLORS, createAnnotation } from '#/lib/pdf/annotations/annotations';
 import { annotationInk, stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
-import { recorder } from '#tests/lib/stampRecorder';
+import { recorder } from '#tests/unit/lib/stampRecorder';
 
 const font = await (async () => {
   const pdf = await PDFDocument.create();

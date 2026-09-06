@@ -14,6 +14,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    setupFiles: ['tests/setupVitest.ts']
+    setupFiles: ['tests/unit/setupVitest.ts']
   },
 });

@@ -18,7 +18,7 @@ import {
   buildScoreFixture,
   FIXTURE_DEFAULTS,
   PAGE_HEIGHT,
-} from '#tests/lib/testScoreFixture';
+} from '#tests/unit/lib/testScoreFixture';
 
 /** Bounding boxes of the form XObjects `embedPage` produced, in band space. */
 function embeddedFormBoxes(doc: PDFDocument) {
