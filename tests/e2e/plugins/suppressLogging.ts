@@ -21,6 +21,7 @@ const SUPPRESSED_PATTERNS = [
   /Cannot read properties of null \(reading 'useContext'\)/,
   /\[Unhandled error\].*Switched to client rendering/s,
   /The render was aborted by the server without a reason/s,
+  /Could not establish a connection to the Netlify Edge Functions local development server/s,
 ];
 
 function isSuppressed(msg: string): boolean {
