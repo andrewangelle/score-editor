@@ -3,8 +3,8 @@
   "compilerOptions": {
     "types": ["node", "@playwright/test"],
     "paths": {
-      "~/*": ["../../src/*"],
-      "~test/*": ["../*"]
+      "#/*": ["../../src/*"],
+      "#tests/*": ["../*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"]

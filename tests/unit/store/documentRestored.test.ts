@@ -1,4 +1,7 @@
-import { createAnnotation, DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
+import {
+  createAnnotation,
+  DEFAULT_SIZE,
+} from '#/lib/pdf/annotations/annotations';
 import type { EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
@@ -194,7 +197,9 @@ describe('following the document', () => {
   it('is wiped by the next document being opened', () => {
     const store = restored(STATE);
     analysed(store);
-    store.dispatch(documentOpened({ id: 'doc-2', name: 'other.pdf', pages: [] }));
+    store.dispatch(
+      documentOpened({ id: 'doc-2', name: 'other.pdf', pages: [] }),
+    );
 
     const state = store.getState();
     expect(state.annotations).toEqual([]);

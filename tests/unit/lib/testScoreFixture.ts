@@ -203,7 +203,8 @@ export async function buildScoreFixture(
 
         if (options.staffLineDecoys) {
           const bottomLine = y - staffHeight;
-          const middleLine = y - Math.floor((lines - 1) / 2) * options.lineSpacing;
+          const middleLine =
+            y - Math.floor((lines - 1) / 2) * options.lineSpacing;
 
           // Beams, in the three rows a couple of voices produce. Each row sits
           // a fraction of a line-space under the middle staff line, near enough
@@ -231,14 +232,16 @@ export async function buildScoreFixture(
           const pairTop = bottomLine - options.staffGap * 0.55;
           drawSegments(
             page,
-            [bottomLine - options.staffGap * 0.25, pairTop, pairTop - options.lineSpacing].map(
-              (lineY) => ({
-                x1: LEFT + inset,
-                y1: lineY,
-                x2: RIGHT - inset,
-                y2: lineY,
-              }),
-            ),
+            [
+              bottomLine - options.staffGap * 0.25,
+              pairTop,
+              pairTop - options.lineSpacing,
+            ].map((lineY) => ({
+              x1: LEFT + inset,
+              y1: lineY,
+              x2: RIGHT - inset,
+              y2: lineY,
+            })),
             0.6,
             options.batchedPaths,
           );

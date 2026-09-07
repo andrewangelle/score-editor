@@ -239,9 +239,7 @@ describe('band planning', () => {
     );
 
     const pageOf = (id: string) =>
-      laid.findIndex((page) =>
-        page.some((placed) => placed.region.id === id),
-      );
+      laid.findIndex((page) => page.some((placed) => placed.region.id === id));
 
     expect(pageOf('a')).toBe(pageOf('c'));
   });

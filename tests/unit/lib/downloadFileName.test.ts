@@ -28,7 +28,9 @@ describe('downloadFileName', () => {
   });
 
   it('strips anything that would read as a path', () => {
-    expect(downloadFileName('../../etc/passwd', FALLBACK)).toBe('etcpasswd.pdf');
+    expect(downloadFileName('../../etc/passwd', FALLBACK)).toBe(
+      'etcpasswd.pdf',
+    );
     expect(downloadFileName('C:\\scores\\part', FALLBACK)).toBe(
       'Cscorespart.pdf',
     );

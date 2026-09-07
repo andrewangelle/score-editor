@@ -174,7 +174,12 @@ describe('the page underneath', () => {
       A: { Type: 'Action', S: 'URI', URI: PDFString.of('https://example.com') },
     });
     page.node.addAnnot(doc.context.register(link));
-    writeAnnotationObjects(doc, page, [at('string', '3'), at('note', 'x')], font);
+    writeAnnotationObjects(
+      doc,
+      page,
+      [at('string', '3'), at('note', 'x')],
+      font,
+    );
 
     const reopened = await PDFDocument.load(await doc.save());
     expect(annots(reopened)).toHaveLength(3);
@@ -209,9 +214,7 @@ describe('the page underneath', () => {
     stripAnnotationObjects(reopened);
 
     const remaining = new Set(
-      reopened.context
-        .enumerateIndirectObjects()
-        .map(([ref]) => String(ref)),
+      reopened.context.enumerateIndirectObjects().map(([ref]) => String(ref)),
     );
     expect(remaining.has(appearance)).toBe(false);
   });
