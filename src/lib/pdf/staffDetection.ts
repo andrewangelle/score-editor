@@ -120,9 +120,10 @@ export async function detectPageStaves(
   pageIndex: number,
   ops: PdfOps,
   options: DetectionOptions = DEFAULT_DETECTION,
+  preloadedOperators?: { fnArray: number[]; argsArray: unknown[][] },
 ): Promise<PageStaves> {
   const viewport = page.getViewport({ scale: 1 });
-  const operators = await page.getOperatorList();
+  const operators = preloadedOperators ?? (await page.getOperatorList());
 
   const { boxes, clips } = collectGeometry(operators, ops);
   const rules = consolidateRules(rulesFromBoxes(boxes, options), options);

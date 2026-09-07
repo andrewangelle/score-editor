@@ -36,6 +36,14 @@ function ordinalName(index: number, guessed: string | null): string {
   return clean && clean.length <= 40 ? clean : `Staff ${index + 1}`;
 }
 
+/**
+ * PDFs with nested form XObjects (e.g. an extraction of an extraction) cause
+ * pdf.js to expand every layer, producing hundreds of thousands of operators
+ * per page. Processing that many operators synchronously in `collectGeometry`
+ * freezes the main thread, so we bail before it starts.
+ */
+const MAX_PAGE_OPERATORS = 200_000;
+
 export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
   const pdfjs = await loadPdfjs();
   const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
@@ -44,7 +52,18 @@ export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
     const detected: PageStaves[] = [];
     for (let i = 0; i < doc.numPages; i++) {
       const page = await doc.getPage(i + 1);
-      detected.push(await detectPageStaves(page, i, pdfjs.OPS));
+      const operators = await page.getOperatorList();
+
+      if (operators.fnArray.length > MAX_PAGE_OPERATORS) {
+        throw new ScoreAnalysisError(
+          'This file contains too many drawing layers for staff detection. ' +
+            'If it is an extracted part, open the original score to detect and re-extract parts.',
+        );
+      }
+
+      detected.push(
+        await detectPageStaves(page, i, pdfjs.OPS, undefined, operators),
+      );
     }
 
     const markings = detectMarkings(
