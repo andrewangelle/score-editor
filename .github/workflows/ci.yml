@@ -35,3 +35,38 @@ jobs:
 
       - name: Unit Tests
         run: pnpm test
+
+      # Defaults to chromium: `inputs` is empty on pull_request runs.
+      - name: Resolve playwright target
+        id: target
+        run: |
+          case "${{ inputs.browser || 'chromium' }}" in
+            chromium)      script="test";               browsers="chromium" ;;
+            all)           script="test:all";           browsers="chromium firefox webkit msedge chrome" ;;
+            firefox)       script="test:firefox";       browsers="firefox" ;;
+            webkit)        script="test:webkit";        browsers="webkit" ;;
+            mobile:chrome) script="test:mobile:chrome"; browsers="chromium" ;;
+            mobile:safari) script="test:mobile:safari"; browsers="webkit" ;;
+            edge)          script="test:edge";          browsers="msedge" ;;
+            chrome)        script="test:chrome";        browsers="chrome" ;;
+            *)             echo "Unknown browser target: ${{ inputs.browser }}" >&2; exit 1 ;;
+          esac
+          echo "script=$script" >> "$GITHUB_OUTPUT"
+          echo "browsers=$browsers" >> "$GITHUB_OUTPUT"
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps ${{ steps.target.outputs.browsers }}
+
+      - name: Run Playwright tests
+        run: pnpm ${{ steps.target.outputs.script }}
+        env:
+          CI: true
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report
+          if-no-files-found: ignore
+          retention-days: 1
