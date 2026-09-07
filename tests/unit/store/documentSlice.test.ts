@@ -2,8 +2,8 @@ import type { PageEdit } from '#/lib/pdf/document';
 import {
   allPagesRotated,
   documentClosed,
-  documentOpened,
   documentFileReplaced,
+  documentOpened,
   documentReset,
   documentSaved,
   documentSlice,
