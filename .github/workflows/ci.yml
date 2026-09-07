@@ -56,14 +56,14 @@ jobs:
         id: target
         run: |
           case "${{ inputs.browser || 'chromium' }}" in
-            chromium)      script="test";               browsers="chromium" ;;
-            all)           script="test:all";           browsers="chromium firefox webkit msedge chrome" ;;
-            firefox)       script="test:firefox";       browsers="firefox" ;;
-            webkit)        script="test:webkit";        browsers="webkit" ;;
-            mobile:chrome) script="test:mobile:chrome"; browsers="chromium" ;;
-            mobile:safari) script="test:mobile:safari"; browsers="webkit" ;;
-            edge)          script="test:edge";          browsers="msedge" ;;
-            chrome)        script="test:chrome";        browsers="chrome" ;;
+            chromium)      script="test:e2e";               browsers="chromium" ;;
+            all)           script="test:e2e:all";           browsers="chromium firefox webkit msedge chrome" ;;
+            firefox)       script="test:e2e:firefox";       browsers="firefox" ;;
+            webkit)        script="test:e2e:webkit";        browsers="webkit" ;;
+            mobile:chrome) script="test:e2e:mobile:chrome"; browsers="chromium" ;;
+            mobile:safari) script="test:e2e:mobile:safari"; browsers="webkit" ;;
+            edge)          script="test:e2e:edge";          browsers="msedge" ;;
+            chrome)        script="test:e2e:chrome";        browsers="chrome" ;;
             *)             echo "Unknown browser target: ${{ inputs.browser }}" >&2; exit 1 ;;
           esac
           echo "script=$script" >> "$GITHUB_OUTPUT"
@@ -72,7 +72,7 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps ${{ steps.target.outputs.browsers }}
 
-      - name: Run Playwright tests
+      - name: E2E tests
         run: pnpm ${{ steps.target.outputs.script }}
         env:
           CI: true
