@@ -30,7 +30,12 @@ function staffAt(bottom: number): Staff {
 
 type Box = { left: number; bottom: number; right: number; top: number };
 
-const box = (left: number, bottom: number, right: number, top: number): Box => ({
+const box = (
+  left: number,
+  bottom: number,
+  right: number,
+  top: number,
+): Box => ({
   left,
   bottom,
   right,

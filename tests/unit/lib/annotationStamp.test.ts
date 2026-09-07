@@ -4,8 +4,14 @@ import type {
   AnnotationKind,
   ScoreAnnotation,
 } from '#/lib/pdf/annotations/annotations';
-import { ANNOTATION_COLORS, createAnnotation } from '#/lib/pdf/annotations/annotations';
-import { annotationInk, stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
+import {
+  ANNOTATION_COLORS,
+  createAnnotation,
+} from '#/lib/pdf/annotations/annotations';
+import {
+  annotationInk,
+  stampAnnotation,
+} from '#/lib/pdf/annotations/annotations.stamp';
 import { recorder } from '#tests/unit/lib/stampRecorder';
 
 const font = await (async () => {
@@ -27,12 +33,7 @@ function stamp(
     size,
   };
 
-  stampAnnotation(
-    recording.page,
-    annotation,
-    { x: 40, y: 100, size },
-    font,
-  );
+  stampAnnotation(recording.page, annotation, { x: 40, y: 100, size }, font);
 
   return { ...recording, annotation };
 }
@@ -63,7 +64,8 @@ describe('stampAnnotation', () => {
     const narrow = stamp('string', '1').circles[0];
     const wide = stamp('string', '12').circles[0];
 
-    const centre = (text: string) => 40 + font.widthOfTextAtSize(text, SIZE) / 2;
+    const centre = (text: string) =>
+      40 + font.widthOfTextAtSize(text, SIZE) / 2;
     expect(narrow.x).toBeCloseTo(centre('1'));
     expect(wide.x).toBeCloseTo(centre('12'));
     // Same anchor, same baseline: only the horizontal centre moves.

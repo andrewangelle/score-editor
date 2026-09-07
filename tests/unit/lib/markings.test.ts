@@ -21,11 +21,7 @@ import {
   type Region,
   regionsFromParts,
 } from '#/lib/pdf/regions';
-import type {
-  PageStaves,
-  PageTextItem,
-  Staff,
-} from '#/lib/pdf/staffDetection';
+import type { PageStaves, PageTextItem, Staff } from '#/lib/pdf/staffDetection';
 
 /**
  * Synthetic pages, built directly rather than drawn and re-read: what these
@@ -74,7 +70,12 @@ function text(
   return {
     str,
     fontName: font,
-    rect: { left: x, right: x + str.length * size * 0.6, bottom: y, top: y + size },
+    rect: {
+      left: x,
+      right: x + str.length * size * 0.6,
+      bottom: y,
+      top: y + size,
+    },
   };
 }
 
@@ -151,12 +152,11 @@ describe('detectMarkings', () => {
       text(String(value), 96, 600 - STAFF_HEIGHT - 12),
     ]);
 
-    expect(detectMarkings(pages, items).flat().map((m) => m.text)).toEqual([
-      '4',
-      '12',
-      '20',
-      '28',
-    ]);
+    expect(
+      detectMarkings(pages, items)
+        .flat()
+        .map((m) => m.text),
+    ).toEqual(['4', '12', '20', '28']);
   });
 
   it('leaves page numbers alone', () => {
@@ -181,12 +181,11 @@ describe('detectMarkings', () => {
       text('3', 300, 701, { size: 3 }),
     ]);
 
-    expect(detectMarkings(pages, items).flat().map((m) => m.text)).toEqual([
-      '1',
-      '9',
-      '17',
-      '25',
-    ]);
+    expect(
+      detectMarkings(pages, items)
+        .flat()
+        .map((m) => m.text),
+    ).toEqual(['1', '9', '17', '25']);
   });
 
   it('keeps a tempo mark above the system, not an instruction inside it', () => {
@@ -257,10 +256,7 @@ describe('markings on regions', () => {
   ];
 
   it('carries a system’s markings into the bands cut below it', () => {
-    const [top, bottom] = regionsFromParts(
-      [{ ...source(), markings }],
-      [0, 2],
-    );
+    const [top, bottom] = regionsFromParts([{ ...source(), markings }], [0, 2]);
 
     // The top band already contains the mark; the lower one has to be given it.
     expect(top.markings).toEqual([]);
@@ -286,9 +282,17 @@ describe('markings on regions', () => {
       markings: [
         { ...markings[0], id: 'a' },
         // Same line as the first.
-        { ...markings[0], id: 'b', rect: { left: 300, right: 340, bottom: 715, top: 725 } },
+        {
+          ...markings[0],
+          id: 'b',
+          rect: { left: 300, right: 340, bottom: 715, top: 725 },
+        },
         // A line above both.
-        { ...markings[0], id: 'c', rect: { left: 120, right: 260, bottom: 740, top: 754 } },
+        {
+          ...markings[0],
+          id: 'c',
+          rect: { left: 120, right: 260, bottom: 740, top: 754 },
+        },
       ],
     };
 

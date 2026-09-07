@@ -92,9 +92,9 @@ describe('picking a value off the menu', () => {
   });
 
   it('holds the value the next mark will carry', () => {
-    expect(
-      run(toolToggled('string'), annotationValuePicked('6')).value,
-    ).toBe('6');
+    expect(run(toolToggled('string'), annotationValuePicked('6')).value).toBe(
+      '6',
+    );
   });
 
   it('puts the same value back down when it is picked again', () => {

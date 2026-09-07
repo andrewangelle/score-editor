@@ -47,7 +47,13 @@ describe('annotationPlaced', () => {
 
   it('places a mark in the ink it was given', () => {
     const [placed] = run(
-      annotationPlaced({ pageIndex: 0, x: 100, y: 400, kind: 'note', color: 'red' }),
+      annotationPlaced({
+        pageIndex: 0,
+        x: 100,
+        y: 400,
+        kind: 'note',
+        color: 'red',
+      }),
     );
 
     expect(placed.color).toBe('red');

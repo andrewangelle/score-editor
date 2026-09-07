@@ -19,7 +19,10 @@
  */
 
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createAnnotation, type ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
+import {
+  createAnnotation,
+  type ScoreAnnotation,
+} from '#/lib/pdf/annotations/annotations';
 import { buildEditedPdf } from '#/lib/pdf/document';
 import { type Region, regionsFromParts, staffBounds } from '#/lib/pdf/regions';
 import { detectPageStaves, type PageStaves } from '#/lib/pdf/staffDetection';

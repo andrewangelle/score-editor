@@ -74,6 +74,8 @@ describe('createAnnotation', () => {
   });
 
   it('takes its size from its kind', () => {
-    expect(createAnnotation(0, 10, 20, 'string').size).toBe(DEFAULT_SIZE.string);
+    expect(createAnnotation(0, 10, 20, 'string').size).toBe(
+      DEFAULT_SIZE.string,
+    );
   });
 });

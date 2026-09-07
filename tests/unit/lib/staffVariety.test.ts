@@ -190,7 +190,8 @@ describe('decoys that a real engraving draws against its staves', () => {
 
     for (const band of bands) {
       const system = pages[0].systems.find(
-        (candidate) => `0:${pages[0].systems.indexOf(candidate)}` === band.groupKey,
+        (candidate) =>
+          `0:${pages[0].systems.indexOf(candidate)}` === band.groupKey,
       );
       if (!system) throw new Error('band without a system');
 
@@ -199,7 +200,9 @@ describe('decoys that a real engraving draws against its staves', () => {
       expect(band.rect.bottom).toBeGreaterThan(system.staves[2].top);
     }
 
-    expect((await extractParts(bytes, pages, [0, 1])).length).toBeGreaterThan(0);
+    expect((await extractParts(bytes, pages, [0, 1])).length).toBeGreaterThan(
+      0,
+    );
   });
 });
 

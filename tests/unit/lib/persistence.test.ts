@@ -4,14 +4,10 @@
  * they get back.
  */
 
-import { PDFDocument, PDFDict, PDFName, StandardFonts } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName, StandardFonts } from 'pdf-lib';
 import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import { readAnnotationObjects } from '#/lib/pdf/annotations/annotations.objects';
-import {
-  buildEditedPdf,
-  type PageEdit,
-  readPdfFile,
-} from '#/lib/pdf/document';
+import { buildEditedPdf, type PageEdit, readPdfFile } from '#/lib/pdf/document';
 import { EDITOR_STATE_VERSION, type EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
 
@@ -184,17 +180,15 @@ describe('opening a file this app never touched', () => {
 
   it('leaves an annotation that was already there alone', async () => {
     const doc = await PDFDocument.load(await score());
-    doc
-      .getPages()[0]
-      .node.addAnnot(
-        doc.context.register(
-          doc.context.obj({
-            Type: 'Annot',
-            Subtype: 'Link',
-            Rect: [0, 0, 10, 10],
-          }),
-        ),
-      );
+    doc.getPages()[0].node.addAnnot(
+      doc.context.register(
+        doc.context.obj({
+          Type: 'Annot',
+          Subtype: 'Link',
+          Rect: [0, 0, 10, 10],
+        }),
+      ),
+    );
     const bytes = await doc.save();
 
     const reopened = await reopen(bytes);
@@ -207,17 +201,15 @@ describe('opening a file this app never touched', () => {
     // Saving is a rebuild from the source, so a link in the opened score has to
     // still be in the one the performer keeps.
     const doc = await PDFDocument.load(await score());
-    doc
-      .getPages()[0]
-      .node.addAnnot(
-        doc.context.register(
-          doc.context.obj({
-            Type: 'Annot',
-            Subtype: 'Link',
-            Rect: [0, 0, 10, 10],
-          }),
-        ),
-      );
+    doc.getPages()[0].node.addAnnot(
+      doc.context.register(
+        doc.context.obj({
+          Type: 'Annot',
+          Subtype: 'Link',
+          Rect: [0, 0, 10, 10],
+        }),
+      ),
+    );
 
     const saved = await buildEditedPdf(await doc.save(), layout(2), MARKS, {
       marks: 'objects',
@@ -230,7 +222,9 @@ describe('opening a file this app never touched', () => {
       .flatMap((page) => page.node.Annots()?.asArray() ?? [])
       .map((entry) =>
         String(
-          reloaded.context.lookupMaybe(entry, PDFDict)?.get(PDFName.of('Subtype')),
+          reloaded.context
+            .lookupMaybe(entry, PDFDict)
+            ?.get(PDFName.of('Subtype')),
         ),
       );
 

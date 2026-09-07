@@ -68,7 +68,9 @@ describe('round trip', () => {
     const [page] = await copy.copyPages(carried, [0]);
     copy.addPage(page);
 
-    expect(readEditorState(await PDFDocument.load(await copy.save()))).toBeNull();
+    expect(
+      readEditorState(await PDFDocument.load(await copy.save())),
+    ).toBeNull();
   });
 });
 
@@ -85,18 +87,24 @@ describe('nothing to read', () => {
     doc.addPage([612, 792]);
     await doc.attach(new Uint8Array([1, 2, 3]), 'parts.zip');
 
-    expect(readEditorState(await PDFDocument.load(await doc.save()))).toBeNull();
+    expect(
+      readEditorState(await PDFDocument.load(await doc.save())),
+    ).toBeNull();
   });
 });
 
 describe('a blob that cannot be trusted', () => {
   it('refuses a version it does not know', async () => {
     // Guessing at a format from the future is how state gets silently mangled.
-    expect(readEditorState(await attachRaw('{"v":99,"keepMarkings":true}'))).toBeNull();
+    expect(
+      readEditorState(await attachRaw('{"v":99,"keepMarkings":true}')),
+    ).toBeNull();
   });
 
   it('refuses state with no version at all', async () => {
-    expect(readEditorState(await attachRaw('{"keepMarkings":true}'))).toBeNull();
+    expect(
+      readEditorState(await attachRaw('{"keepMarkings":true}')),
+    ).toBeNull();
   });
 
   it('does not throw on bytes that are not JSON', async () => {
