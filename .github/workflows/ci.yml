@@ -5,6 +5,21 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Playwright target to run'
+        type: choice
+        required: false
+        default: chromium
+        options:
+          - chromium
+          - all
+          - firefox
+          - webkit
+          - mobile:chrome
+          - mobile:safari
+          - edge
+          - chrome
 
 jobs:
   test:
