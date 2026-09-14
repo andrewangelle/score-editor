@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       browser:
@@ -28,6 +29,7 @@ on:
 
 jobs:
   test:
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -92,6 +94,7 @@ jobs:
           retention-days: 1
 
   visual-test:
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -140,3 +143,52 @@ jobs:
           name: playwright-report-visual
           path: playwright-report/
           retention-days: 7
+
+  update-visual-baselines:
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'update-snapshots'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable corepack
+        run: |
+          mkdir -p "$HOME/.corepack"
+          corepack enable --install-directory "$HOME/.corepack"
+          echo "$HOME/.corepack" >> "$GITHUB_PATH"
+          corepack prepare pnpm@10.33.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate baselines
+        run: pnpm exec playwright test --project=visual --update-snapshots
+        env:
+          CI: true
+
+      - name: Commit updated baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/__screenshots__/
+          git diff --cached --quiet && echo "No baseline changes" && exit 0
+          git commit --no-verify -m "chore: update visual regression baselines"
+          git push
+
+      - name: Remove label
+        if: always()
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: update-snapshots
