@@ -20,7 +20,9 @@ test.describe('Edited regions', () => {
     await page.getByRole('button', { name: 'Edit regions' }).click();
     await expect(page.getByLabel(/^Drag bottom edge of/).first()).toBeVisible();
     await appPage.screenshot('edited-regions-before');
-    await expect(page).toHaveScreenshot('edited-regions-before.png');
+    if (test.info().project.name === 'visual') {
+      await expect(page).toHaveScreenshot('edited-regions-before.png');
+    }
 
     // Find the first region's bottom edge handle and drag it to resize
     const bottomHandle = page.getByLabel(/^Drag bottom edge of/).first();
@@ -68,6 +70,8 @@ test.describe('Edited regions', () => {
     await expect(page.getByLabel(/^Drag bottom edge of/).first()).toBeVisible();
 
     await appPage.screenshot('edited-regions-after');
-    await expect(page).toHaveScreenshot('edited-regions-after.png');
+    if (test.info().project.name === 'visual') {
+      await expect(page).toHaveScreenshot('edited-regions-after.png');
+    }
   });
 });
