@@ -5,5 +5,6 @@ export const test = base.extend<{ appPage: AppPage }>({
   appPage: async ({ page }, use) => {
     const appPage = new AppPage(page);
     await use(appPage);
+    appPage.cleanup();
   },
 });
