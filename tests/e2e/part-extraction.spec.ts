@@ -42,6 +42,8 @@ test.describe('Part extraction', () => {
     await appPage.waitForCanvas();
 
     await appPage.screenshot('part-extraction');
-    await expect(page).toHaveScreenshot('part-extraction.png');
+    if (test.info().project.name === 'visual') {
+      await expect(page).toHaveScreenshot('part-extraction.png');
+    }
   });
 });
