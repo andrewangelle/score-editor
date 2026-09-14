@@ -93,6 +93,8 @@ jobs:
 
   visual-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
@@ -128,7 +130,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/e2e/__screenshots__/
           git diff --cached --quiet && echo "No baseline changes" && exit 0
-          git commit -m "chore: update visual regression baselines"
+          git commit --no-verify -m "chore: update visual regression baselines"
           git push
 
       - name: Upload playwright report on failure
