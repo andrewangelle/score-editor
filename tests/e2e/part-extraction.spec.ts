@@ -4,6 +4,7 @@ import { test } from './fixtures/fixtures';
 test.describe('Part extraction', () => {
   test('extracts Electric Guitar 1 and 2 with measure numbers and tempo marks', async ({
     appPage,
+    page,
   }) => {
     await appPage.setup();
     await appPage.open();
@@ -41,5 +42,6 @@ test.describe('Part extraction', () => {
     await appPage.waitForCanvas();
 
     await appPage.screenshot('part-extraction');
+    await expect(page).toHaveScreenshot('part-extraction.png');
   });
 });
