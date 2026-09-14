@@ -1,4 +1,4 @@
-import type { PageEdit } from '#/lib/pdf/document';
+import type { PageEdit } from '#/lib/pdf/document/document';
 import {
   allPagesRotated,
   documentClosed,

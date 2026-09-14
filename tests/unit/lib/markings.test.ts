@@ -11,7 +11,7 @@ import {
   detectMarkings,
   type Marking,
   notationFonts,
-  textRuns,
+  textMarkings,
 } from '#/lib/pdf/markings';
 import { extractRegions } from '#/lib/pdf/partExtraction';
 import {
@@ -88,9 +88,9 @@ function numberedScore(numbers: number[], y: (top: number) => number) {
   return { pages, text: text_ };
 }
 
-describe('textRuns', () => {
+describe('textMarkings', () => {
   it('joins a marking split across items on one baseline', () => {
-    const runs = textRuns([
+    const runs = textMarkings([
       text('Andante', 120, 720),
       text('=', 158, 720),
       text('96', 165, 720),
@@ -100,14 +100,17 @@ describe('textRuns', () => {
   });
 
   it('keeps markings a system apart from each other', () => {
-    const runs = textRuns([text('rit.', 120, 720), text('a tempo', 400, 720)]);
+    const runs = textMarkings([
+      text('rit.', 120, 720),
+      text('a tempo', 400, 720),
+    ]);
     expect(runs.map((run) => run.str)).toEqual(['rit.', 'a tempo']);
   });
 
   it('takes the run’s font from the item that sets most of it', () => {
     // A metronome mark: the note is one glyph of the notation font, the rest is
     // text. Reading the first item's font would file the whole mark as notation.
-    const runs = textRuns([
+    const runs = textMarkings([
       text('q', 120, 720, { font: 'notation' }),
       text('= 120', 127, 720),
     ]);

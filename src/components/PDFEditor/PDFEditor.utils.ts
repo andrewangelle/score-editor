@@ -9,7 +9,7 @@ import {
   SAVE_A_COPY,
   SAVING,
 } from '#/components/PDFEditor/PDFEditor.constants';
-import { PdfLoadError } from '#/lib/pdf/document';
+import { PdfLoadError } from '#/lib/pdf/document/document.errors';
 import type { PdfFileHandle } from '#/lib/pdf/fileAccess';
 
 export function getSaveButtonTitle(fileHandle: PdfFileHandle | null) {

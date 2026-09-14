@@ -7,7 +7,11 @@
 import { PDFDict, PDFDocument, PDFName, StandardFonts } from 'pdf-lib';
 import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import { readAnnotationObjects } from '#/lib/pdf/annotations/annotations.objects';
-import { buildEditedPdf, type PageEdit, readPdfFile } from '#/lib/pdf/document';
+import {
+  buildEditedPdf,
+  type PageEdit,
+  readPdfFile,
+} from '#/lib/pdf/document/document';
 import { EDITOR_STATE_VERSION, type EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
 

@@ -28,7 +28,7 @@ and read pages; `pdf-lib` writes them. Redux Toolkit holds the state. Tailwind 4
 for styling, Biome for lint and format, Vitest for tests.
 
 The document bytes deliberately live *outside* Redux, in a module-level holder
-keyed by document id (`src/lib/pdf/documentBytes.ts`). The store holds identity
+keyed by document id (`src/lib/pdf/document/document.bytes.ts`). The store holds identity
 and edits only, which are a few KB; the bytes are far too large to belong in a
 state tree that gets structurally shared on every dispatch.
 

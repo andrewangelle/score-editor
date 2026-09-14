@@ -5,7 +5,7 @@ import {
   type PayloadAction,
 } from '@reduxjs/toolkit';
 import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
-import type { PageEdit } from '#/lib/pdf/document';
+import type { PageEdit } from '#/lib/pdf/document/document';
 import type { EditorState } from '#/lib/pdf/editorState';
 import {
   isUnchanged,
@@ -36,7 +36,7 @@ export const documentRestored = createAction<{
  * The document being edited: which pages it has, in what order, and how far the
  * user has strayed from the upload.
  *
- * The pristine bytes live in `#/lib/pdf/documentBytes`; `id` ties this state to
+ * The pristine bytes live in `#/lib/pdf/document/document.bytes`; `id` ties this state to
  * that buffer. Editing only ever rebuilds this page list — the source document
  * is untouched until save.
  */

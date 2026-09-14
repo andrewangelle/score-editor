@@ -30,12 +30,6 @@ export type MarkingOptions = {
   padding: number;
 };
 
-export const DEFAULT_MARKINGS: MarkingOptions = {
-  reach: 2.5,
-  sideReach: 1.5,
-  padding: 1.5,
-};
-
 export type Candidate = {
   pageIndex: number;
   systemIndex: number;
@@ -48,6 +42,312 @@ export type Candidate = {
   size: number;
   value: number | null;
 };
+
+export const DEFAULT_MARKINGS: MarkingOptions = {
+  reach: 2.5,
+  sideReach: 1.5,
+  padding: 1.5,
+};
+
+/**
+ * Joins text items that sit on one baseline into runs. A tempo mark reaches the
+ * text layer in pieces — the metronome's note, "= 120", the caption before it —
+ * which read separately are cryptic fragments and read as a run are one marking
+ * with one rectangle, which is what has to be lifted.
+ */
+export function textMarkings(items: readonly PageTextItem[]): PageTextItem[] {
+  const usable = items.filter((item) => item.str.trim().length > 0);
+
+  if (usable.length === 0) {
+    return [];
+  }
+
+  const sorted = [...usable].sort(
+    (a, b) => b.rect.bottom - a.rect.bottom || a.rect.left - b.rect.left,
+  );
+
+  const lines: PageTextItem[][] = [];
+
+  for (const item of sorted) {
+    const line = lines.at(-1);
+    const height = item.rect.top - item.rect.bottom;
+    const tolerance = Math.max(height * 0.35, 0.5);
+
+    if (line && Math.abs(line[0].rect.bottom - item.rect.bottom) <= tolerance) {
+      line.push(item);
+      continue;
+    }
+
+    lines.push([item]);
+  }
+
+  const pageTextItems: PageTextItem[] = [];
+
+  for (const line of lines) {
+    const ordered = [...line].sort((a, b) => a.rect.left - b.rect.left);
+    const groups: PageTextItem[][] = [];
+
+    for (const item of ordered) {
+      const group = groups.at(-1);
+      const previous = group?.[group.length - 1];
+      const allowance = previous
+        ? (previous.rect.top - previous.rect.bottom) * 0.9
+        : 0;
+
+      if (
+        group &&
+        previous &&
+        item.rect.left - previous.rect.right <= allowance
+      ) {
+        group.push(item);
+      } else {
+        groups.push([item]);
+      }
+    }
+
+    for (const group of groups) {
+      pageTextItems.push(mergePageTextItems(group));
+    }
+  }
+
+  return pageTextItems;
+}
+
+export function notationFonts(
+  items: readonly PageTextItem[],
+  systems: readonly System[],
+): Set<string> {
+  const staves = systems.flatMap((system) => system.staves);
+  const fonts = new Map<string, { on: number; total: number }>();
+
+  for (const item of items) {
+    const count = fonts.get(item.fontName) ?? { on: 0, total: 0 };
+
+    count.total += 1;
+
+    if (
+      staves.some(
+        (staff) =>
+          item.rect.bottom <= staff.top &&
+          item.rect.top >= staff.bottom &&
+          item.rect.right >= staff.left &&
+          item.rect.left <= staff.right,
+      )
+    ) {
+      count.on += 1;
+    }
+
+    fonts.set(item.fontName, count);
+  }
+
+  const notation = new Set<string>();
+
+  for (const [font, count] of fonts) {
+    // Too small a sample to judge, and a font that rare cannot be carrying the
+    // page's notation anyway.
+    if (count.total >= 4 && count.on / count.total >= 0.5) {
+      notation.add(font);
+    }
+  }
+
+  return notation;
+}
+
+export function pageCandidates(
+  page: PageStaves,
+  items: readonly PageTextItem[],
+  options: MarkingOptions = DEFAULT_MARKINGS,
+): Candidate[] {
+  if (page.systems.length === 0) {
+    return [];
+  }
+
+  const pageTextItem = textMarkings(items);
+  const notation = notationFonts(items, page.systems);
+  const candidates: Candidate[] = [];
+
+  // Systems in reading order, so each one knows what is directly above it.
+  const ordered = [...page.systems].sort((a, b) => b.top - a.top);
+
+  ordered.forEach((system, systemIndex) => {
+    const previous = ordered[systemIndex - 1];
+    const next = ordered[systemIndex + 1];
+    const height = staffHeight(system.staves[0]);
+    const sideRoom = height * options.sideReach;
+    const withinSystem = (rect: Rect) =>
+      rect.right >= system.left - sideRoom &&
+      rect.left <= system.right + sideRoom;
+
+    system.staves.forEach((staff, staffIndex) => {
+      const above = system.staves[staffIndex - 1];
+      const below = system.staves[staffIndex + 1];
+
+      const sides: { side: 'above' | 'below'; neighbour: number }[] = [
+        {
+          side: 'above',
+          neighbour: above
+            ? above.bottom
+            : (previous?.bottom ?? Number.POSITIVE_INFINITY),
+        },
+        // Only the last staff of a system has open space below it; between
+        // staves the strip above the lower one already covers the gap.
+        ...(below
+          ? []
+          : [
+              {
+                side: 'below' as const,
+                neighbour: next?.top ?? Number.NEGATIVE_INFINITY,
+              },
+            ]),
+      ];
+
+      for (const { side, neighbour } of sides) {
+        const { near, far } = strip(staff, side, neighbour, options);
+
+        for (const mark of pageTextItem) {
+          if (!withinSystem(mark.rect)) {
+            continue;
+          }
+
+          const inside =
+            side === 'above'
+              ? mark.rect.bottom >= near && mark.rect.bottom <= far
+              : mark.rect.top <= near && mark.rect.top >= far;
+
+          if (!inside) {
+            continue;
+          }
+
+          const value = numericValue(mark.str);
+
+          if (value === null && notation.has(mark.fontName)) {
+            continue;
+          }
+
+          candidates.push(
+            against(mark, system, staffIndex, side, {
+              pageIndex: page.pageIndex,
+              systemIndex,
+            }),
+          );
+        }
+      }
+    });
+  });
+
+  return candidates;
+}
+
+/**
+ * Reads the markings of a whole document. `text` is indexed alongside `pages`; a
+ * page with no text layer contributes an empty list rather than failing the read.
+ */
+export function detectMarkings(
+  pages: readonly PageStaves[],
+  text: readonly (readonly PageTextItem[])[],
+  options: MarkingOptions = DEFAULT_MARKINGS,
+): Marking[][] {
+  const candidates = pages.flatMap((page, index) =>
+    pageCandidates(page, text[index] ?? [], options),
+  );
+
+  // Measurement is done on the text's own box, above; what gets *lifted* is
+  // widened here, after acceptance, so presentation never moves the goalposts
+  // for classification.
+  return resolveMarkings(candidates, pages.length).map((markings, index) => {
+    const page = pages[index];
+    const ink = page?.ink ?? [];
+
+    return markings.map((marking) => {
+      const staff = page?.systems[marking.systemIndex]?.staves[0];
+      const padded = {
+        left: marking.rect.left - options.padding,
+        right: marking.rect.right + options.padding,
+        bottom: marking.rect.bottom - options.padding,
+        top: marking.rect.top + options.padding,
+      };
+      const room = staff ? staffHeight(staff) * 0.5 : options.padding;
+      return { ...marking, rect: enclosure(padded, ink, room) };
+    });
+  });
+}
+
+export function markingWithin(marking: Marking, rect: Rect): boolean {
+  return (
+    marking.rect.left >= rect.left &&
+    marking.rect.right <= rect.right &&
+    marking.rect.bottom >= rect.bottom &&
+    marking.rect.top <= rect.top
+  );
+}
+
+/**
+ * Scores that number every instrumental group repeat one number down the system,
+ * once per group: same words, same column, different heights. A part cut from
+ * that system wants it once.
+ */
+export function markingKey(marking: Marking): string {
+  return `${marking.kind}:${marking.text}:${Math.round(marking.rect.left)}`;
+}
+
+export function dedupeMarkings(markings: readonly Marking[]): Marking[] {
+  const seen = new Set<string>();
+  return markings.filter((marking) => {
+    const key = markingKey(marking);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Decides, with the whole document in view, which candidates are markings.
+ * Returns one list per page, indexed as `pages` was given.
+ */
+export function resolveMarkings(
+  candidates: readonly Candidate[],
+  pageCount: number,
+): Marking[][] {
+  const kind = new Map<Candidate, MarkingKind>();
+
+  const numbers = candidates.filter((candidate) => candidate.value !== null);
+  for (const group of byPlacement(numbers)) {
+    for (const candidate of measureNumbersIn(group)) {
+      kind.set(candidate, 'measure');
+    }
+  }
+
+  // Tempo marks come off the system header only: text above an inner staff is
+  // that player's own instruction ("pizz."), and stamping it onto everyone
+  // else's part would be a lie about who plays what.
+  const prose = candidates.filter(
+    (candidate) =>
+      candidate.value === null &&
+      candidate.side === 'above' &&
+      candidate.staffIndex === 0 &&
+      // A tuplet's "3:2" is digits and a colon; a marking carries words, or the
+      // "=" of a metronome mark.
+      /[=\p{L}]/u.test(candidate.text),
+  );
+  for (const candidate of withoutFurniture(prose)) {
+    kind.set(candidate, 'tempo');
+  }
+
+  const pages: Marking[][] = Array.from({ length: pageCount }, () => []);
+  for (const candidate of inReadingOrder([...kind.keys()])) {
+    const page = pages[candidate.pageIndex];
+    if (!page) continue;
+    page.push({
+      id: `marking-${candidate.pageIndex}-${candidate.systemIndex}-${page.length}`,
+      kind: kind.get(candidate) ?? 'tempo',
+      text: candidate.text,
+      pageIndex: candidate.pageIndex,
+      systemIndex: candidate.systemIndex,
+      rect: candidate.rect,
+    });
+  }
+  return pages;
+}
 
 /** A bare number, with or without the brackets some engravers box them in. */
 const BARE_NUMBER = /^[([{]?\s*(\d{1,4})\s*[)\]}]?$/;
@@ -66,7 +366,7 @@ function median(values: number[]): number {
     : sorted[middle];
 }
 
-function mergeRun(items: readonly PageTextItem[]): PageTextItem {
+function mergePageTextItems(items: readonly PageTextItem[]): PageTextItem {
   const rect = {
     left: Math.min(...items.map((item) => item.rect.left)),
     right: Math.max(...items.map((item) => item.rect.right)),
@@ -75,6 +375,7 @@ function mergeRun(items: readonly PageTextItem[]): PageTextItem {
   };
 
   let str = '';
+
   items.forEach((item, index) => {
     const previous = items[index - 1];
     const height = item.rect.top - item.rect.bottom;
@@ -99,99 +400,6 @@ function mergeRun(items: readonly PageTextItem[]): PageTextItem {
     rect,
     fontName: dominant.fontName,
   };
-}
-
-/**
- * Joins text items that sit on one baseline into runs. A tempo mark reaches the
- * text layer in pieces — the metronome's note, "= 120", the caption before it —
- * which read separately are cryptic fragments and read as a run are one marking
- * with one rectangle, which is what has to be lifted.
- */
-export function textRuns(items: readonly PageTextItem[]): PageTextItem[] {
-  const usable = items.filter((item) => item.str.trim().length > 0);
-  if (usable.length === 0) return [];
-
-  const sorted = [...usable].sort(
-    (a, b) => b.rect.bottom - a.rect.bottom || a.rect.left - b.rect.left,
-  );
-
-  const lines: PageTextItem[][] = [];
-  for (const item of sorted) {
-    const line = lines.at(-1);
-    const height = item.rect.top - item.rect.bottom;
-    const tolerance = Math.max(height * 0.35, 0.5);
-    if (line && Math.abs(line[0].rect.bottom - item.rect.bottom) <= tolerance) {
-      line.push(item);
-      continue;
-    }
-    lines.push([item]);
-  }
-
-  const runs: PageTextItem[] = [];
-  for (const line of lines) {
-    const ordered = [...line].sort((a, b) => a.rect.left - b.rect.left);
-    const groups: PageTextItem[][] = [];
-
-    for (const item of ordered) {
-      const group = groups.at(-1);
-      const previous = group?.[group.length - 1];
-      const allowance = previous
-        ? (previous.rect.top - previous.rect.bottom) * 0.9
-        : 0;
-
-      if (
-        group &&
-        previous &&
-        item.rect.left - previous.rect.right <= allowance
-      )
-        group.push(item);
-      else groups.push([item]);
-    }
-
-    for (const group of groups) runs.push(mergeRun(group));
-  }
-
-  return runs;
-}
-
-export function notationFonts(
-  items: readonly PageTextItem[],
-  systems: readonly System[],
-): Set<string> {
-  const staves = systems.flatMap((system) => system.staves);
-  const tally = new Map<string, { on: number; total: number }>();
-
-  for (const item of items) {
-    const count = tally.get(item.fontName) ?? { on: 0, total: 0 };
-
-    count.total += 1;
-
-    if (
-      staves.some(
-        (staff) =>
-          item.rect.bottom <= staff.top &&
-          item.rect.top >= staff.bottom &&
-          item.rect.right >= staff.left &&
-          item.rect.left <= staff.right,
-      )
-    ) {
-      count.on += 1;
-    }
-
-    tally.set(item.fontName, count);
-  }
-
-  const notation = new Set<string>();
-
-  for (const [font, count] of tally) {
-    // Too small a sample to judge, and a font that rare cannot be carrying the
-    // page's notation anyway.
-    if (count.total >= 4 && count.on / count.total >= 0.5) {
-      notation.add(font);
-    }
-  }
-
-  return notation;
 }
 
 /**
@@ -286,86 +494,6 @@ function strip(
         near: staff.bottom,
         far: Math.max(staff.bottom - height * options.reach, neighbour),
       };
-}
-
-/**
- * Everything on one page that could be a marking. Whether it is one takes the
- * whole document to say, and is settled in `resolveMarkings`.
- */
-export function pageCandidates(
-  page: PageStaves,
-  items: readonly PageTextItem[],
-  options: MarkingOptions = DEFAULT_MARKINGS,
-): Candidate[] {
-  if (page.systems.length === 0) return [];
-
-  const runs = textRuns(items);
-  const notation = notationFonts(items, page.systems);
-  const candidates: Candidate[] = [];
-
-  // Systems in reading order, so each one knows what is directly above it.
-  const ordered = [...page.systems].sort((a, b) => b.top - a.top);
-
-  ordered.forEach((system, systemIndex) => {
-    const previous = ordered[systemIndex - 1];
-    const next = ordered[systemIndex + 1];
-    const height = staffHeight(system.staves[0]);
-    const sideRoom = height * options.sideReach;
-    const withinSystem = (rect: Rect) =>
-      rect.right >= system.left - sideRoom &&
-      rect.left <= system.right + sideRoom;
-
-    system.staves.forEach((staff, staffIndex) => {
-      const above = system.staves[staffIndex - 1];
-      const below = system.staves[staffIndex + 1];
-
-      const sides: { side: 'above' | 'below'; neighbour: number }[] = [
-        {
-          side: 'above',
-          neighbour: above
-            ? above.bottom
-            : (previous?.bottom ?? Number.POSITIVE_INFINITY),
-        },
-        // Only the last staff of a system has open space below it; between
-        // staves the strip above the lower one already covers the gap.
-        ...(below
-          ? []
-          : [
-              {
-                side: 'below' as const,
-                neighbour: next?.top ?? Number.NEGATIVE_INFINITY,
-              },
-            ]),
-      ];
-
-      for (const { side, neighbour } of sides) {
-        const { near, far } = strip(staff, side, neighbour, options);
-        for (const run of runs) {
-          if (!withinSystem(run.rect)) continue;
-          const inside =
-            side === 'above'
-              ? run.rect.bottom >= near && run.rect.bottom <= far
-              : run.rect.top <= near && run.rect.top >= far;
-          if (!inside) continue;
-
-          // Notation glyphs already travel with the staff, and stamping a stray
-          // notehead onto another part would be noise. Digits are exempt: bar
-          // numbers are often set in the notation font, which carries numerals.
-          const value = numericValue(run.str);
-          if (value === null && notation.has(run.fontName)) continue;
-
-          candidates.push(
-            against(run, system, staffIndex, side, {
-              pageIndex: page.pageIndex,
-              systemIndex,
-            }),
-          );
-        }
-      }
-    });
-  });
-
-  return candidates;
 }
 
 /** Document order: page, then system, then across the system. */
@@ -522,116 +650,5 @@ function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
     const words = candidate.text.split(/\s+/).length;
     const flushRight = Math.abs(candidate.rightGap) <= 0.35;
     return !(flushRight && words >= 2 && !/[\d=]/.test(candidate.text));
-  });
-}
-
-/**
- * Decides, with the whole document in view, which candidates are markings.
- * Returns one list per page, indexed as `pages` was given.
- */
-export function resolveMarkings(
-  candidates: readonly Candidate[],
-  pageCount: number,
-): Marking[][] {
-  const kind = new Map<Candidate, MarkingKind>();
-
-  const numbers = candidates.filter((candidate) => candidate.value !== null);
-  for (const group of byPlacement(numbers)) {
-    for (const candidate of measureNumbersIn(group)) {
-      kind.set(candidate, 'measure');
-    }
-  }
-
-  // Tempo marks come off the system header only: text above an inner staff is
-  // that player's own instruction ("pizz."), and stamping it onto everyone
-  // else's part would be a lie about who plays what.
-  const prose = candidates.filter(
-    (candidate) =>
-      candidate.value === null &&
-      candidate.side === 'above' &&
-      candidate.staffIndex === 0 &&
-      // A tuplet's "3:2" is digits and a colon; a marking carries words, or the
-      // "=" of a metronome mark.
-      /[=\p{L}]/u.test(candidate.text),
-  );
-  for (const candidate of withoutFurniture(prose)) {
-    kind.set(candidate, 'tempo');
-  }
-
-  const pages: Marking[][] = Array.from({ length: pageCount }, () => []);
-  for (const candidate of inReadingOrder([...kind.keys()])) {
-    const page = pages[candidate.pageIndex];
-    if (!page) continue;
-    page.push({
-      id: `marking-${candidate.pageIndex}-${candidate.systemIndex}-${page.length}`,
-      kind: kind.get(candidate) ?? 'tempo',
-      text: candidate.text,
-      pageIndex: candidate.pageIndex,
-      systemIndex: candidate.systemIndex,
-      rect: candidate.rect,
-    });
-  }
-  return pages;
-}
-
-/**
- * Reads the markings of a whole document. `text` is indexed alongside `pages`; a
- * page with no text layer contributes an empty list rather than failing the read.
- */
-export function detectMarkings(
-  pages: readonly PageStaves[],
-  text: readonly (readonly PageTextItem[])[],
-  options: MarkingOptions = DEFAULT_MARKINGS,
-): Marking[][] {
-  const candidates = pages.flatMap((page, index) =>
-    pageCandidates(page, text[index] ?? [], options),
-  );
-
-  // Measurement is done on the text's own box, above; what gets *lifted* is
-  // widened here, after acceptance, so presentation never moves the goalposts
-  // for classification.
-  return resolveMarkings(candidates, pages.length).map((markings, index) => {
-    const page = pages[index];
-    const ink = page?.ink ?? [];
-
-    return markings.map((marking) => {
-      const staff = page?.systems[marking.systemIndex]?.staves[0];
-      const padded = {
-        left: marking.rect.left - options.padding,
-        right: marking.rect.right + options.padding,
-        bottom: marking.rect.bottom - options.padding,
-        top: marking.rect.top + options.padding,
-      };
-      const room = staff ? staffHeight(staff) * 0.5 : options.padding;
-      return { ...marking, rect: enclosure(padded, ink, room) };
-    });
-  });
-}
-
-export function markingWithin(marking: Marking, rect: Rect): boolean {
-  return (
-    marking.rect.left >= rect.left &&
-    marking.rect.right <= rect.right &&
-    marking.rect.bottom >= rect.bottom &&
-    marking.rect.top <= rect.top
-  );
-}
-
-/**
- * Scores that number every instrumental group repeat one number down the system,
- * once per group: same words, same column, different heights. A part cut from
- * that system wants it once.
- */
-export function markingKey(marking: Marking): string {
-  return `${marking.kind}:${marking.text}:${Math.round(marking.rect.left)}`;
-}
-
-export function dedupeMarkings(markings: readonly Marking[]): Marking[] {
-  const seen = new Set<string>();
-  return markings.filter((marking) => {
-    const key = markingKey(marking);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
   });
 }

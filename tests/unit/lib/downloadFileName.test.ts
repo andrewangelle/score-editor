@@ -7,7 +7,7 @@
  * user back to a box to guess which character the operating system disliked.
  */
 
-import { downloadFileName, editedFileName } from '#/lib/pdf/document';
+import { downloadFileName, editedFileName } from '#/lib/pdf/document/document';
 
 const FALLBACK = 'score-edited.pdf';
 
