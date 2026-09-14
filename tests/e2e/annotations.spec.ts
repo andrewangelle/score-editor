@@ -50,6 +50,7 @@ test.describe('Annotations', () => {
     const savedPath = await appPage.saveDownload(download);
 
     await appPage.screenshot('annotations-before-reopen');
+    await expect(page).toHaveScreenshot('annotations-before-reopen.png');
 
     // Close and reopen the saved file
     await appPage.closeDocument();
@@ -62,5 +63,6 @@ test.describe('Annotations', () => {
     expect(restoredCount).toBe(4);
 
     await appPage.screenshot('annotations-after-reopen');
+    await expect(page).toHaveScreenshot('annotations-after-reopen.png');
   });
 });

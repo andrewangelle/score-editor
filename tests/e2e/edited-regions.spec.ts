@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { test } from './fixtures/fixtures';
+import { test } from '#tests/e2e/fixtures/fixtures';
 
 test.describe('Edited regions', () => {
   test('resizes a region, saves, reopens, and verifies the edit persisted', async ({
@@ -20,6 +20,7 @@ test.describe('Edited regions', () => {
     await page.getByRole('button', { name: 'Edit regions' }).click();
     await expect(page.getByLabel(/^Drag bottom edge of/).first()).toBeVisible();
     await appPage.screenshot('edited-regions-before');
+    await expect(page).toHaveScreenshot('edited-regions-before.png');
 
     // Find the first region's bottom edge handle and drag it to resize
     const bottomHandle = page.getByLabel(/^Drag bottom edge of/).first();
@@ -67,5 +68,6 @@ test.describe('Edited regions', () => {
     await expect(page.getByLabel(/^Drag bottom edge of/).first()).toBeVisible();
 
     await appPage.screenshot('edited-regions-after');
+    await expect(page).toHaveScreenshot('edited-regions-after.png');
   });
 });

@@ -29,41 +29,34 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/*.visual.spec.ts',
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: '**/*.visual.spec.ts',
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: '**/*.visual.spec.ts',
     },
 
     {
       name: 'Mobile Chrome',
       use: { ...devices['Pixel 5'] },
-      testIgnore: '**/*.visual.spec.ts',
     },
     {
       name: 'Mobile Safari',
       use: { ...devices['iPhone 12'] },
-      testIgnore: '**/*.visual.spec.ts',
     },
 
     {
       name: 'Microsoft Edge',
       use: { ...devices['Desktop Edge'], channel: 'msedge' },
-      testIgnore: '**/*.visual.spec.ts',
     },
     {
       name: 'Google Chrome',
       use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-      testIgnore: '**/*.visual.spec.ts',
     },
 
     {
@@ -73,7 +66,6 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
         deviceScaleFactor: 1,
       },
-      testMatch: '**/*.visual.spec.ts',
     },
   ],
 
