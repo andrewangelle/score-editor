@@ -54,6 +54,7 @@ function findEmbeddedFile(
   name: string,
 ): PDFDict | null {
   const names = doc.context.lookupMaybe(node.get(NAMES), PDFArray);
+
   if (names) {
     for (let index = 0; index + 1 < names.size(); index += 2) {
       const key = doc.context.lookupMaybe(
@@ -61,18 +62,22 @@ function findEmbeddedFile(
         PDFString,
         PDFHexString,
       );
-      if (key?.decodeText() !== name) continue;
+
+      if (key?.decodeText() !== name) {
+        continue;
+      }
 
       const spec = doc.context.lookupMaybe(names.get(index + 1), PDFDict);
       if (spec) return spec;
     }
   }
 
-  const kids = doc.context.lookupMaybe(node.get(KIDS), PDFArray);
-  if (kids) {
-    for (let index = 0; index < kids.size(); index += 1) {
-      const kid = doc.context.lookupMaybe(kids.get(index), PDFDict);
-      const found = kid && findEmbeddedFile(doc, kid, name);
+  const children = doc.context.lookupMaybe(node.get(KIDS), PDFArray);
+
+  if (children) {
+    for (let index = 0; index < children.size(); index += 1) {
+      const child = doc.context.lookupMaybe(children.get(index), PDFDict);
+      const found = child && findEmbeddedFile(doc, child, name);
       if (found) return found;
     }
   }
@@ -119,7 +124,6 @@ function isRegion(value: unknown): value is Region {
   );
 }
 
-/** What came out of the JSON, if it is state this version can act on. */
 function validate(parsed: unknown): EditorState | null {
   if (typeof parsed !== 'object' || parsed === null) {
     return null;
@@ -131,22 +135,24 @@ function validate(parsed: unknown): EditorState | null {
     return null;
   }
 
+  const { isArray } = Array;
+  const { isInteger } = Number;
   const regions = state.regions;
 
-  if (regions !== null && regions !== undefined && !Array.isArray(regions)) {
+  if (regions !== null && regions !== undefined && !isArray(regions)) {
     return null;
   }
 
   let selectedOrdinals: number[] = [];
   let partNames: Array<{ ordinal: number; name: string }> = [];
 
-  if (Array.isArray(state.selectedOrdinals))
+  if (isArray(state.selectedOrdinals))
     selectedOrdinals = state.selectedOrdinals.filter(
       (ordinal): ordinal is number =>
-        typeof ordinal === 'number' && Number.isInteger(ordinal),
+        typeof ordinal === 'number' && isInteger(ordinal),
     );
 
-  if (Array.isArray(state.partNames)) {
+  if (isArray(state.partNames)) {
     partNames = state.partNames.filter(
       (entry): entry is { ordinal: number; name: string } =>
         typeof entry === 'object' &&
@@ -158,7 +164,7 @@ function validate(parsed: unknown): EditorState | null {
 
   return {
     v: EDITOR_STATE_VERSION,
-    regions: Array.isArray(regions) ? regions.filter(isRegion) : null,
+    regions: isArray(regions) ? regions.filter(isRegion) : null,
     keepMarkings: state.keepMarkings !== false,
     selectedOrdinals,
     partNames,

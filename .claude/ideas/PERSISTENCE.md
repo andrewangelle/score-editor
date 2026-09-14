@@ -32,7 +32,7 @@ to the *original* document rather than to any output:
   already.
 - `PageEdit` (`src/lib/pdf/document.ts:21`) is `{id, sourceIndex, rotation}`.
 - Manual `Region`s are absolute coordinates on source pages.
-- The bytes are deliberately outside Redux (`src/lib/pdf/documentBytes.ts`), so
+- The bytes are deliberately outside Redux (`src/lib/pdf/document/document.bytes.ts`), so
   there is no blob tangled into the state tree.
 
 That is a few KB per document. There is no serialization work to invent; the

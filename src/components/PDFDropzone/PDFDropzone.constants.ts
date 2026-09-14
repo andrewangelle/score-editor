@@ -1,4 +1,4 @@
-import { MAX_PDF_BYTES } from '#/lib/pdf/document';
+import { MAX_PDF_BYTES } from '#/lib/pdf/document/document';
 
 export const megabytes = Math.round(MAX_PDF_BYTES / (1024 * 1024));
 export const DROP_INSTRUCTION_HEADING = 'Drop a PDF here';

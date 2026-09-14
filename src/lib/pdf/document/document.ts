@@ -7,6 +7,7 @@ import {
   writeAnnotationObjects,
 } from '#/lib/pdf/annotations/annotations.objects';
 import { stampAnnotation } from '#/lib/pdf/annotations/annotations.stamp';
+import { PdfLoadError } from '#/lib/pdf/document/document.errors';
 import {
   type EditorState,
   readEditorState,
@@ -19,7 +20,6 @@ export const MAX_PDF_BYTES = 100 * 1024 * 1024;
 const HEADER_SCAN_BYTES = 1024;
 
 export type PageEdit = {
-  /** Stable identity for React keys and selection, unrelated to position. */
   id: string;
   sourceIndex: number;
   rotation: number;
@@ -27,11 +27,7 @@ export type PageEdit = {
 
 export type LoadedPdf = {
   name: string;
-  /**
-   * Pristine bytes of the upload. Never handed to pdf.js, which detaches
-   * buffers. "Pristine" means without this app's own marks: they are lifted out
-   * into `annotations` rather than left in the page.
-   */
+  /** Pristine bytes of the upload without annotations */
   bytes: Uint8Array;
   pages: PageEdit[];
   /** Marks recovered from a file this app saved. Empty for any other PDF. */
@@ -39,42 +35,28 @@ export type LoadedPdf = {
   state: EditorState | null;
 };
 
-export class PdfLoadError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PdfLoadError';
-  }
-}
-
 export function normalizeAngle(angle: number): number {
   const snapped = Math.round(angle / 90) * 90;
   return ((snapped % 360) + 360) % 360;
 }
 
-function formatBytes(bytes: number): string {
-  const mb = bytes / (1024 * 1024);
-  return mb >= 1
-    ? `${mb.toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
 export async function readPdfFile(file: File): Promise<LoadedPdf> {
   if (file.size === 0) {
-    throw new PdfLoadError(`"${file.name}" is empty.`);
+    throw new PdfLoadError(PdfLoadError.noData(file.name));
   }
 
   if (file.size > MAX_PDF_BYTES) {
-    throw new PdfLoadError(
-      `"${file.name}" is ${formatBytes(file.size)}. The limit is ${formatBytes(MAX_PDF_BYTES)}.`,
-    );
+    throw new PdfLoadError(PdfLoadError.fileTooLarge(file.name, file.size));
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
+
   const header = new TextDecoder('latin1').decode(
     bytes.subarray(0, HEADER_SCAN_BYTES),
   );
+
   if (!header.includes('%PDF-')) {
-    throw new PdfLoadError(`"${file.name}" does not look like a PDF file.`);
+    throw new PdfLoadError(PdfLoadError.incorrectFileType(file.name));
   }
 
   let source: PDFDocument;
@@ -82,12 +64,12 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
     source = await PDFDocument.load(bytes, { updateMetadata: false });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+
     if (/encrypt/i.test(detail)) {
-      throw new PdfLoadError(
-        `"${file.name}" is password protected and cannot be opened.`,
-      );
+      throw new PdfLoadError(PdfLoadError.passwordProtected(file.name));
     }
-    throw new PdfLoadError(`"${file.name}" could not be read: ${detail}`);
+
+    throw new PdfLoadError(PdfLoadError.failedToRead(file.name, detail));
   }
 
   const pages = source.getPages().map((page, sourceIndex) => ({
@@ -97,7 +79,7 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
   }));
 
   if (pages.length === 0) {
-    throw new PdfLoadError(`"${file.name}" contains no pages.`);
+    throw new PdfLoadError(PdfLoadError.fileHasNoPages(file.name));
   }
 
   const annotations = readAnnotationObjects(source);
@@ -125,7 +107,7 @@ export async function buildEditedPdf(
   options: SaveOptions = {},
 ): Promise<Uint8Array> {
   if (pages.length === 0) {
-    throw new PdfLoadError('A PDF must have at least one page.');
+    throw new PdfLoadError(PdfLoadError.noPages());
   }
 
   const asObjects = options.marks === 'objects';
@@ -182,7 +164,6 @@ export async function buildEditedPdf(
   return output.save();
 }
 
-/** Turns `report.pdf` into `report-edited.pdf`. */
 export function editedFileName(name: string): string {
   const withoutExtension = name.replace(/\.pdf$/i, '');
   return `${withoutExtension || 'document'}-edited.pdf`;
@@ -195,8 +176,7 @@ export function downloadFileName(typed: string, fallback: string): string {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping them is the point
     .replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g, '')
     .replace(/\s+/g, ' ')
-    // Leading dots hide the file on Unix; trailing dots and spaces are dropped
-    // silently by Windows, which would leave a name nobody asked for.
+    // Leading dots hide the file on Unix; trailing dots and spaces are dropped silently by Windows.
     .replace(/^[.\s]+|[.\s]+$/g, '');
 
   return base ? `${base}.pdf` : fallback;

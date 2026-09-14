@@ -1,4 +1,4 @@
-import { normalizeAngle, type PageEdit } from '#/lib/pdf/document';
+import { normalizeAngle, type PageEdit } from '#/lib/pdf/document/document';
 
 export function rotatePage(
   pages: readonly PageEdit[],

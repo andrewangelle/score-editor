@@ -42,13 +42,13 @@ import {
   downloadFileName,
   editedFileName,
   readPdfFile,
-} from '#/lib/pdf/document';
+} from '#/lib/pdf/document/document';
 import {
   documentBytes,
   documentFileHandle,
   holdDocumentBytes,
   releaseDocumentBytes,
-} from '#/lib/pdf/documentBytes';
+} from '#/lib/pdf/document/document.bytes';
 import type { EditorState } from '#/lib/pdf/editorState';
 import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';

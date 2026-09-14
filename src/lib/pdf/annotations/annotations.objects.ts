@@ -195,13 +195,9 @@ export function writeAnnotationObjects(
 
     const { ref, box } = appearance;
 
-    const dict = doc.context.obj({
+    const annotationMark = doc.context.obj({
       Type: 'Annot',
       Subtype: 'Stamp',
-      // Drawn against the origin and measured there, so placing the box at the
-      // anchor is the whole of the positioning. Box and rect matching in size
-      // keeps the viewer's appearance transform a pure translation, so the mark
-      // lands exactly where it was flattened.
       Rect: [
         annotation.x + box.left,
         annotation.y + box.bottom,
@@ -210,19 +206,18 @@ export function writeAnnotationObjects(
       ],
       F: PRINT_FLAG,
       AP: { N: ref },
-      // What a reader that knows nothing of this app reports the mark as.
       Contents: PDFHexString.fromText(annotation.text),
     });
 
-    dict.set(KIND, PDFName.of(annotation.kind));
-    dict.set(ID, PDFHexString.fromText(annotation.id));
-    dict.set(TEXT, PDFHexString.fromText(annotation.text));
-    dict.set(SIZE, doc.context.obj(annotation.size));
-    dict.set(COLOR, PDFName.of(annotation.color));
-    dict.set(X, doc.context.obj(annotation.x));
-    dict.set(Y, doc.context.obj(annotation.y));
+    annotationMark.set(KIND, PDFName.of(annotation.kind));
+    annotationMark.set(ID, PDFHexString.fromText(annotation.id));
+    annotationMark.set(TEXT, PDFHexString.fromText(annotation.text));
+    annotationMark.set(SIZE, doc.context.obj(annotation.size));
+    annotationMark.set(COLOR, PDFName.of(annotation.color));
+    annotationMark.set(X, doc.context.obj(annotation.x));
+    annotationMark.set(Y, doc.context.obj(annotation.y));
 
-    page.node.addAnnot(doc.context.register(dict));
+    page.node.addAnnot(doc.context.register(annotationMark));
   }
 }
 

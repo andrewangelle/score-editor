@@ -23,7 +23,7 @@ import {
   createAnnotation,
   type ScoreAnnotation,
 } from '#/lib/pdf/annotations/annotations';
-import { buildEditedPdf } from '#/lib/pdf/document';
+import { buildEditedPdf } from '#/lib/pdf/document/document';
 import { type Region, regionsFromParts, staffBounds } from '#/lib/pdf/regions';
 import { detectPageStaves, type PageStaves } from '#/lib/pdf/staffDetection';
 import { buildScoreFixture } from '#tests/unit/lib/testScoreFixture';

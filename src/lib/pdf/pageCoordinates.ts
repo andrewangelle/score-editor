@@ -1,8 +1,11 @@
-/**
- * The one conversion between PDF user space and screen space.
- */
-
 export type Point = { x: number; y: number };
+
+export type ScreenBox = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 export function toPdfPoint(
   offsetX: number,
@@ -26,13 +29,6 @@ export function toScreenPoint(
     y: (pageHeight - point.y) * scale,
   };
 }
-
-export type ScreenBox = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
 
 export function rectToScreen(
   rect: { left: number; bottom: number; right: number; top: number },
