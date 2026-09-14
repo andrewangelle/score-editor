@@ -31,7 +31,9 @@
     "test:e2e:report": "playwright show-report",
     "test:types": "pnpm exec tsc --noEmit",
     "test:e2e:ui": "cross-env playwright test --ui",
-    "test:e2e:webkit": "cross-env playwright test --project=webkit"
+    "test:e2e:webkit": "cross-env playwright test --project=webkit",
+    "test:visual": "cross-env playwright test --project=visual",
+    "test:visual:update": "cross-env playwright test --project=visual --update-snapshots"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",

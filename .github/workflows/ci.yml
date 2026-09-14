@@ -20,6 +20,11 @@ on:
           - mobile:safari
           - edge
           - chrome
+      update_snapshots:
+        description: 'Regenerate visual regression baselines'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   test:
@@ -85,3 +90,52 @@ jobs:
           path: blob-report
           if-no-files-found: ignore
           retention-days: 1
+
+  visual-test:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enable corepack
+        run: |
+          # corepack is pre-installed in the Playwright image but needs
+          # activation; run as the container user (1001) since --user is set.
+          corepack enable --install-directory ~/.corepack
+          echo "$HOME/.corepack" >> "$GITHUB_PATH"
+          corepack prepare pnpm@10.33.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run visual tests
+        id: visual
+        run: |
+          EXTRA_FLAGS=""
+          if [ "${{ inputs.update_snapshots }}" = "true" ]; then
+            EXTRA_FLAGS="--update-snapshots"
+          fi
+          pnpm exec playwright test --project=visual $EXTRA_FLAGS
+        env:
+          CI: true
+
+      - name: Commit updated baselines
+        if: inputs.update_snapshots == 'true' && steps.visual.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/__screenshots__/
+          git diff --cached --quiet && echo "No baseline changes" && exit 0
+          git commit -m "chore: update visual regression baselines"
+          git push
+
+      - name: Upload playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-visual
+          path: playwright-report/
+          retention-days: 7

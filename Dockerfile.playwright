@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
+
+# Enable corepack as root before any user switch
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
+
+WORKDIR /work
+COPY pnpm-lock.yaml package.json ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
