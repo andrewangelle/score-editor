@@ -48,13 +48,13 @@ const config = defineConfig({
   plugins: [
     pdfWorker(),
     devtools(),
-    netlify(),
+    !process.env.VITE_E2E && netlify(),
     tailwindcss(),
     tanstackStart(),
     viteReact({
       compiler: true
     }),
-  ],
+  ].filter(Boolean),
 })
 
 export default config
