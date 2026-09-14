@@ -1,6 +1,8 @@
 import { createSelector } from '@reduxjs/toolkit';
+import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
+import { selectPages, selectSelectedPageId } from '#/store/document.slice';
 import { selectManualRegions } from '#/store/regions.slice';
 import {
   selectAnalysis,
@@ -9,7 +11,7 @@ import {
   selectRenames,
   selectSelectedOrdinals,
 } from '#/store/score.slice';
-import { selectPages, selectSelectedPageId } from './document.slice';
+import { selectAnnotationValue, selectPlacing } from '#/store/tool.slice';
 
 /**
  * Selectors that read across two slices. They live here rather than in one of
@@ -71,4 +73,15 @@ export const selectOverlay = createSelector(
     selectedPage.rotation === 0
       ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
       : null,
+);
+
+export const selectAnnotationValueMenu = createSelector(
+  [selectPlacing, selectAnnotationValue],
+  (placing, value) => {
+    const kind = placing && hasAnnotationValueMenu(placing) ? placing : null;
+    return {
+      value,
+      kind,
+    };
+  },
 );

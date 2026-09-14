@@ -16,32 +16,29 @@ import {
 import {
   type AnnotationKind,
   annotationValueChoices,
-  hasAnnotationValueMenu,
 } from '#/lib/pdf/annotations/annotations';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import {
-  annotationValuePicked,
-  selectAnnotationValue,
-  selectPlacing,
-  toolToggled,
-} from '#/store/tool.slice';
+import { selectAnnotationValueMenu } from '#/store/selectors';
+import { annotationValuePicked, toolToggled } from '#/store/tool.slice';
 
 export function AnnotationValueMenu() {
   const dispatch = useAppDispatch();
-  const placing = useAppSelector(selectPlacing);
-  const value = useAppSelector(selectAnnotationValue);
-  const kind = placing && hasAnnotationValueMenu(placing) ? placing : null;
+  const { value, kind } = useAppSelector(selectAnnotationValueMenu);
   const [shown, setShown] = useState<AnnotationKind | null>(kind);
 
   const choices = shown ? annotationValueChoices(shown) : [];
   const label = shown ? MENU_LABEL[shown] : '';
 
   useEffect(() => {
-    if (kind && kind !== shown) setShown(kind);
+    if (kind && kind !== shown) {
+      setShown(kind);
+    }
   }, [kind, shown]);
 
   useEffect(() => {
-    if (!kind) return;
+    if (!kind) {
+      return;
+    }
 
     function dismissOnEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape' || !kind) {

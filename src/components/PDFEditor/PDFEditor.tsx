@@ -103,15 +103,6 @@ export function PDFEditor() {
   const unsaved = useAppSelector(selectHasUnsavedChanges);
   const canUndo = useAppSelector(selectCanUndo);
   const revision = useAppSelector(selectRevision);
-
-  /** The last save, tagged with the document version it described. */
-  const [status, setStatus] = useState<{
-    message: string;
-    revision: number;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isBusy, setIsBusy] = useState(false);
-  const [isNamingCopy, setNamingCopy] = useState(false);
   const analysis = useAppSelector(selectAnalysis);
   const analysisNote = useAppSelector(selectAnalysisNote);
   const selectedParts = useAppSelector(selectSelectedParts);
@@ -122,6 +113,15 @@ export function PDFEditor() {
   const editorState: EditorState = useAppSelector(selectEditorState);
   const bytes = documentBytes(documentId);
   const fileHandle = documentFileHandle(documentId);
+
+  /** The last save, tagged with the document version it described. */
+  const [status, setStatus] = useState<{
+    message: string;
+    revision: number;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [isNamingCopy, setNamingCopy] = useState(false);
 
   function reportSaved(message: string) {
     setStatus({ message, revision });
@@ -257,7 +257,9 @@ export function PDFEditor() {
   }
 
   function handleSaveToFile() {
-    if (!fileHandle) return;
+    if (!fileHandle) {
+      return;
+    }
 
     return saveWith(async (edited) => {
       await writePdfFile(fileHandle, edited);
