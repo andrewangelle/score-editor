@@ -122,7 +122,7 @@ jobs:
           CI: true
 
       - name: Commit updated baselines
-        if: inputs.update_snapshots == 'true' && steps.visual.outcome == 'success'
+        if: github.event_name == 'workflow_dispatch' && steps.visual.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
