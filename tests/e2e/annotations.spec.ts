@@ -14,22 +14,17 @@ test.describe('Annotations', () => {
 
     // --- Place a fingering annotation ---
     await page.getByRole('button', { name: 'Fingering' }).click();
-    // Pick value "1" from the value menu
     await page.getByRole('button', { name: '1', exact: true }).click();
-    // Click on the page to place the annotation
     await appPage.clickOnPage(0.3, 0.3);
 
     // --- Place a string annotation ---
     await page.getByRole('button', { name: /^String/ }).click();
-    // Pick value "3" from the value menu
     await page.getByRole('button', { name: '3', exact: true }).click();
     await appPage.clickOnPage(0.4, 0.3);
 
     // --- Place a position annotation ---
     await page.getByRole('button', { name: /^Position/ }).click();
-    // Position has no value menu — clicking places an empty mark with an editor
     await appPage.clickOnPage(0.5, 0.3);
-    // Type a position value and commit
     const positionInput = page.locator('input[placeholder*="Position"]');
     await positionInput.fill('5');
     await positionInput.press('Enter');
@@ -65,6 +60,7 @@ test.describe('Annotations', () => {
     expect(restoredCount).toBe(4);
 
     await appPage.screenshot('annotations-after-reopen');
+
     if (test.info().project.name === 'visual') {
       await expect(page).toHaveScreenshot('annotations-after-reopen.png');
     }
