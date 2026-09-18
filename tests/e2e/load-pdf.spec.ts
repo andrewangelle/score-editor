@@ -18,7 +18,6 @@ test.describe('App smoke test', () => {
 
     await expect(page.locator('nav[aria-label="Pages"]')).toBeVisible();
 
-    await expect(page.getByText('Rotate all left')).toBeVisible();
     await expect(page.getByText('Close')).toBeVisible();
 
     await appPage.waitForCanvas();

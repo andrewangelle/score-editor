@@ -10,8 +10,6 @@ import {
   READING_PDF,
   REDO_MARK,
   RESET,
-  ROTATE_LEFT,
-  ROTATE_RIGHT,
   SAVE_A_COPY,
   SCORE_EDITOR,
   UNDO,
@@ -69,7 +67,6 @@ import {
   selectCanUndoAnnotation,
 } from '#/store/annotations.slice';
 import {
-  allPagesRotated,
   documentClosed,
   documentFileReplaced,
   documentOpened,
@@ -308,14 +305,6 @@ export function PDFEditor() {
     setNamingCopy(false);
   }
 
-  function rotateLeft() {
-    dispatch(allPagesRotated(-90));
-  }
-
-  function rotateRight() {
-    dispatch(allPagesRotated(90));
-  }
-
   if (!bytes) {
     return (
       <div className={INTRO_CONTAINER_CLASS}>
@@ -347,10 +336,6 @@ export function PDFEditor() {
             {unsaved ? ' · unsaved changes' : ''}
           </p>
         </div>
-
-        <ToolbarButton onClick={rotateLeft}>{ROTATE_LEFT}</ToolbarButton>
-
-        <ToolbarButton onClick={rotateRight}>{ROTATE_RIGHT}</ToolbarButton>
 
         <ToolbarButton onClick={() => dispatch(undone())} disabled={!canUndo}>
           {UNDO}

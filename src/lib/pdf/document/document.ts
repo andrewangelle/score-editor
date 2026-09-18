@@ -1,4 +1,4 @@
-import { degrees, PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
 import {
   appearanceCache,
@@ -22,7 +22,6 @@ const HEADER_SCAN_BYTES = 1024;
 export type PageEdit = {
   id: string;
   sourceIndex: number;
-  rotation: number;
 };
 
 export type LoadedPdf = {
@@ -34,11 +33,6 @@ export type LoadedPdf = {
   annotations: ScoreAnnotation[];
   state: EditorState | null;
 };
-
-export function normalizeAngle(angle: number): number {
-  const snapped = Math.round(angle / 90) * 90;
-  return ((snapped % 360) + 360) % 360;
-}
 
 export async function readPdfFile(file: File): Promise<LoadedPdf> {
   if (file.size === 0) {
@@ -72,10 +66,9 @@ export async function readPdfFile(file: File): Promise<LoadedPdf> {
     throw new PdfLoadError(PdfLoadError.failedToRead(file.name, detail));
   }
 
-  const pages = source.getPages().map((page, sourceIndex) => ({
+  const pages = source.getPages().map((_page, sourceIndex) => ({
     id: `page-${sourceIndex}-${crypto.randomUUID()}`,
     sourceIndex,
-    rotation: normalizeAngle(page.getRotation().angle),
   }));
 
   if (pages.length === 0) {
@@ -127,7 +120,6 @@ export async function buildEditedPdf(
   const appearances = appearanceCache();
 
   copied.forEach((page, index) => {
-    page.setRotation(degrees(normalizeAngle(pages[index].rotation)));
     output.addPage(page);
 
     if (!font) return;

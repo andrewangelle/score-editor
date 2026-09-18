@@ -7,13 +7,7 @@ import {
 import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
 import type { PageEdit } from '#/lib/pdf/document/document';
 import type { EditorState } from '#/lib/pdf/editorState';
-import {
-  isUnchanged,
-  movePage,
-  removePage,
-  rotateAllPages,
-  rotatePage,
-} from '#/lib/pdf/edits';
+import { isUnchanged, movePage, removePage } from '#/lib/pdf/edits';
 
 /**
  * Work recovered from the file that was just opened.
@@ -158,15 +152,6 @@ export const documentSlice = createSlice({
       state.selectedPageId = action.payload;
     },
 
-    pageRotated(state, action: PayloadAction<{ id: string; delta: number }>) {
-      const { id, delta } = action.payload;
-      commit(state, (pages) => rotatePage(pages, id, delta));
-    },
-
-    allPagesRotated(state, action: PayloadAction<number>) {
-      commit(state, (pages) => rotateAllPages(pages, action.payload));
-    },
-
     pageMoved(state, action: PayloadAction<{ id: string; direction: -1 | 1 }>) {
       const { id, direction } = action.payload;
       commit(state, (pages) => movePage(pages, id, direction));
@@ -232,8 +217,6 @@ export const {
   documentSaved,
   documentFileReplaced,
   pageSelected,
-  pageRotated,
-  allPagesRotated,
   pageMoved,
   pageDeleted,
   documentReset,

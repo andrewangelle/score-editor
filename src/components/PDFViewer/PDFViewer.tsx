@@ -6,13 +6,11 @@ import { PDFPageStrip } from '#/components/PDFPageStrip/PDFPageStrip';
 import {
   RENDER_ERROR,
   RENDERING,
-  TOOLS_HIDDEN,
 } from '#/components/PDFViewer/PDFViewer.constants';
 import {
   DOCUMENT_CLASS,
   PAGE_FRAME_CLASS,
   PAGE_NAV_CLASS,
-  ROTATED_NOTICE_CLASS,
   STAGE_CLASS,
   VIEWER_ERROR_CLASS,
   VIEWER_MESSAGE_CLASS,
@@ -26,7 +24,7 @@ import type { TurnDirection } from '#/hooks/useScrollEdgePaging/useScrollEdgePag
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
 import { pageSelected, selectPages } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import { selectAnalysis, selectParts } from '#/store/score.slice';
+import { selectParts } from '#/store/score.slice';
 import { selectOverlay, selectSelectedPage } from '#/store/selectors';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
@@ -41,7 +39,6 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   const pageWidth = usePageWidth(stage);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pages = useAppSelector(selectPages);
-  const analysis = useAppSelector(selectAnalysis);
   const parts = useAppSelector(selectParts);
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
   const selectedPage = useAppSelector(selectSelectedPage);
@@ -93,7 +90,6 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
             <Page
               key={selectedPage.id}
               pageNumber={selectedPage.sourceIndex + 1}
-              rotate={selectedPage.rotation}
               width={pageWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
@@ -121,10 +117,6 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
           </div>
         )}
       </div>
-
-      {analysis && selectedPage && selectedPage.rotation !== 0 && (
-        <p className={ROTATED_NOTICE_CLASS}>{TOOLS_HIDDEN}</p>
-      )}
     </Document>
   );
 }

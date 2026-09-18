@@ -42,15 +42,6 @@ test.describe('Unsaved changes indicator and save button', () => {
     }
   });
 
-  test('save button enables after rotating a page', async ({ page }) => {
-    const header = page.locator('header');
-    await expect(header).not.toContainText('unsaved changes');
-
-    await page.getByRole('button', { name: 'Rotate all left' }).click();
-
-    await expect(header).toContainText('unsaved changes');
-  });
-
   test('unsaved indicator clears after undoing the only annotation', async ({
     appPage,
     page,

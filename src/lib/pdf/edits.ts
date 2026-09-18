@@ -1,26 +1,4 @@
-import { normalizeAngle, type PageEdit } from '#/lib/pdf/document/document';
-
-export function rotatePage(
-  pages: readonly PageEdit[],
-  id: string,
-  delta: number,
-): PageEdit[] {
-  return pages.map((page) =>
-    page.id === id
-      ? { ...page, rotation: normalizeAngle(page.rotation + delta) }
-      : page,
-  );
-}
-
-export function rotateAllPages(
-  pages: readonly PageEdit[],
-  delta: number,
-): PageEdit[] {
-  return pages.map((page) => ({
-    ...page,
-    rotation: normalizeAngle(page.rotation + delta),
-  }));
-}
+import type { PageEdit } from '#/lib/pdf/document/document';
 
 export function removePage(pages: readonly PageEdit[], id: string): PageEdit[] {
   return pages.filter((page) => page.id !== id);
@@ -46,9 +24,5 @@ export function isUnchanged(
   original: readonly PageEdit[],
 ): boolean {
   if (pages.length !== original.length) return false;
-  return pages.every(
-    (page, index) =>
-      page.id === original[index].id &&
-      page.rotation === original[index].rotation,
-  );
+  return pages.every((page, index) => page.id === original[index].id);
 }
