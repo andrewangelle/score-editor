@@ -7,7 +7,7 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  reporter: process.env.CI ? 'blob' : [['list'], ['html', { open: 'never' }]],
+  reporter: process.env.CI ? [['blob'], ['list']] : [['list'], ['html', { open: 'never' }]],
   snapshotPathTemplate:
     '{testDir}/__screenshots__/{projectName}/{testFilePath}/{arg}{ext}',
   use: {
