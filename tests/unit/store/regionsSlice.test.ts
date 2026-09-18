@@ -1,5 +1,9 @@
 import type { Region } from '#/lib/pdf/regions';
-import { documentClosed } from '#/store/document.slice';
+import {
+  documentClosed,
+  documentOpened,
+  documentSaved,
+} from '#/store/document.slice';
 import {
   regionAdded,
   regionChanged,
@@ -97,6 +101,70 @@ describe('editing', () => {
     );
 
     expect(state.selectedId).toBe('d2');
+  });
+});
+
+describe('unsaved regions', () => {
+  const unsaved = (state: ReturnType<typeof reduce>) =>
+    regionsSlice.selectors.selectHasUnsavedRegions({ regions: state });
+
+  it('starts clean', () => {
+    expect(unsaved(FOLLOWING_DETECTION)).toBe(false);
+  });
+
+  it('reports unsaved after adding a region', () => {
+    const state = run(
+      regionAdded({ visible: DETECTED, pageIndex: 0, rect: rect(400) }),
+    );
+
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('reports unsaved after changing a region', () => {
+    const moved: Region = { ...DETECTED[0], rect: rect(500) };
+    const state = run(regionChanged({ visible: DETECTED, region: moved }));
+
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('reports unsaved after removing a region', () => {
+    const state = run(regionRemoved({ visible: DETECTED, id: 'd1' }));
+
+    expect(unsaved(state)).toBe(true);
+  });
+
+  it('settles once saved', () => {
+    const state = run(
+      regionAdded({ visible: DETECTED, pageIndex: 0, rect: rect(400) }),
+      documentSaved(),
+    );
+
+    expect(unsaved(state)).toBe(false);
+  });
+
+  it('reports unsaved after editing past a save', () => {
+    const saved = run(
+      regionAdded({ visible: DETECTED, pageIndex: 0, rect: rect(400) }),
+      documentSaved(),
+    );
+    const edited = reduce(
+      saved,
+      regionAdded({ visible: DETECTED, pageIndex: 0, rect: rect(300) }),
+    );
+
+    expect(unsaved(edited)).toBe(true);
+  });
+
+  it('resets on documentOpened', () => {
+    const edited = run(
+      regionAdded({ visible: DETECTED, pageIndex: 0, rect: rect(400) }),
+    );
+    const opened = reduce(
+      edited,
+      documentOpened({ id: 'new', name: 'other.pdf', pages: [] }),
+    );
+
+    expect(unsaved(opened)).toBe(false);
   });
 });
 
