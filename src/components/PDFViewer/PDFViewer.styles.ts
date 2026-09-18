@@ -11,6 +11,3 @@ export const STAGE_CLASS =
   'flex-1 overflow-auto overscroll-contain bg-slate-200 p-4';
 
 export const PAGE_FRAME_CLASS = 'relative mx-auto w-fit shadow-lg';
-
-export const ROTATED_NOTICE_CLASS =
-  'absolute bottom-4 left-1/2 -translate-x-1/2 rounded bg-slate-900/80 px-3 py-1 text-white text-xs';

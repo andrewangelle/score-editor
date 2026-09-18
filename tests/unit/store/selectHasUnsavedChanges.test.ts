@@ -4,14 +4,14 @@ import {
   documentOpened,
   documentSaved,
   documentSlice,
-  pageRotated,
+  pageMoved,
 } from '#/store/document.slice';
 import { regionAdded, regionsSlice } from '#/store/regions.slice';
 import { selectHasUnsavedChanges } from '#/store/selectors';
 
 const PAGES: PageEdit[] = [
-  { id: 'a', sourceIndex: 0, rotation: 0 },
-  { id: 'b', sourceIndex: 1, rotation: 0 },
+  { id: 'a', sourceIndex: 0 },
+  { id: 'b', sourceIndex: 1 },
 ];
 
 function freshState() {
@@ -32,7 +32,7 @@ describe('selectHasUnsavedChanges (combined)', () => {
     const state = freshState();
     state.document = documentSlice.reducer(
       state.document,
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
     );
 
     expect(selectHasUnsavedChanges(state)).toBe(true);
@@ -66,7 +66,7 @@ describe('selectHasUnsavedChanges (combined)', () => {
     const state = freshState();
     state.document = documentSlice.reducer(
       state.document,
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
     );
     state.annotations = annotationsSlice.reducer(
       state.annotations,
@@ -96,7 +96,7 @@ describe('selectHasUnsavedChanges (combined)', () => {
     const state = freshState();
     state.document = documentSlice.reducer(
       state.document,
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
     );
     state.annotations = annotationsSlice.reducer(
       state.annotations,

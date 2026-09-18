@@ -51,7 +51,6 @@ function layout(count: number): PageEdit[] {
   return Array.from({ length: count }, (_, sourceIndex) => ({
     id: `page-${sourceIndex}`,
     sourceIndex,
-    rotation: 0,
   }));
 }
 
@@ -120,8 +119,8 @@ describe('saving marks as objects', () => {
     // What reopens is the arrangement that was saved, and a mark's page index
     // has to follow it there.
     const reversed: PageEdit[] = [
-      { id: 'page-b', sourceIndex: 1, rotation: 0 },
-      { id: 'page-a', sourceIndex: 0, rotation: 0 },
+      { id: 'page-b', sourceIndex: 1 },
+      { id: 'page-a', sourceIndex: 0 },
     ];
 
     const saved = await buildEditedPdf(await score(), reversed, MARKS, {

@@ -1,6 +1,5 @@
 import type { PageEdit } from '#/lib/pdf/document/document';
 import {
-  allPagesRotated,
   documentClosed,
   documentFileReplaced,
   documentOpened,
@@ -9,15 +8,14 @@ import {
   documentSlice,
   pageDeleted,
   pageMoved,
-  pageRotated,
   pageSelected,
   undone,
 } from '#/store/document.slice';
 
 const PAGES: PageEdit[] = [
-  { id: 'a', sourceIndex: 0, rotation: 0 },
-  { id: 'b', sourceIndex: 1, rotation: 0 },
-  { id: 'c', sourceIndex: 2, rotation: 0 },
+  { id: 'a', sourceIndex: 0 },
+  { id: 'b', sourceIndex: 1 },
+  { id: 'c', sourceIndex: 2 },
 ];
 
 const OPEN = documentSlice.reducer(
@@ -51,21 +49,11 @@ describe('documentOpened', () => {
 
 describe('page edits', () => {
   it('records the previous list for undo', () => {
-    const state = run(pageRotated({ id: 'a', delta: 90 }));
+    const state = run(pageMoved({ id: 'a', direction: 1 }));
 
-    expect(state.pages[0].rotation).toBe(90);
+    expect(ids(state)).toEqual(['b', 'a', 'c']);
     expect(state.history).toHaveLength(1);
-    expect(state.history[0][0].rotation).toBe(0);
-  });
-
-  it('normalises rotation past a full turn', () => {
-    const state = run(
-      allPagesRotated(270),
-      allPagesRotated(180),
-      allPagesRotated(-90),
-    );
-
-    expect(state.pages.map((page) => page.rotation)).toEqual([0, 0, 0]);
+    expect(ids({ pages: state.history[0] } as any)).toEqual(['a', 'b', 'c']);
   });
 
   it('keeps a move that changes nothing off the undo stack', () => {
@@ -126,12 +114,11 @@ describe('undone', () => {
   it('steps back through the edits one at a time', () => {
     const state = run(
       pageDeleted('b'),
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
       undone(),
     );
 
     expect(ids(state)).toEqual(['a', 'c']);
-    expect(state.pages[0].rotation).toBe(0);
     expect(state.history).toHaveLength(1);
   });
 
@@ -149,7 +136,11 @@ describe('undone', () => {
 
 describe('documentReset', () => {
   it('returns to the uploaded page list and keeps it undoable', () => {
-    const state = run(pageDeleted('b'), allPagesRotated(90), documentReset());
+    const state = run(
+      pageDeleted('b'),
+      pageMoved({ id: 'a', direction: 1 }),
+      documentReset(),
+    );
 
     expect(state.pages).toEqual(PAGES);
     expect(documentSlice.selectors.selectIsDirty({ document: state })).toBe(
@@ -184,12 +175,12 @@ describe('revision', () => {
   });
 
   it('moves on for every kind of page change', () => {
-    const rotated = run(pageRotated({ id: 'a', delta: 90 }));
-    const deleted = documentSlice.reducer(rotated, pageDeleted('b'));
+    const moved = run(pageMoved({ id: 'a', direction: 1 }));
+    const deleted = documentSlice.reducer(moved, pageDeleted('b'));
     const undoneAgain = documentSlice.reducer(deleted, undone());
     const wasReset = documentSlice.reducer(undoneAgain, documentReset());
 
-    expect([rotated, deleted, undoneAgain, wasReset].map(revisionOf)).toEqual([
+    expect([moved, deleted, undoneAgain, wasReset].map(revisionOf)).toEqual([
       1, 2, 3, 4,
     ]);
   });
@@ -206,9 +197,7 @@ describe('revision', () => {
   });
 
   it('never returns to a spent number, so an undo does not revive a banner', () => {
-    // Undo restores the pages but not the moment: a message about the state
-    // before the edit must not start applying again.
-    const edited = run(pageRotated({ id: 'a', delta: 90 }));
+    const edited = run(pageMoved({ id: 'a', direction: 1 }));
     const backAgain = documentSlice.reducer(edited, undone());
 
     expect(backAgain.pages).toEqual(OPEN.pages);
@@ -226,18 +215,18 @@ describe('documentSaved', () => {
   });
 
   it('reports edits made before any save', () => {
-    expect(unsaved(run(pageRotated({ id: 'a', delta: 90 })))).toBe(true);
+    expect(unsaved(run(pageMoved({ id: 'a', direction: 1 })))).toBe(true);
   });
 
   it('settles once those edits are written to the file', () => {
-    const state = run(pageRotated({ id: 'a', delta: 90 }), documentSaved());
+    const state = run(pageMoved({ id: 'a', direction: 1 }), documentSaved());
 
     expect(unsaved(state)).toBe(false);
   });
 
   it('reports edits made after the save', () => {
     const state = run(
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
       documentSaved(),
       pageDeleted('b'),
     );
@@ -246,10 +235,8 @@ describe('documentSaved', () => {
   });
 
   it('still reports a change once it is undone back to the upload', () => {
-    // The file now holds the rotated version, so returning to the *uploaded*
-    // page list is itself an unsaved change — dirtiness alone cannot see this.
     const state = run(
-      pageRotated({ id: 'a', delta: 90 }),
+      pageMoved({ id: 'a', direction: 1 }),
       documentSaved(),
       undone(),
     );
@@ -259,8 +246,6 @@ describe('documentSaved', () => {
   });
 
   it('counts the file as behind once extraction has taken it', () => {
-    // The document is untouched and may even match the upload exactly, but the
-    // file now holds cut regions, which is no version of this document.
     const state = run(documentSaved(), documentFileReplaced());
 
     expect(selectIsDirty({ document: state })).toBe(false);
@@ -284,7 +269,7 @@ describe('documentSaved', () => {
   });
 
   it('does not carry the saved mark to the next document', () => {
-    const saved = run(pageRotated({ id: 'a', delta: 90 }), documentSaved());
+    const saved = run(pageMoved({ id: 'a', direction: 1 }), documentSaved());
     const reopened = documentSlice.reducer(
       saved,
       documentOpened({ id: 'doc-2', name: 'other.pdf', pages: PAGES }),
@@ -298,12 +283,11 @@ describe('selectors', () => {
   it('reports dirtiness against the upload, not the last action', () => {
     const { selectIsDirty, selectCanUndo, selectPageCount } =
       documentSlice.selectors;
-    const rotated = run(pageRotated({ id: 'a', delta: 90 }));
-    const backAgain = documentSlice.reducer(rotated, undone());
+    const moved = run(pageMoved({ id: 'a', direction: 1 }));
+    const backAgain = documentSlice.reducer(moved, undone());
 
-    expect(selectIsDirty({ document: rotated })).toBe(true);
+    expect(selectIsDirty({ document: moved })).toBe(true);
     expect(selectIsDirty({ document: backAgain })).toBe(false);
-    // Undoing spends the history entry, so there is nothing left to undo.
     expect(selectCanUndo({ document: backAgain })).toBe(false);
     expect(selectPageCount({ document: backAgain })).toBe(3);
   });

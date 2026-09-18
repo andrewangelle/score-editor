@@ -74,11 +74,7 @@ export const selectOverlay = createSelector(
     (_state, pageWidth?: number) => pageWidth,
   ],
   (analysis, sourcePage, selectedPage, pageWidth) =>
-    analysis &&
-    sourcePage &&
-    pageWidth &&
-    selectedPage &&
-    selectedPage.rotation === 0
+    analysis && sourcePage && pageWidth && selectedPage
       ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
       : null,
 );

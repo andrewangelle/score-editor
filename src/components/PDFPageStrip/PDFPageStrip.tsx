@@ -10,7 +10,6 @@ import { StripButton } from '#/components/StripButton/StripButton';
 import {
   pageDeleted,
   pageMoved,
-  pageRotated,
   pageSelected,
   selectPages,
   selectSelectedPageId,
@@ -50,7 +49,6 @@ export function PDFPageStrip() {
               <span className="flex justify-center overflow-hidden">
                 <Page
                   pageNumber={page.sourceIndex + 1}
-                  rotate={page.rotation}
                   width={THUMBNAIL_WIDTH}
                   renderTextLayer={false}
                   renderAnnotationLayer={false}
@@ -61,22 +59,6 @@ export function PDFPageStrip() {
             </button>
 
             <div className={PAGE_CONTROLS_CLASS}>
-              <StripButton
-                label={`Rotate page ${index + 1} left`}
-                onClick={() =>
-                  dispatch(pageRotated({ id: page.id, delta: -90 }))
-                }
-              >
-                ↺
-              </StripButton>
-              <StripButton
-                label={`Rotate page ${index + 1} right`}
-                onClick={() =>
-                  dispatch(pageRotated({ id: page.id, delta: 90 }))
-                }
-              >
-                ↻
-              </StripButton>
               <StripButton
                 label={`Move page ${index + 1} up`}
                 disabled={index === 0}

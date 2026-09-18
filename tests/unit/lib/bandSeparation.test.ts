@@ -92,7 +92,7 @@ describe('bands of adjacent systems', () => {
     const first = plain[0].systems[0].staves[0];
     const saved = await buildEditedPdf(
       bytes,
-      [{ id: 'p0', sourceIndex: 0, rotation: 0 }],
+      [{ id: 'p0', sourceIndex: 0 }],
       [
         ...marksUnder(first.bottom, 8),
         createAnnotation(0, 250, first.top + 8, 'position', '7'),
