@@ -14,7 +14,11 @@ import {
   annotationsSlice,
   annotationUndone,
 } from '#/store/annotations.slice';
-import { documentClosed, documentOpened } from '#/store/document.slice';
+import {
+  documentClosed,
+  documentOpened,
+  documentSaved,
+} from '#/store/document.slice';
 
 const reduce = annotationsSlice.reducer;
 const EMPTY = reduce(undefined, { type: '@@init' });
@@ -334,6 +338,122 @@ describe('clipboard', () => {
     const copied = reduce(placed, annotationCopied('nonexistent'));
 
     expect(copied.clipboard).toBeNull();
+  });
+});
+
+describe('unsaved annotations', () => {
+  const unsaved = (state: ReturnType<typeof reduce>) =>
+    annotationsSlice.selectors.selectHasUnsavedAnnotations({
+      annotations: state,
+    });
+
+  it('starts clean', () => {
+    expect(unsaved(EMPTY)).toBe(false);
+  });
+
+  it('reports unsaved after a placement', () => {
+    expect(unsaved(run(place()))).toBe(true);
+  });
+
+  it('reports unsaved after a move', () => {
+    const placed = run(place());
+    const moved = reduce(
+      placed,
+      annotationMoved({ id: placed.items[0].id, x: 200, y: 500 }),
+    );
+
+    expect(unsaved(moved)).toBe(true);
+  });
+
+  it('reports unsaved after a retitle', () => {
+    const placed = run(place());
+    const retitled = reduce(
+      placed,
+      annotationRetitled({ id: placed.items[0].id, text: 'hello' }),
+    );
+
+    expect(unsaved(retitled)).toBe(true);
+  });
+
+  it('clears when removing returns to the original state', () => {
+    const placed = run(place());
+    const removed = reduce(placed, annotationRemoved(placed.items[0].id));
+
+    expect(unsaved(removed)).toBe(false);
+  });
+
+  it('reports unsaved when removing leaves items that differ from the original', () => {
+    const placed = run(place(), place());
+    const removed = reduce(placed, annotationRemoved(placed.items[0].id));
+
+    expect(unsaved(removed)).toBe(true);
+  });
+
+  it('clears when undo returns to the original state', () => {
+    const placed = run(place());
+    const undone = reduce(placed, annotationUndone());
+
+    expect(unsaved(undone)).toBe(false);
+  });
+
+  it('reports unsaved when undo leaves items that differ from the original', () => {
+    const placed = run(place(), place());
+    const undone = reduce(placed, annotationUndone());
+
+    expect(unsaved(undone)).toBe(true);
+  });
+
+  it('reports unsaved after redo', () => {
+    const placed = run(place());
+    const undone = reduce(placed, annotationUndone());
+    const redone = reduce(undone, annotationRedone());
+
+    expect(unsaved(redone)).toBe(true);
+  });
+
+  it('reports unsaved after paste', () => {
+    const placed = run(place());
+    const copied = reduce(placed, annotationCopied(placed.items[0].id));
+    const pasted = reduce(
+      copied,
+      annotationPasted({
+        pageIndex: 0,
+        x: 200,
+        y: 500,
+        kind: 'note',
+        color: DEFAULT_COLOR,
+        text: '',
+      }),
+    );
+
+    expect(unsaved(pasted)).toBe(true);
+  });
+
+  it('settles once saved', () => {
+    const placed = run(place());
+
+    expect(unsaved(reduce(placed, documentSaved()))).toBe(false);
+  });
+
+  it('reports unsaved after editing past a save', () => {
+    const saved = run(place(), documentSaved());
+    const edited = reduce(saved, place());
+
+    expect(unsaved(edited)).toBe(true);
+  });
+
+  it('resets on documentOpened', () => {
+    const placed = run(place());
+    const opened = reduce(
+      placed,
+      documentOpened({ id: 'new', name: 'other.pdf', pages: [] }),
+    );
+
+    expect(unsaved(opened)).toBe(false);
+  });
+
+  it('does not count selection as a change', () => {
+    expect(unsaved(run(place(), documentSaved()))).toBe(false);
   });
 });
 

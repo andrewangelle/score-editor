@@ -10,14 +10,44 @@ import {
   documentClosed,
   documentOpened,
   documentRestored,
+  documentSaved,
 } from '#/store/document.slice';
 
 type RegionsState = {
   manual: Region[] | null;
+  /** The manual list at open or restore, for the pre-save dirty check. */
+  originalManual: Region[] | null;
   selectedId: string | null;
+  revision: number;
+  savedRevision: number | null;
 };
 
-const initialState: RegionsState = { manual: null, selectedId: null };
+const initialState: RegionsState = {
+  manual: null,
+  originalManual: null,
+  selectedId: null,
+  revision: 0,
+  savedRevision: null,
+};
+
+function regionsUnchanged(
+  a: readonly Region[] | null,
+  b: readonly Region[] | null,
+): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (a.length !== b.length) return false;
+  return a.every(
+    (r, i) =>
+      r.id === b[i].id &&
+      r.pageIndex === b[i].pageIndex &&
+      r.label === b[i].label &&
+      r.rect.left === b[i].rect.left &&
+      r.rect.right === b[i].rect.right &&
+      r.rect.top === b[i].rect.top &&
+      r.rect.bottom === b[i].rect.bottom,
+  );
+}
 
 /** The list a hand edit starts from: the user's own, or what they can see. */
 function editable(state: RegionsState, visible: readonly Region[]): Region[] {
@@ -61,6 +91,7 @@ export const regionsSlice = createSlice({
           ...base,
           { ...action.payload.region, label: `Region ${base.length + 1}` },
         ];
+        state.revision += 1;
       },
     },
 
@@ -73,6 +104,7 @@ export const regionsSlice = createSlice({
         action.payload.region.id,
         action.payload.region,
       );
+      state.revision += 1;
     },
 
     regionRemoved(
@@ -84,6 +116,7 @@ export const regionsSlice = createSlice({
         action.payload.id,
       );
       if (state.selectedId === action.payload.id) state.selectedId = null;
+      state.revision += 1;
     },
 
     /** Hands control back to the part checkboxes. */
@@ -95,11 +128,15 @@ export const regionsSlice = createSlice({
     builder
       .addCase(documentOpened, () => initialState)
       .addCase(documentClosed, () => initialState)
-      // A file with no state attachment leaves `manual` null, which is detection
-      // still being in charge — the same thing a fresh open means.
+      .addCase(documentSaved, (state) => {
+        state.savedRevision = state.revision;
+      })
       .addCase(documentRestored, (state, action) => {
         const restored = action.payload.state;
-        if (restored) state.manual = restored.regions;
+        if (restored) {
+          state.manual = restored.regions;
+          state.originalManual = restored.regions;
+        }
       });
   },
   selectors: {
@@ -107,6 +144,10 @@ export const regionsSlice = createSlice({
     selectSelectedRegionId: (state) => state.selectedId,
     /** True once the user has taken the rectangles over by hand. */
     selectIsManual: (state) => state.manual !== null,
+    selectHasUnsavedRegions: (state) =>
+      state.savedRevision === null
+        ? !regionsUnchanged(state.manual, state.originalManual)
+        : state.savedRevision !== state.revision,
   },
 });
 
@@ -118,5 +159,9 @@ export const {
   regionsReset,
 } = regionsSlice.actions;
 
-export const { selectManualRegions, selectSelectedRegionId, selectIsManual } =
-  regionsSlice.selectors;
+export const {
+  selectManualRegions,
+  selectSelectedRegionId,
+  selectIsManual,
+  selectHasUnsavedRegions,
+} = regionsSlice.selectors;

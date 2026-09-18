@@ -2,8 +2,16 @@ import { createSelector } from '@reduxjs/toolkit';
 import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
-import { selectPages, selectSelectedPageId } from '#/store/document.slice';
-import { selectManualRegions } from '#/store/regions.slice';
+import { selectHasUnsavedAnnotations } from '#/store/annotations.slice';
+import {
+  selectHasUnsavedChanges as selectHasUnsavedDocument,
+  selectPages,
+  selectSelectedPageId,
+} from '#/store/document.slice';
+import {
+  selectHasUnsavedRegions,
+  selectManualRegions,
+} from '#/store/regions.slice';
 import {
   selectAnalysis,
   selectKeepMarkings,
@@ -84,4 +92,13 @@ export const selectAnnotationValueMenu = createSelector(
       kind,
     };
   },
+);
+
+export const selectHasUnsavedChanges = createSelector(
+  [
+    selectHasUnsavedDocument,
+    selectHasUnsavedAnnotations,
+    selectHasUnsavedRegions,
+  ],
+  (document, annotations, regions) => document || annotations || regions,
 );

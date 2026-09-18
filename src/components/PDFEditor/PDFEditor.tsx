@@ -79,7 +79,6 @@ import {
   selectCanUndo,
   selectDocumentId,
   selectDocumentName,
-  selectHasUnsavedChanges,
   selectIsDirty,
   selectPageCount,
   selectPages,
@@ -96,7 +95,11 @@ import {
   selectKeepMarkings,
   selectSelectedParts,
 } from '#/store/score.slice';
-import { selectEditorState, selectRegions } from '#/store/selectors';
+import {
+  selectEditorState,
+  selectHasUnsavedChanges,
+  selectRegions,
+} from '#/store/selectors';
 
 // react-pdf reaches for browser globals at import time, so it must never be
 // evaluated during SSR — hence a dynamic import behind ClientOnly.
@@ -390,7 +393,7 @@ export function PDFEditor() {
         <button
           type="button"
           onClick={fileHandle ? handleSaveToFile : () => setNamingCopy(true)}
-          disabled={isBusy || (!fileHandle && isNamingCopy)}
+          disabled={isBusy || !unsaved || (!fileHandle && isNamingCopy)}
           title={getSaveButtonTitle(fileHandle)}
           className={SAVE_BUTTON_CLASS}
         >

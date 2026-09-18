@@ -14,25 +14,50 @@ import {
   documentClosed,
   documentOpened,
   documentRestored,
+  documentSaved,
 } from '#/store/document.slice';
 
 const MAX_UNDO = 3;
 
 type AnnotationsState = {
   items: ScoreAnnotation[];
+  /** The items as they were at open or restore, for the pre-save dirty check. */
+  original: ScoreAnnotation[];
   undoStack: AnnotationUndoEntry[];
   redoStack: AnnotationUndoEntry[];
   clipboard: AnnotationClipboard;
   selectedId: string | null;
+  revision: number;
+  savedRevision: number | null;
 };
 
 const initialState: AnnotationsState = {
   items: [],
+  original: [],
   undoStack: [],
   redoStack: [],
   clipboard: null,
   selectedId: null,
+  revision: 0,
+  savedRevision: null,
 };
+
+function annotationsUnchanged(
+  a: readonly ScoreAnnotation[],
+  b: readonly ScoreAnnotation[],
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every(
+    (item, i) =>
+      item.id === b[i].id &&
+      item.pageIndex === b[i].pageIndex &&
+      item.x === b[i].x &&
+      item.y === b[i].y &&
+      item.text === b[i].text &&
+      item.kind === b[i].kind &&
+      item.color === b[i].color,
+  );
+}
 
 function pushUndo(state: AnnotationsState, entry: AnnotationUndoEntry) {
   state.undoStack.push(entry);
@@ -100,6 +125,7 @@ export const annotationsSlice = createSlice({
       reducer(state, action: PayloadAction<ScoreAnnotation>) {
         pushUndo(state, { type: 'place', annotation: action.payload });
         state.items.push(action.payload);
+        state.revision += 1;
       },
       prepare(input: {
         pageIndex: number;
@@ -142,6 +168,7 @@ export const annotationsSlice = createSlice({
           to: newText,
         });
         annotation.text = newText;
+        state.revision += 1;
       }
     },
 
@@ -161,6 +188,7 @@ export const annotationsSlice = createSlice({
         });
         annotation.x = action.payload.x;
         annotation.y = action.payload.y;
+        state.revision += 1;
       }
     },
 
@@ -176,6 +204,7 @@ export const annotationsSlice = createSlice({
       }
       state.items = removeAnnotation(state.items, action.payload);
       if (state.selectedId === action.payload) state.selectedId = null;
+      state.revision += 1;
     },
 
     annotationUndone(state) {
@@ -183,6 +212,7 @@ export const annotationsSlice = createSlice({
       if (!entry) return;
       applyInverse(state, entry);
       state.redoStack.push(entry);
+      state.revision += 1;
     },
 
     annotationRedone(state) {
@@ -191,6 +221,7 @@ export const annotationsSlice = createSlice({
       applyForward(state, entry);
       state.undoStack.push(entry);
       if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+      state.revision += 1;
     },
 
     annotationCopied(state, action: PayloadAction<string>) {
@@ -213,6 +244,7 @@ export const annotationsSlice = createSlice({
       reducer(state, action: PayloadAction<ScoreAnnotation>) {
         pushUndo(state, { type: 'place', annotation: action.payload });
         state.items.push(action.payload);
+        state.revision += 1;
       },
       prepare(input: {
         pageIndex: number;
@@ -243,11 +275,16 @@ export const annotationsSlice = createSlice({
     builder
       .addCase(documentOpened, () => initialState)
       .addCase(documentClosed, () => initialState)
+      .addCase(documentSaved, (state) => {
+        state.savedRevision = state.revision;
+      })
       .addCase(documentRestored, (state, action) => {
-        state.items = action.payload.annotations.map((annotation) => ({
+        const restored = action.payload.annotations.map((annotation) => ({
           ...annotation,
           size: DEFAULT_SIZE[annotation.kind],
         }));
+        state.items = restored;
+        state.original = restored;
       });
   },
   selectors: {
@@ -257,6 +294,10 @@ export const annotationsSlice = createSlice({
     selectCanRedoAnnotation: (state) => state.redoStack.length > 0,
     selectClipboard: (state) => state.clipboard,
     selectSelectedAnnotationId: (state) => state.selectedId,
+    selectHasUnsavedAnnotations: (state) =>
+      state.savedRevision === null
+        ? !annotationsUnchanged(state.items, state.original)
+        : state.savedRevision !== state.revision,
   },
 });
 
@@ -279,4 +320,5 @@ export const {
   selectCanRedoAnnotation,
   selectClipboard,
   selectSelectedAnnotationId,
+  selectHasUnsavedAnnotations,
 } = annotationsSlice.selectors;
