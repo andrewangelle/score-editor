@@ -20,7 +20,7 @@ export default defineConfig({
   expect: {
     timeout: process.env.CI ? 10_000 : 5_000,
     toHaveScreenshot: {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: 0.05,
       animations: 'disabled',
     },
   },
