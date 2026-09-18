@@ -59,7 +59,7 @@ function analysed(store: ReturnType<typeof makeStore>, detected = THREE_PARTS) {
 
 describe('what lands immediately', () => {
   it('puts the marks back as editable annotations', () => {
-    expect(restored(STATE).getState().annotations).toEqual([MARK]);
+    expect(restored(STATE).getState().annotations.items).toEqual([MARK]);
   });
 
   it('puts the hand-drawn rectangles back', () => {
@@ -79,14 +79,14 @@ describe('what lands immediately', () => {
     // come back looking like one marked up now.
     const stale = { ...MARK, size: 9.5 };
 
-    expect(restored(STATE, [stale]).getState().annotations).toEqual([
+    expect(restored(STATE, [stale]).getState().annotations.items).toEqual([
       { ...stale, size: DEFAULT_SIZE.string },
     ]);
   });
 
   it('leaves everything but the size of a stale mark alone', () => {
     const stale = { ...MARK, size: 9.5 };
-    const [migrated] = restored(STATE, [stale]).getState().annotations;
+    const [migrated] = restored(STATE, [stale]).getState().annotations.items;
 
     expect(migrated).toMatchObject({
       id: MARK.id,
@@ -103,7 +103,7 @@ describe('what lands immediately', () => {
     // the current default over it would throw away the performer's decision.
     const green = { ...MARK, color: 'green' as const };
 
-    expect(restored(STATE, [green]).getState().annotations[0].color).toBe(
+    expect(restored(STATE, [green]).getState().annotations.items[0].color).toBe(
       'green',
     );
   });
@@ -115,7 +115,7 @@ describe('what lands immediately', () => {
   it('takes the marks even from a file with no state attachment', () => {
     const state = restored(null).getState();
 
-    expect(state.annotations).toEqual([MARK]);
+    expect(state.annotations.items).toEqual([MARK]);
     expect(state.regions.manual).toBeNull();
     expect(state.score.keepMarkings).toBe(true);
   });
@@ -202,7 +202,7 @@ describe('following the document', () => {
     );
 
     const state = store.getState();
-    expect(state.annotations).toEqual([]);
+    expect(state.annotations.items).toEqual([]);
     expect(state.regions.manual).toBeNull();
     expect(state.score.renames).toEqual({});
     expect(state.score.keepMarkings).toBe(true);
@@ -215,6 +215,6 @@ describe('following the document', () => {
     store.dispatch(documentRestored({ annotations: [MARK], state: STATE }));
     store.dispatch(documentOpened({ id: DOC, name: 'score.pdf', pages: [] }));
 
-    expect(store.getState().annotations).toEqual([]);
+    expect(store.getState().annotations.items).toEqual([]);
   });
 });

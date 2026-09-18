@@ -26,9 +26,13 @@ export function getSurfaceStyles(interactive: boolean, placing: boolean) {
  */
 export const ANNOTATION_ANCHOR_CLASS = 'absolute flex -translate-y-full';
 
-export function getAnnotationStyles(circled: boolean) {
+export function getAnnotationStyles(circled: boolean, selected = false) {
   let baseClass =
     'cursor-move whitespace-nowrap bg-white/80 font-medium leading-none hover:bg-white';
+
+  if (selected) {
+    baseClass += ' ring-2 ring-blue-400 ring-offset-1';
+  }
 
   if (circled) {
     baseClass += ' flex items-center justify-center rounded-full border';

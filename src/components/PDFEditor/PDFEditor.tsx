@@ -8,12 +8,14 @@ import {
   LOADING_STAVES,
   PARTS,
   READING_PDF,
+  REDO_MARK,
   RESET,
   ROTATE_LEFT,
   ROTATE_RIGHT,
   SAVE_A_COPY,
   SCORE_EDITOR,
   UNDO,
+  UNDO_MARK,
 } from '#/components/PDFEditor/PDFEditor.constants';
 import {
   ERROR_MESSAGE_CLASS,
@@ -37,6 +39,11 @@ import {
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
 import { ToolbarButton } from '#/components/ToolbarButton/ToolbarButton';
+import { useAnnotationKeyboard } from '#/hooks/useAnnotationKeyboard';
+import {
+  ScorePointerProvider,
+  useCreateScorePointerRef,
+} from '#/hooks/useScorePointer';
 import {
   buildEditedPdf,
   downloadFileName,
@@ -54,7 +61,13 @@ import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
 import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
-import { selectAnnotations } from '#/store/annotations.slice';
+import {
+  annotationRedone,
+  annotationUndone,
+  selectAnnotations,
+  selectCanRedoAnnotation,
+  selectCanUndoAnnotation,
+} from '#/store/annotations.slice';
 import {
   allPagesRotated,
   documentClosed,
@@ -110,9 +123,14 @@ export function PDFEditor() {
   const isManual = useAppSelector(selectIsManual);
   const keepMarkings = useAppSelector(selectKeepMarkings);
   const annotations = useAppSelector(selectAnnotations);
+  const canUndoAnnotation = useAppSelector(selectCanUndoAnnotation);
+  const canRedoAnnotation = useAppSelector(selectCanRedoAnnotation);
   const editorState: EditorState = useAppSelector(selectEditorState);
+  const scorePointerRef = useCreateScorePointerRef();
   const bytes = documentBytes(documentId);
   const fileHandle = documentFileHandle(documentId);
+
+  useAnnotationKeyboard(scorePointerRef);
 
   /** The last save, tagged with the document version it described. */
   const [status, setStatus] = useState<{
@@ -336,6 +354,22 @@ export function PDFEditor() {
         </ToolbarButton>
 
         <ToolbarButton
+          onClick={() => dispatch(annotationUndone())}
+          disabled={!canUndoAnnotation}
+          title="Undo last annotation edit (Cmd/Ctrl+Z)"
+        >
+          {UNDO_MARK}
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={() => dispatch(annotationRedone())}
+          disabled={!canRedoAnnotation}
+          title="Redo last annotation edit (Cmd/Ctrl+Shift+Z)"
+        >
+          {REDO_MARK}
+        </ToolbarButton>
+
+        <ToolbarButton
           onClick={() => dispatch(documentReset())}
           disabled={!dirty}
         >
@@ -406,11 +440,13 @@ export function PDFEditor() {
       )}
 
       <main className="flex min-h-0 flex-1">
-        <ClientOnly fallback={<LoadingViewer />}>
-          <Suspense fallback={<LoadingViewer />}>
-            <PDFViewer bytes={bytes} />
-          </Suspense>
-        </ClientOnly>
+        <ScorePointerProvider value={scorePointerRef}>
+          <ClientOnly fallback={<LoadingViewer />}>
+            <Suspense fallback={<LoadingViewer />}>
+              <PDFViewer bytes={bytes} />
+            </Suspense>
+          </ClientOnly>
+        </ScorePointerProvider>
 
         {analysis && !analysisNote && (
           <ScorePartsPanel

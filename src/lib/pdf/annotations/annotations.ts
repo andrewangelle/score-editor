@@ -6,28 +6,6 @@ export type AnnotationKind = 'fingering' | 'string' | 'position' | 'note';
 
 export type AnnotationColor = 'blue' | 'black' | 'red' | 'green' | 'purple';
 
-export const ANNOTATION_COLORS: Record<
-  AnnotationColor,
-  { label: string; css: string; rgb: readonly [number, number, number] }
-> = {
-  black: { label: 'Black', css: '#14141a', rgb: [0.08, 0.08, 0.1] },
-  blue: { label: 'Blue', css: '#1a33bf', rgb: [0.1, 0.2, 0.75] },
-  red: { label: 'Red', css: '#b31a1a', rgb: [0.7, 0.1, 0.1] },
-  green: { label: 'Green', css: '#0d7333', rgb: [0.05, 0.45, 0.2] },
-  purple: { label: 'Purple', css: '#7326b3', rgb: [0.45, 0.15, 0.7] },
-};
-
-/** The ink a mark gets when nothing else is chosen. */
-export const DEFAULT_COLOR: AnnotationColor = 'black';
-
-export const ANNOTATION_COLOR_ORDER = Object.keys(
-  ANNOTATION_COLORS,
-) as AnnotationColor[];
-
-export function isAnnotationColor(value: unknown): value is AnnotationColor {
-  return typeof value === 'string' && value in ANNOTATION_COLORS;
-}
-
 export type ScoreAnnotation = {
   id: string;
   pageIndex: number;
@@ -39,11 +17,33 @@ export type ScoreAnnotation = {
   color: AnnotationColor;
 };
 
-export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
-  fingering: 6,
-  string: 7,
-  position: 8.5,
-  note: 7.5,
+export type AnnotationUndoEntry =
+  | { type: 'place'; annotation: ScoreAnnotation }
+  | { type: 'remove'; annotation: ScoreAnnotation }
+  | {
+      type: 'move';
+      id: string;
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+    }
+  | { type: 'retitle'; id: string; from: string; to: string };
+
+export type AnnotationClipboard = Pick<
+  ScoreAnnotation,
+  'kind' | 'text' | 'color' | 'pageIndex' | 'x' | 'y'
+> | null;
+
+export const DEFAULT_COLOR: AnnotationColor = 'black';
+
+export const ANNOTATION_COLORS: Record<
+  AnnotationColor,
+  { label: string; css: string; rgb: readonly [number, number, number] }
+> = {
+  black: { label: 'Black', css: '#14141a', rgb: [0.08, 0.08, 0.1] },
+  blue: { label: 'Blue', css: '#1a33bf', rgb: [0.1, 0.2, 0.75] },
+  red: { label: 'Red', css: '#b31a1a', rgb: [0.7, 0.1, 0.1] },
+  green: { label: 'Green', css: '#0d7333', rgb: [0.05, 0.45, 0.2] },
+  purple: { label: 'Purple', css: '#7326b3', rgb: [0.45, 0.15, 0.7] },
 };
 
 export const ANNOTATION_VALUE_CHOICES: Partial<
@@ -53,15 +53,16 @@ export const ANNOTATION_VALUE_CHOICES: Partial<
   string: ['1', '2', '3', '4', '5', '6', '7', '8'],
 };
 
-export function annotationValueChoices(
-  kind: AnnotationKind,
-): readonly string[] {
-  return ANNOTATION_VALUE_CHOICES[kind] ?? [];
-}
+export const ANNOTATION_COLOR_ORDER = Object.keys(
+  ANNOTATION_COLORS,
+) as AnnotationColor[];
 
-export function hasAnnotationValueMenu(kind: AnnotationKind): boolean {
-  return annotationValueChoices(kind).length > 0;
-}
+export const DEFAULT_SIZE: Record<AnnotationKind, number> = {
+  fingering: 6,
+  string: 7,
+  position: 8.5,
+  note: 7.5,
+};
 
 /** Highest position a left hand reaches; past this the numeral is unreadable. */
 const MAX_POSITION = 20;
@@ -79,6 +80,20 @@ const ROMAN_UNITS = [
   'IX',
 ];
 const ROMAN_TENS = ['', 'X', 'XX'];
+
+export function isAnnotationColor(value: unknown): value is AnnotationColor {
+  return typeof value === 'string' && value in ANNOTATION_COLORS;
+}
+
+export function annotationValueChoices(
+  kind: AnnotationKind,
+): readonly string[] {
+  return ANNOTATION_VALUE_CHOICES[kind] ?? [];
+}
+
+export function hasAnnotationValueMenu(kind: AnnotationKind): boolean {
+  return annotationValueChoices(kind).length > 0;
+}
 
 export function toRomanNumeral(value: number): string | null {
   if (!Number.isInteger(value) || value < 1 || value > MAX_POSITION)

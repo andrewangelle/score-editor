@@ -25,3 +25,5 @@ export const SAVE_A_COPY = 'Save a copy';
 export const SAVE_COPY_AS = 'Save a copy as';
 export const SCORE_EDITOR = 'Score Editor';
 export const UNDO = 'Undo';
+export const UNDO_MARK = 'Undo mark';
+export const REDO_MARK = 'Redo mark';
