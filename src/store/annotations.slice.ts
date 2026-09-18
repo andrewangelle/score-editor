@@ -1,7 +1,9 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
+  type AnnotationClipboard,
   type AnnotationColor,
   type AnnotationKind,
+  type AnnotationUndoEntry,
   createAnnotation,
   DEFAULT_SIZE,
   normalizeAnnotationText,
@@ -14,12 +16,81 @@ import {
   documentRestored,
 } from '#/store/document.slice';
 
-/**
- * Fingerings and performance notes, anchored to the uploaded document. Only
- * committed values arrive: the overlay handles typing and dragging locally, so
- * the store sees the text on blur and the position on pointer-up.
- */
-const initialState: ScoreAnnotation[] = [];
+const MAX_UNDO = 3;
+
+type AnnotationsState = {
+  items: ScoreAnnotation[];
+  undoStack: AnnotationUndoEntry[];
+  redoStack: AnnotationUndoEntry[];
+  clipboard: AnnotationClipboard;
+  selectedId: string | null;
+};
+
+const initialState: AnnotationsState = {
+  items: [],
+  undoStack: [],
+  redoStack: [],
+  clipboard: null,
+  selectedId: null,
+};
+
+function pushUndo(state: AnnotationsState, entry: AnnotationUndoEntry) {
+  state.undoStack.push(entry);
+  if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+  state.redoStack = [];
+}
+
+function applyInverse(state: AnnotationsState, entry: AnnotationUndoEntry) {
+  switch (entry.type) {
+    case 'place': {
+      state.items = removeAnnotation(state.items, entry.annotation.id);
+      break;
+    }
+    case 'remove': {
+      state.items.push(entry.annotation);
+      break;
+    }
+    case 'move': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) {
+        annotation.x = entry.from.x;
+        annotation.y = entry.from.y;
+      }
+      break;
+    }
+    case 'retitle': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.text = entry.from;
+      break;
+    }
+  }
+}
+
+function applyForward(state: AnnotationsState, entry: AnnotationUndoEntry) {
+  switch (entry.type) {
+    case 'place': {
+      state.items.push(entry.annotation);
+      break;
+    }
+    case 'remove': {
+      state.items = removeAnnotation(state.items, entry.annotation.id);
+      break;
+    }
+    case 'move': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) {
+        annotation.x = entry.to.x;
+        annotation.y = entry.to.y;
+      }
+      break;
+    }
+    case 'retitle': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.text = entry.to;
+      break;
+    }
+  }
+}
 
 export const annotationsSlice = createSlice({
   name: 'annotations',
@@ -27,17 +98,15 @@ export const annotationsSlice = createSlice({
   reducers: {
     annotationPlaced: {
       reducer(state, action: PayloadAction<ScoreAnnotation>) {
-        state.push(action.payload);
+        pushUndo(state, { type: 'place', annotation: action.payload });
+        state.items.push(action.payload);
       },
-      // `createAnnotation` mints a random id, so it must not run in the
-      // reducer: replaying the same action would otherwise produce new state.
       prepare(input: {
         pageIndex: number;
         x: number;
         y: number;
         kind: AnnotationKind;
         color?: AnnotationColor;
-        /** Picked off the menu; omitted when the mark is about to be typed. */
         text?: string;
       }) {
         return {
@@ -57,17 +126,22 @@ export const annotationsSlice = createSlice({
       state,
       action: PayloadAction<{ id: string; text: string }>,
     ) {
-      const annotation = state.find(
+      const annotation = state.items.find(
         (candidate) => candidate.id === action.payload.id,
       );
-      // Normalizing on commit rather than per keystroke keeps a position
-      // readable as "1" while it is typed towards "12", and still guarantees
-      // only engravable values are stored.
       if (annotation) {
-        annotation.text = normalizeAnnotationText(
+        const oldText = annotation.text;
+        const newText = normalizeAnnotationText(
           annotation.kind,
           action.payload.text,
         );
+        pushUndo(state, {
+          type: 'retitle',
+          id: annotation.id,
+          from: oldText,
+          to: newText,
+        });
+        annotation.text = newText;
       }
     },
 
@@ -75,34 +149,114 @@ export const annotationsSlice = createSlice({
       state,
       action: PayloadAction<{ id: string; x: number; y: number }>,
     ) {
-      const annotation = state.find(
+      const annotation = state.items.find(
         (candidate) => candidate.id === action.payload.id,
       );
       if (annotation) {
+        pushUndo(state, {
+          type: 'move',
+          id: annotation.id,
+          from: { x: annotation.x, y: annotation.y },
+          to: { x: action.payload.x, y: action.payload.y },
+        });
         annotation.x = action.payload.x;
         annotation.y = action.payload.y;
       }
     },
 
     annotationRemoved(state, action: PayloadAction<string>) {
-      return removeAnnotation(state, action.payload);
+      const annotation = state.items.find(
+        (candidate) => candidate.id === action.payload,
+      );
+      if (annotation) {
+        pushUndo(state, {
+          type: 'remove',
+          annotation: { ...annotation },
+        });
+      }
+      state.items = removeAnnotation(state.items, action.payload);
+      if (state.selectedId === action.payload) state.selectedId = null;
+    },
+
+    annotationUndone(state) {
+      const entry = state.undoStack.pop();
+      if (!entry) return;
+      applyInverse(state, entry);
+      state.redoStack.push(entry);
+    },
+
+    annotationRedone(state) {
+      const entry = state.redoStack.pop();
+      if (!entry) return;
+      applyForward(state, entry);
+      state.undoStack.push(entry);
+      if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+    },
+
+    annotationCopied(state, action: PayloadAction<string>) {
+      const annotation = state.items.find(
+        (candidate) => candidate.id === action.payload,
+      );
+      if (annotation) {
+        state.clipboard = {
+          kind: annotation.kind,
+          text: annotation.text,
+          color: annotation.color,
+          pageIndex: annotation.pageIndex,
+          x: annotation.x,
+          y: annotation.y,
+        };
+      }
+    },
+
+    annotationPasted: {
+      reducer(state, action: PayloadAction<ScoreAnnotation>) {
+        pushUndo(state, { type: 'place', annotation: action.payload });
+        state.items.push(action.payload);
+      },
+      prepare(input: {
+        pageIndex: number;
+        x: number;
+        y: number;
+        kind: AnnotationKind;
+        color?: AnnotationColor;
+        text?: string;
+      }) {
+        return {
+          payload: createAnnotation(
+            input.pageIndex,
+            input.x,
+            input.y,
+            input.kind,
+            input.text ?? '',
+            input.color,
+          ),
+        };
+      },
+    },
+
+    annotationSelected(state, action: PayloadAction<string | null>) {
+      state.selectedId = action.payload;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(documentOpened, () => initialState)
       .addCase(documentClosed, () => initialState)
-      // Migrate any previous annotations to current default size
-      .addCase(documentRestored, (_state, action) =>
-        action.payload.annotations.map((annotation) => ({
+      .addCase(documentRestored, (state, action) => {
+        state.items = action.payload.annotations.map((annotation) => ({
           ...annotation,
           size: DEFAULT_SIZE[annotation.kind],
-        })),
-      );
+        }));
+      });
   },
   selectors: {
-    selectAnnotations: (state) => state,
-    selectAnnotationCount: (state) => state.length,
+    selectAnnotations: (state) => state.items,
+    selectAnnotationCount: (state) => state.items.length,
+    selectCanUndoAnnotation: (state) => state.undoStack.length > 0,
+    selectCanRedoAnnotation: (state) => state.redoStack.length > 0,
+    selectClipboard: (state) => state.clipboard,
+    selectSelectedAnnotationId: (state) => state.selectedId,
   },
 });
 
@@ -111,7 +265,18 @@ export const {
   annotationRetitled,
   annotationMoved,
   annotationRemoved,
+  annotationUndone,
+  annotationRedone,
+  annotationCopied,
+  annotationPasted,
+  annotationSelected,
 } = annotationsSlice.actions;
 
-export const { selectAnnotations, selectAnnotationCount } =
-  annotationsSlice.selectors;
+export const {
+  selectAnnotations,
+  selectAnnotationCount,
+  selectCanUndoAnnotation,
+  selectCanRedoAnnotation,
+  selectClipboard,
+  selectSelectedAnnotationId,
+} = annotationsSlice.selectors;

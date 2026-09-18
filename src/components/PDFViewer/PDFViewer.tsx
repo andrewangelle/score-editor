@@ -20,6 +20,7 @@ import {
 import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
 import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
 import { usePageWidth } from '#/hooks/usePageWidth';
+import { useScorePointerRef } from '#/hooks/useScorePointer';
 import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging';
 import type { TurnDirection } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging.utils';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
@@ -45,6 +46,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
   const selectedPage = useAppSelector(selectSelectedPage);
   const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
+  const pointerRef = useScorePointerRef();
 
   function turnPage(direction: TurnDirection) {
     const index = pages.findIndex((page) => page.id === selectedPage?.id);
@@ -106,6 +108,7 @@ export function PDFViewer({ bytes }: PdfViewerProps) {
                   scale={overlay.scale}
                   systems={overlay.sourcePage.systems}
                   parts={parts}
+                  pointerRef={pointerRef}
                 />
                 <RegionLayer
                   pageIndex={selectedPage.sourceIndex}

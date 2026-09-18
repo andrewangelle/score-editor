@@ -9,6 +9,7 @@ import {
   STAFF_HINT_CLASS,
   STAFF_LABEL_CLASS,
 } from '#/components/ScoreOverlay/ScoreOverlay.styles';
+import type { ScorePointerRef } from '#/hooks/useScorePointer';
 import {
   ANNOTATION_COLORS,
   type AnnotationKind,
@@ -23,7 +24,9 @@ import {
   annotationPlaced,
   annotationRemoved,
   annotationRetitled,
+  annotationSelected,
   selectAnnotations,
+  selectSelectedAnnotationId,
 } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
@@ -33,21 +36,13 @@ import {
   selectPlacing,
 } from '#/store/tool.slice';
 
-/**
- * The interactive layer on top of a rendered page. It owns the single conversion
- * between PDF user space and CSS pixels; everything else in the score feature
- * works purely in PDF space.
- *
- * Typing and dragging stay local until they finish — the store hears the text on
- * blur and the position on pointer-up.
- */
-
 type ScoreOverlayProps = {
   pageIndex: number;
   pageHeight: number;
   scale: number;
   systems: readonly System[];
   parts: readonly Part[];
+  pointerRef: ScorePointerRef;
 };
 
 type Drag = { id: string; x: number; y: number };
@@ -61,18 +56,22 @@ const PLACEHOLDER: Record<AnnotationKind, string> = {
   note: 'Performance note',
 };
 
+const DRAG_THRESHOLD = 3;
+
 export function ScoreOverlay({
   pageIndex,
   pageHeight,
   scale,
   systems,
   parts,
+  pointerRef,
 }: ScoreOverlayProps) {
   const dispatch = useAppDispatch();
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
   const color = useAppSelector(selectAnnotationColor);
   const value = useAppSelector(selectAnnotationValue);
+  const selectedId = useAppSelector(selectSelectedAnnotationId);
   const interactive = !useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
   const surfaceBox = useRef<DOMRect | null>(null);
@@ -80,20 +79,27 @@ export function ScoreOverlay({
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const [cursor, setCursor] = useState<Cursor | null>(null);
-  const carrying = placing && value ? { kind: placing, text: value } : null;
+  const pendingDrag = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
-  const toPdf = (clientX: number, clientY: number) => {
-    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
-    if (!box) return null;
-    return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
-  };
+  const carrying = placing && value ? { kind: placing, text: value } : null;
 
   const pageAnnotations = annotations.filter(
     (annotation) => annotation.pageIndex === pageIndex,
   );
 
+  function toPdf(clientX: number, clientY: number) {
+    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
+    if (!box) return null;
+    return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
+  }
+
   function commitDraft(id: string, kind: AnnotationKind) {
-    // Leaving a note blank removes it. Judged after normalizing.
     if (normalizeAnnotationText(kind, draft)) {
       dispatch(annotationRetitled({ id, text: draft }));
     } else {
@@ -119,8 +125,28 @@ export function ScoreOverlay({
       ref={surface}
       className={getSurfaceStyles(interactive, Boolean(placing))}
       onPointerMove={(event) => {
+        // Update shared pointer tracking for paste position
+        const point = toPdf(event.clientX, event.clientY);
+        if (point) {
+          pointerRef.current = { pageIndex, x: point.x, y: point.y };
+        }
+
+        // Promote pending drag if threshold exceeded
+        if (pendingDrag.current && !drag) {
+          const dx = event.clientX - pendingDrag.current.startX;
+          const dy = event.clientY - pendingDrag.current.startY;
+          if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+            setDrag({
+              id: pendingDrag.current.id,
+              x: pendingDrag.current.x,
+              y: pendingDrag.current.y,
+            });
+            pendingDrag.current = null;
+          }
+          return;
+        }
+
         if (drag) {
-          const point = toPdf(event.clientX, event.clientY);
           if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
           return;
         }
@@ -128,9 +154,21 @@ export function ScoreOverlay({
           setCursor({ clientX: event.clientX, clientY: event.clientY });
         }
       }}
-      onPointerLeave={() => setCursor(null)}
+      onPointerLeave={() => {
+        pointerRef.current = null;
+        setCursor(null);
+      }}
       onPointerUp={(event) => {
-        // A note being dragged also releases here; that is not a placement.
+        // A pending drag that never exceeded the threshold is a tap → select.
+        if (pendingDrag.current) {
+          const tappedId = pendingDrag.current.id;
+          pendingDrag.current = null;
+          dispatch(
+            annotationSelected(selectedId === tappedId ? null : tappedId),
+          );
+          return;
+        }
+
         if (drag) {
           endDrag();
           return;
@@ -138,6 +176,10 @@ export function ScoreOverlay({
         if (!placing || event.target !== event.currentTarget) return;
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
+
+        // Deselect when placing new annotations
+        if (selectedId) dispatch(annotationSelected(null));
+
         const placed = dispatch(
           annotationPlaced({
             pageIndex,
@@ -148,15 +190,13 @@ export function ScoreOverlay({
             text: carrying?.text,
           }),
         );
-        // A value off the menu arrives finished, and the tool stays loaded with
-        // it — the next click puts down another. Only a blank one opens an
-        // editor, which needs the id just minted.
         if (carrying) return;
         setEditing(placed.payload.id);
         setDraft('');
       }}
       onPointerCancel={() => {
         surfaceBox.current = null;
+        pendingDrag.current = null;
         setDrag(null);
         setCursor(null);
       }}
@@ -189,6 +229,7 @@ export function ScoreOverlay({
         const screen = toScreenPoint(anchor, pageHeight, scale);
         const fontSize = Math.max(7, annotation.size * scale);
         const circled = annotation.kind === 'string';
+        const isSelected = annotation.id === selectedId;
         const ink = (
           ANNOTATION_COLORS[annotation.color] ??
           ANNOTATION_COLORS[DEFAULT_COLOR]
@@ -222,18 +263,24 @@ export function ScoreOverlay({
                   event.stopPropagation();
                   surfaceBox.current =
                     surface.current?.getBoundingClientRect() ?? null;
-                  setDrag({
+                  pendingDrag.current = {
                     id: annotation.id,
+                    startX: event.clientX,
+                    startY: event.clientY,
                     x: annotation.x,
                     y: annotation.y,
-                  });
+                  };
                 }}
                 onDoubleClick={() => {
                   setEditing(annotation.id);
                   setDraft(annotation.text);
                 }}
-                title="Double-click to edit, drag to move"
-                className={getAnnotationStyles(circled)}
+                title={
+                  isSelected
+                    ? 'Cmd/Ctrl+C to copy · Double-click to edit'
+                    : 'Tap to select · Double-click to edit · Drag to move'
+                }
+                className={getAnnotationStyles(circled, isSelected)}
                 style={
                   circled
                     ? {

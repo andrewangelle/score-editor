@@ -1,6 +1,6 @@
 # Plan: annotation copy/paste and undo/redo
 
-Status: **planned — audited with corrections.**
+Status: **completed**
 
 ## Goal
 
