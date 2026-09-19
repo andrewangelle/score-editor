@@ -5,7 +5,6 @@ import {
   type AnnotationKind,
   type AnnotationUndoEntry,
   createAnnotation,
-  DEFAULT_SIZE,
   normalizeAnnotationText,
   removeAnnotation,
   type ScoreAnnotation,
@@ -55,7 +54,8 @@ function annotationsUnchanged(
       item.y === b[i].y &&
       item.text === b[i].text &&
       item.kind === b[i].kind &&
-      item.color === b[i].color,
+      item.color === b[i].color &&
+      item.size === b[i].size,
   );
 }
 
@@ -88,6 +88,11 @@ function applyInverse(state: AnnotationsState, entry: AnnotationUndoEntry) {
       if (annotation) annotation.text = entry.from;
       break;
     }
+    case 'resize': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.size = entry.from;
+      break;
+    }
   }
 }
 
@@ -114,6 +119,11 @@ function applyForward(state: AnnotationsState, entry: AnnotationUndoEntry) {
       if (annotation) annotation.text = entry.to;
       break;
     }
+    case 'resize': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.size = entry.to;
+      break;
+    }
   }
 }
 
@@ -134,6 +144,7 @@ export const annotationsSlice = createSlice({
         kind: AnnotationKind;
         color?: AnnotationColor;
         text?: string;
+        size?: number;
       }) {
         return {
           payload: createAnnotation(
@@ -143,6 +154,7 @@ export const annotationsSlice = createSlice({
             input.kind,
             input.text ?? '',
             input.color,
+            input.size,
           ),
         };
       },
@@ -192,6 +204,25 @@ export const annotationsSlice = createSlice({
       }
     },
 
+    annotationResized(
+      state,
+      action: PayloadAction<{ id: string; size: number }>,
+    ) {
+      const annotation = state.items.find(
+        (candidate) => candidate.id === action.payload.id,
+      );
+      if (annotation) {
+        pushUndo(state, {
+          type: 'resize',
+          id: annotation.id,
+          from: annotation.size,
+          to: action.payload.size,
+        });
+        annotation.size = action.payload.size;
+        state.revision += 1;
+      }
+    },
+
     annotationRemoved(state, action: PayloadAction<string>) {
       const annotation = state.items.find(
         (candidate) => candidate.id === action.payload,
@@ -236,6 +267,7 @@ export const annotationsSlice = createSlice({
           pageIndex: annotation.pageIndex,
           x: annotation.x,
           y: annotation.y,
+          size: annotation.size,
         };
       }
     },
@@ -253,6 +285,7 @@ export const annotationsSlice = createSlice({
         kind: AnnotationKind;
         color?: AnnotationColor;
         text?: string;
+        size?: number;
       }) {
         return {
           payload: createAnnotation(
@@ -262,6 +295,7 @@ export const annotationsSlice = createSlice({
             input.kind,
             input.text ?? '',
             input.color,
+            input.size,
           ),
         };
       },
@@ -281,7 +315,6 @@ export const annotationsSlice = createSlice({
       .addCase(documentRestored, (state, action) => {
         const restored = action.payload.annotations.map((annotation) => ({
           ...annotation,
-          size: DEFAULT_SIZE[annotation.kind],
         }));
         state.items = restored;
         state.original = restored;
@@ -305,6 +338,7 @@ export const {
   annotationPlaced,
   annotationRetitled,
   annotationMoved,
+  annotationResized,
   annotationRemoved,
   annotationUndone,
   annotationRedone,

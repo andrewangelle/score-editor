@@ -71,8 +71,9 @@ export function cursorMarkInk(
   kind: AnnotationKind,
   color: AnnotationColor,
   scale: number,
+  size: number = DEFAULT_SIZE[kind],
 ) {
-  const fontSize = Math.max(7, DEFAULT_SIZE[kind] * scale);
+  const fontSize = Math.max(3, size * scale);
   const css = (ANNOTATION_COLORS[color] ?? ANNOTATION_COLORS[DEFAULT_COLOR])
     .css;
 

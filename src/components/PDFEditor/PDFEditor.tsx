@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { AnnotationValueMenu } from '#/components/AnnotationValueMenu/AnnotationValueMenu';
 import { EditScorePanel } from '#/components/EditScorePanel/EditScorePanel';
 import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
+import { FontSizeSelect } from '#/components/PDFEditor/FontSizeSelect/FontSizeSelect';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
 import {
   EDITOR_DESCRIPTION,
@@ -61,10 +62,12 @@ import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
 import {
   annotationRedone,
+  annotationResized,
   annotationUndone,
   selectAnnotations,
   selectCanRedoAnnotation,
   selectCanUndoAnnotation,
+  selectSelectedAnnotationId,
 } from '#/store/annotations.slice';
 import {
   documentClosed,
@@ -96,7 +99,13 @@ import {
   selectEditorState,
   selectHasUnsavedChanges,
   selectRegions,
+  selectSelectedAnnotationSize,
 } from '#/store/selectors';
+import {
+  annotationFontSizePicked,
+  selectAnnotationFontSize,
+  selectPlacing,
+} from '#/store/tool.slice';
 
 // react-pdf reaches for browser globals at import time, so it must never be
 // evaluated during SSR — hence a dynamic import behind ClientOnly.
@@ -125,6 +134,10 @@ export function PDFEditor() {
   const annotations = useAppSelector(selectAnnotations);
   const canUndoAnnotation = useAppSelector(selectCanUndoAnnotation);
   const canRedoAnnotation = useAppSelector(selectCanRedoAnnotation);
+  const placing = useAppSelector(selectPlacing);
+  const fontSize = useAppSelector(selectAnnotationFontSize);
+  const selectedAnnotationId = useAppSelector(selectSelectedAnnotationId);
+  const selectedAnnotationSize = useAppSelector(selectSelectedAnnotationSize);
   const editorState: EditorState = useAppSelector(selectEditorState);
   const scorePointerRef = useCreateScorePointerRef();
   const bytes = documentBytes(documentId);
@@ -297,6 +310,13 @@ export function PDFEditor() {
     });
   }
 
+  function handleFontSizePicked(size: number) {
+    dispatch(annotationFontSizePicked(size));
+    if (selectedAnnotationId) {
+      dispatch(annotationResized({ id: selectedAnnotationId, size }));
+    }
+  }
+
   function handleClose() {
     dispatch(documentClosed());
     releaseDocumentBytes();
@@ -336,6 +356,12 @@ export function PDFEditor() {
             {unsaved ? ' · unsaved changes' : ''}
           </p>
         </div>
+
+        <FontSizeSelect
+          value={selectedAnnotationSize ?? fontSize}
+          onChange={handleFontSizePicked}
+          disabled={placing === null && !selectedAnnotationId}
+        />
 
         <ToolbarButton
           data-testid="ToolbarButton-UNDO"

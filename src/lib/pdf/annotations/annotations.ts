@@ -26,11 +26,12 @@ export type AnnotationUndoEntry =
       from: { x: number; y: number };
       to: { x: number; y: number };
     }
-  | { type: 'retitle'; id: string; from: string; to: string };
+  | { type: 'retitle'; id: string; from: string; to: string }
+  | { type: 'resize'; id: string; from: number; to: number };
 
 export type AnnotationClipboard = Pick<
   ScoreAnnotation,
-  'kind' | 'text' | 'color' | 'pageIndex' | 'x' | 'y'
+  'kind' | 'text' | 'color' | 'pageIndex' | 'x' | 'y' | 'size'
 > | null;
 
 export const DEFAULT_COLOR: AnnotationColor = 'black';
@@ -126,6 +127,7 @@ export function createAnnotation(
   kind: AnnotationKind,
   text = '',
   color: AnnotationColor = DEFAULT_COLOR,
+  size?: number,
 ): ScoreAnnotation {
   return {
     id: `note-${crypto.randomUUID()}`,
@@ -133,7 +135,7 @@ export function createAnnotation(
     x,
     y,
     text: normalizeAnnotationText(kind, text),
-    size: DEFAULT_SIZE[kind],
+    size: size ?? DEFAULT_SIZE[kind],
     kind,
     color,
   };

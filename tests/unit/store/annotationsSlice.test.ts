@@ -276,6 +276,7 @@ describe('clipboard', () => {
       pageIndex: 0,
       x: 100,
       y: 400,
+      size: DEFAULT_SIZE.note,
     });
   });
 
