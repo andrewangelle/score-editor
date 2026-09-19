@@ -77,7 +77,7 @@ export class AppPage {
 
   async waitForAnalysis() {
     await expect(
-      this.page.getByText(/\d+ staves · \d+ systems detected/),
+      this.page.getByText(/\d+ staves · \d+ sections detected/),
     ).toBeVisible({ timeout: 15_000 });
   }
 

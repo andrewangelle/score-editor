@@ -325,7 +325,7 @@ export function PDFEditor() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col" data-testid="PDFEditor">
       <header className={HEADER_CLASS}>
         <div className="mr-auto min-w-0">
           <h1 className="truncate font-semibold text-slate-900" title={name}>
@@ -337,45 +337,56 @@ export function PDFEditor() {
           </p>
         </div>
 
-        <ToolbarButton onClick={() => dispatch(undone())} disabled={!canUndo}>
+        <ToolbarButton
+          data-testid="ToolbarButton-UNDO"
+          disabled={!canUndo}
+          onClick={() => dispatch(undone())}
+        >
           {UNDO}
         </ToolbarButton>
 
         <ToolbarButton
-          onClick={() => dispatch(annotationUndone())}
-          disabled={!canUndoAnnotation}
+          data-testid="ToolbarButton-UNDO_MARK"
           title="Undo last annotation edit (Cmd/Ctrl+Z)"
+          disabled={!canUndoAnnotation}
+          onClick={() => dispatch(annotationUndone())}
         >
           {UNDO_MARK}
         </ToolbarButton>
 
         <ToolbarButton
-          onClick={() => dispatch(annotationRedone())}
-          disabled={!canRedoAnnotation}
+          data-testid="ToolbarButton-REDO_MARK"
           title="Redo last annotation edit (Cmd/Ctrl+Shift+Z)"
+          disabled={!canRedoAnnotation}
+          onClick={() => dispatch(annotationRedone())}
         >
           {REDO_MARK}
         </ToolbarButton>
 
         <ToolbarButton
-          onClick={() => dispatch(documentReset())}
+          data-testid="ToolbarButton-RESET"
           disabled={!dirty}
+          onClick={() => dispatch(documentReset())}
         >
           {RESET}
         </ToolbarButton>
 
-        <ToolbarButton onClick={handleClose}>Close</ToolbarButton>
+        <ToolbarButton data-testid="ToolbarButton-CLOSE" onClick={handleClose}>
+          Close
+        </ToolbarButton>
 
         {fileHandle && (
           <ToolbarButton
-            onClick={() => setNamingCopy(true)}
+            data-testid="ToolbarButton-SAVE_A_COPY"
             disabled={isBusy || isNamingCopy}
+            onClick={() => setNamingCopy(true)}
           >
             {SAVE_A_COPY}
           </ToolbarButton>
         )}
 
         <button
+          data-testid="SaveButton"
           type="button"
           onClick={fileHandle ? handleSaveToFile : () => setNamingCopy(true)}
           disabled={isBusy || !unsaved || (!fileHandle && isNamingCopy)}

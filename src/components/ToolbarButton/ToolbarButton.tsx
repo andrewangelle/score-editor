@@ -1,6 +1,7 @@
 import { TOOLBAR_BUTTON_CLASS } from '#/components/ToolbarButton/ToolbarButton.styles';
 
 type ToolbarButtonProps = {
+  'data-testid'?: string;
   onClick: () => void;
   disabled?: boolean;
   title?: string;
@@ -12,9 +13,11 @@ export function ToolbarButton({
   disabled = false,
   title,
   children,
+  ...props
 }: ToolbarButtonProps) {
   return (
     <button
+      data-testid={props['data-testid'] ?? ''}
       type="button"
       onClick={onClick}
       disabled={disabled}
