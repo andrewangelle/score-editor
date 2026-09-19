@@ -77,7 +77,7 @@ export function ScorePartsPanel({
     <aside className={PANEL_CLASS}>
       <section>
         <div className={PARTS_HEADING_ROW_CLASS}>
-          <h2 className="font-semibold text-slate-900 text-sm">Parts</h2>
+          <h2 className="font-semibold text-slate-900 text-sm">Instruments</h2>
           <button
             type="button"
             onClick={() => dispatch(allPartsToggled())}
@@ -89,7 +89,7 @@ export function ScorePartsPanel({
         </div>
 
         <p className="mt-0.5 text-slate-500 text-xs">
-          {parts.length} staves · {systems} systems detected
+          {parts.length} staves · {systems} sections detected
         </p>
 
         {isManual && <ManualInfo />}
@@ -233,10 +233,10 @@ export function ScorePartsPanel({
       </section>
 
       <section className="border-slate-200 border-t pt-4">
-        <h2 className="font-semibold text-slate-900 text-sm">Notes</h2>
+        <h2 className="font-semibold text-slate-900 text-sm">Annotations</h2>
         <p className="mt-0.5 text-slate-500 text-xs">
-          Click the page to place. Notes stay anchored to the music, so they
-          follow into every part you extract.
+          Click the page to place. Annotations stay anchored to the music, so
+          they follow into every part you extract.
         </p>
 
         <div className={PLACE_BUTTON_GRID_CLASS}>
