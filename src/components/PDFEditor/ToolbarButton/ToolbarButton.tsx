@@ -1,4 +1,4 @@
-import { TOOLBAR_BUTTON_CLASS } from '#/components/ToolbarButton/ToolbarButton.styles';
+import { TOOLBAR_BUTTON_CLASS } from '#/components/PDFEditor/ToolbarButton/ToolbarButton.styles';
 
 type ToolbarButtonProps = {
   'data-testid'?: string;

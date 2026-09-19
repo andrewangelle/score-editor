@@ -1,4 +1,4 @@
-import { getPlaceButtonStyles } from '#/components/ScorePartsPanel/PlaceButton/PlaceButton.styles';
+import { getPlaceButtonStyles } from '#/components/EditScorePanel/PlaceButton/PlaceButton.styles';
 
 type PlaceButtonProps = {
   active: boolean;

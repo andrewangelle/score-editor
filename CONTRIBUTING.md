@@ -37,7 +37,7 @@ src/
   components/
     PDFEditor/         toolbar, save/extract orchestration, error and status banners
     PDFDropzone/       file input, drag and drop, File System Access handles
-    ScorePartsPanel/   part list, region and marking tools, extraction controls
+    EditScorePanel/   part list, region and marking tools, extraction controls
     PDFViewer/      page rendering
     PDFPageStrip/   page thumbnails: rotate, reorder, delete
     RegionLayer/    drawing and editing extraction rectangles
