@@ -1,7 +1,7 @@
 import {
   COLOR_PICKER_FIELDSET_CLASS,
   getSwatchStyles,
-} from '#/components/ScorePartsPanel/ColorPicker/ColorPicker.styles';
+} from '#/components/EditScorePanel/ColorPicker/ColorPicker.styles';
 import {
   ANNOTATION_COLOR_ORDER,
   ANNOTATION_COLORS,

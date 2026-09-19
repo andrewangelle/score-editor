@@ -6,7 +6,7 @@ import {
   PAGE_LABEL_CLASS,
   PAGE_LIST_CLASS,
 } from '#/components/PDFPageStrip/PDFPageStrip.styles';
-import { StripButton } from '#/components/StripButton/StripButton';
+import { StripButton } from '#/components/PDFPageStrip/StripButton/StripButton';
 import {
   pageDeleted,
   pageMoved,

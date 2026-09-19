@@ -1,4 +1,4 @@
-import { getStripButtonStyles } from '#/components/StripButton/StripButton.styles';
+import { getStripButtonStyles } from '#/components/PDFPageStrip/StripButton/StripButton.styles';
 
 type StripButtonProps = {
   label: string;

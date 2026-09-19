@@ -1,6 +1,7 @@
 import { ClientOnly } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
 import { AnnotationValueMenu } from '#/components/AnnotationValueMenu/AnnotationValueMenu';
+import { EditScorePanel } from '#/components/EditScorePanel/EditScorePanel';
 import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
 import { LoadingViewer } from '#/components/PDFEditor/LoadingViewer';
 import {
@@ -35,8 +36,7 @@ import {
   getSaveError,
 } from '#/components/PDFEditor/PDFEditor.utils';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
-import { ScorePartsPanel } from '#/components/ScorePartsPanel/ScorePartsPanel';
-import { ToolbarButton } from '#/components/ToolbarButton/ToolbarButton';
+import { ToolbarButton } from '#/components/PDFEditor/ToolbarButton/ToolbarButton';
 import { useAnnotationKeyboard } from '#/hooks/useAnnotationKeyboard';
 import {
   ScorePointerProvider,
@@ -448,7 +448,7 @@ export function PDFEditor() {
         </ScorePointerProvider>
 
         {analysis && !analysisNote && (
-          <ScorePartsPanel
+          <EditScorePanel
             onExtract={handleExtract}
             replaceTarget={
               fileHandle
