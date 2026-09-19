@@ -57,6 +57,37 @@ src/
 tests/                 unit tests for lib/ and store/
 ```
 
+## Visual regression tests
+
+The `visual` Playwright project is the only one that takes screenshots. Every
+other project skips them, because the assertions are guarded:
+
+```ts
+if (test.info().project.name === 'visual') {
+  await expect(page).toHaveScreenshot('edited-regions-before.png');
+}
+```
+
+Baselines live in `tests/e2e/__screenshots__/visual/` and are **generated in CI
+only**, inside the `mcr.microsoft.com/playwright:*-noble` container. Don't
+commit one produced on your own machine: local fonts, GPU and device pixel ratio
+differ from the container, so the file fails on its first CI run and the diff is
+unreadable. `pnpm test:visual:update` exists for inspecting a render locally —
+leave what it writes out of the commit.
+
+To add coverage, add the guarded assertion and nothing else. Its first `visual`
+run is *expected* to fail with "snapshot doesn't exist". Then get CI to produce
+the baseline, either by
+
+- labelling the PR `update-snapshots` — the `update-visual-baselines` job
+  regenerates the baselines, commits them to the PR branch and drops the label,
+  or
+- running the CI workflow by hand (`workflow_dispatch`) with
+  `update_snapshots: true`.
+
+The same two routes are how you accept an intentional UI change that makes an
+existing baseline fail.
+
 ## Browser support
 
 Chromium gets the File System Access API, and with it saving over the original

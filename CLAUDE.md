@@ -60,3 +60,47 @@ When working on Redux Toolkit state management, adopting Redux in a codebase
 using useState/Context, or handling RTK Query / side effects, read and follow
 the Redux Toolkit skills shipped in the installed package:
 - node_modules/@reduxjs/toolkit/skills/*/*/SKILL.md
+
+# Visual regression tests
+
+Never generate or update screenshot baselines locally. Do not run
+`pnpm test:visual:update`, `playwright test --update-snapshots`, or any variant
+of it, and never write a PNG into `tests/e2e/__screenshots__/` by hand. A
+baseline captured on this machine encodes the local font stack, GPU and device
+pixel ratio; CI renders in the
+`mcr.microsoft.com/playwright:*-noble` container, so a locally generated file
+fails on its first CI run and the diff is unreviewable. Committed baselines only
+ever come from that container.
+
+What a task may add is the assertion. Guard it on the `visual` project so it is
+inert in the functional runs, which sweep several browsers and viewports:
+
+```ts
+if (test.info().project.name === 'visual') {
+  await expect(page).toHaveScreenshot('edited-regions-before.png');
+}
+```
+
+Add it at the point in the test where the state is already asserted
+functionally — the screenshot is a second opinion on an assertion that stands on
+its own, not the only check. Name the file after the test and the state
+(`edited-regions-before.png`, `annotations-after-reopen.png`). Existing examples
+are in `tests/e2e/edited-regions.spec.ts` and `annotations.spec.ts`.
+
+Then stop. The assertion is the deliverable; leave the baseline missing.
+Baselines are produced by a separate CI workflow that commits them back to the
+branch, in one of two ways:
+
+- Put the `update-snapshots` label on the PR. The `update-visual-baselines` job
+  regenerates every baseline, commits to the PR branch and removes the label.
+- Run the CI workflow manually (`workflow_dispatch`) with
+  `update_snapshots: true`.
+
+So a new assertion is expected to fail its first `visual` run with "snapshot
+doesn't exist" — that is the flow working, not a regression to fix. Say in the
+report that the baseline still needs to be generated in CI, and which of the two
+routes the author should take.
+
+Running `pnpm test:visual` locally to *compare* against existing baselines is
+also not useful: the same rendering differences make it fail on unchanged UI.
+Leave visual verification to CI.
