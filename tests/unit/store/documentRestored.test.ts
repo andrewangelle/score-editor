@@ -1,7 +1,4 @@
-import {
-  createAnnotation,
-  DEFAULT_SIZE,
-} from '#/lib/pdf/annotations/annotations';
+import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import type { EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
@@ -73,18 +70,17 @@ describe('what lands immediately', () => {
     expect(state.regions.manual).toBeNull();
   });
 
-  it('re-engraves marks written under an older default size', () => {
-    // Size is inherited from whatever the default was on the day the mark was
-    // placed, never chosen, so a score marked up under the old sizes should
-    // come back looking like one marked up now.
+  it('keeps the size a mark was saved with, even under an older default', () => {
+    // Size is now a user choice, not an inherited default, so a mark saved
+    // under an older default size must come back exactly as it was saved.
     const stale = { ...MARK, size: 9.5 };
 
     expect(restored(STATE, [stale]).getState().annotations.items).toEqual([
-      { ...stale, size: DEFAULT_SIZE.string },
+      stale,
     ]);
   });
 
-  it('leaves everything but the size of a stale mark alone', () => {
+  it('leaves the rest of a restored mark alone', () => {
     const stale = { ...MARK, size: 9.5 };
     const [migrated] = restored(STATE, [stale]).getState().annotations.items;
 

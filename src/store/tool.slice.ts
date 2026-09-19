@@ -25,12 +25,15 @@ type ToolState = {
    * is the only way positions and performance notes are ever written.
    */
   value: string | null;
+  /** The font size the next placed mark carries. Null means the kind default. */
+  fontSize: number | null;
 };
 
 const initialState: ToolState = {
   active: null,
   color: DEFAULT_COLOR,
   value: null,
+  fontSize: null,
 };
 
 export const toolSlice = createSlice({
@@ -53,11 +56,17 @@ export const toolSlice = createSlice({
     annotationValuePicked(state, action: PayloadAction<string>) {
       state.value = state.value === action.payload ? null : action.payload;
     },
+
+    /** Picks the font size the next placed mark, and future pick, will carry. */
+    annotationFontSizePicked(state, action: PayloadAction<number>) {
+      state.fontSize = action.payload;
+    },
   },
   extraReducers: (builder) => {
     const closeDocument = (state: ToolState): ToolState => ({
       ...initialState,
       color: state.color,
+      fontSize: state.fontSize,
     });
 
     builder
@@ -73,15 +82,21 @@ export const toolSlice = createSlice({
     /** The menu value the next mark carries, if one is picked. */
     selectAnnotationValue: (state): string | null =>
       state.active === 'regions' ? null : state.value,
+    selectAnnotationFontSize: (state) => state.fontSize,
   },
 });
 
-export const { toolToggled, annotationColorPicked, annotationValuePicked } =
-  toolSlice.actions;
+export const {
+  toolToggled,
+  annotationColorPicked,
+  annotationValuePicked,
+  annotationFontSizePicked,
+} = toolSlice.actions;
 
 export const {
   selectIsEditingRegions,
   selectPlacing,
   selectAnnotationColor,
   selectAnnotationValue,
+  selectAnnotationFontSize,
 } = toolSlice.selectors;

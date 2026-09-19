@@ -2,7 +2,11 @@ import { createSelector } from '@reduxjs/toolkit';
 import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
-import { selectHasUnsavedAnnotations } from '#/store/annotations.slice';
+import {
+  selectAnnotations,
+  selectHasUnsavedAnnotations,
+  selectSelectedAnnotationId,
+} from '#/store/annotations.slice';
 import {
   selectHasUnsavedChanges as selectHasUnsavedDocument,
   selectPages,
@@ -87,6 +91,14 @@ export const selectAnnotationValueMenu = createSelector(
       value,
       kind,
     };
+  },
+);
+
+export const selectSelectedAnnotationSize = createSelector(
+  [selectAnnotations, selectSelectedAnnotationId],
+  (items, id) => {
+    if (!id) return null;
+    return items.find((a) => a.id === id)?.size ?? null;
   },
 );
 

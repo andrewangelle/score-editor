@@ -14,6 +14,7 @@ import {
   ANNOTATION_COLORS,
   type AnnotationKind,
   DEFAULT_COLOR,
+  DEFAULT_SIZE,
   normalizeAnnotationText,
 } from '#/lib/pdf/annotations/annotations';
 import { toPdfPoint, toScreenPoint } from '#/lib/pdf/pageCoordinates';
@@ -31,6 +32,7 @@ import {
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   selectAnnotationColor,
+  selectAnnotationFontSize,
   selectAnnotationValue,
   selectIsEditingRegions,
   selectPlacing,
@@ -71,6 +73,7 @@ export function ScoreOverlay({
   const placing = useAppSelector(selectPlacing);
   const color = useAppSelector(selectAnnotationColor);
   const value = useAppSelector(selectAnnotationValue);
+  const fontSize = useAppSelector(selectAnnotationFontSize);
   const selectedId = useAppSelector(selectSelectedAnnotationId);
   const interactive = !useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
@@ -163,6 +166,10 @@ export function ScoreOverlay({
         if (pendingDrag.current) {
           const tappedId = pendingDrag.current.id;
           pendingDrag.current = null;
+          // A tap never promotes to a drag, so endDrag() never runs to clear
+          // this — left stale, it would poison every later toPdf() call with
+          // the bounding rect captured at tap time.
+          surfaceBox.current = null;
           dispatch(
             annotationSelected(selectedId === tappedId ? null : tappedId),
           );
@@ -173,7 +180,14 @@ export function ScoreOverlay({
           endDrag();
           return;
         }
-        if (!placing || event.target !== event.currentTarget) return;
+        if (event.target !== event.currentTarget) return;
+
+        if (!placing) {
+          // A tap on bare page surface, with no tool active, clears selection.
+          if (selectedId) dispatch(annotationSelected(null));
+          return;
+        }
+
         const point = toPdf(event.clientX, event.clientY);
         if (!point) return;
 
@@ -188,6 +202,7 @@ export function ScoreOverlay({
             kind: placing,
             color,
             text: carrying?.text,
+            size: fontSize ?? DEFAULT_SIZE[placing],
           }),
         );
         if (carrying) return;
@@ -227,7 +242,7 @@ export function ScoreOverlay({
       {pageAnnotations.map((annotation) => {
         const anchor = drag?.id === annotation.id ? drag : annotation;
         const screen = toScreenPoint(anchor, pageHeight, scale);
-        const fontSize = Math.max(7, annotation.size * scale);
+        const markFontSize = Math.max(3, annotation.size * scale);
         const circled = annotation.kind === 'string';
         const isSelected = annotation.id === selectedId;
         const ink = (
@@ -284,13 +299,13 @@ export function ScoreOverlay({
                 style={
                   circled
                     ? {
-                        fontSize,
+                        fontSize: markFontSize,
                         color: ink,
                         borderColor: ink,
-                        width: fontSize * 1.8,
-                        height: fontSize * 1.8,
+                        width: markFontSize * 1.8,
+                        height: markFontSize * 1.8,
                       }
-                    : { fontSize, color: ink }
+                    : { fontSize: markFontSize, color: ink }
                 }
               >
                 {annotation.text || '…'}
@@ -307,7 +322,12 @@ export function ScoreOverlay({
           style={{
             left: cursor.clientX,
             top: cursor.clientY,
-            ...cursorMarkInk(carrying.kind, color, scale),
+            ...cursorMarkInk(
+              carrying.kind,
+              color,
+              scale,
+              fontSize ?? DEFAULT_SIZE[carrying.kind],
+            ),
           }}
         >
           {carrying.text}

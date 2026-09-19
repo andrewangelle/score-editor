@@ -80,6 +80,7 @@ describe('choosing the ink', () => {
       active: 'note',
       color: 'green',
       value: null,
+      fontSize: null,
     });
   });
 });

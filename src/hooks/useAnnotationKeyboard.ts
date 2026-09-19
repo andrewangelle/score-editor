@@ -54,6 +54,7 @@ export function useAnnotationKeyboard(pointerRef: ScorePointerRef) {
               kind: clipboard.kind,
               color: clipboard.color,
               text: clipboard.text,
+              size: clipboard.size,
             }),
           );
         } else {
@@ -65,6 +66,7 @@ export function useAnnotationKeyboard(pointerRef: ScorePointerRef) {
               kind: clipboard.kind,
               color: clipboard.color,
               text: clipboard.text,
+              size: clipboard.size,
             }),
           );
         }
