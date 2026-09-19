@@ -14,7 +14,7 @@ fingerings, string numbers, left-hand positions and performance notes.
 export const LOADING_STAVES = 'Looking for staves...';
 export const LOADING_VIEWER = 'Loading viewer…';
 export const OVERWRITE = 'Overwrite';
-export const PARTS = 'Parts';
+export const PARTS = 'Instruments';
 export const READING_PDF = 'Reading PDF…';
 export const RESET = 'Reset';
 export const SAVE = 'Save';
