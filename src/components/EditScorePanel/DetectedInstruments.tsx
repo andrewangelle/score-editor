@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CollapsibleSection } from '#/components/EditScorePanel/CollapsibleSection';
 import type { EditScorePanelProps } from '#/components/EditScorePanel/EditScorePanel';
 import {
   CANCEL,
@@ -17,7 +18,6 @@ import {
   MARKINGS_LABEL_CLASS,
   PART_CHECKBOX_CLASS,
   PART_NAME_INPUT_CLASS,
-  PARTS_HEADING_ROW_CLASS,
   REPLACE_BUTTON_CLASS,
   REPLACE_CANCEL_BUTTON_CLASS,
   REPLACE_CONFIRM_BUTTON_CLASS,
@@ -69,9 +69,10 @@ export function DetectedInstruments({
   const markings = useAppSelector(selectMarkingCounts);
 
   return (
-    <section data-testid="DetectedInstruments">
-      <div className={PARTS_HEADING_ROW_CLASS}>
-        <h2 className="font-semibold text-slate-900 text-sm">{INSTRUMENTS}</h2>
+    <CollapsibleSection
+      data-testid="DetectedInstruments"
+      title={INSTRUMENTS}
+      headerRight={
         <button
           type="button"
           onClick={() => dispatch(allPartsToggled())}
@@ -80,8 +81,8 @@ export function DetectedInstruments({
         >
           {allSelected ? DESELECT_ALL : SELECT_ALL}
         </button>
-      </div>
-
+      }
+    >
       <p className="mt-0.5 text-slate-500 text-xs">
         {getDetectedPartsMessage(parts, instruments)}
       </p>
@@ -186,6 +187,6 @@ export function DetectedInstruments({
           )}
         </>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
