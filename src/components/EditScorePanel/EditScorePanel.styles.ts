@@ -18,6 +18,9 @@ export const PART_NAME_INPUT_CLASS =
 
 export const PLACE_BUTTON_GRID_CLASS = 'mt-3 grid grid-cols-2 gap-2';
 
+export const APPLY_FONT_SIZE_BUTTON_CLASS =
+  'rounded-lg border border-slate-300 px-2 py-1.5 text-slate-700 text-xs hover:border-slate-400 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed';
+
 export const MANUAL_INFO_CLASS =
   'mt-3 rounded bg-slate-100 p-2 text-slate-600 text-xs';
 

@@ -12,6 +12,7 @@ import {
 import { PLACE_BUTTON_GRID_CLASS } from '#/components/EditScorePanel/EditScorePanel.styles';
 import { getAnnotationCountMessage } from '#/components/EditScorePanel/EditScorePanel.utils';
 import { PlaceButton } from '#/components/EditScorePanel/PlaceButton/PlaceButton';
+import { UpdateFontSize } from '#/components/EditScorePanel/UpdateFontSize/UpdateFontSize';
 import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
@@ -67,6 +68,8 @@ export function AddAnnotations() {
         value={annotationColor}
         onPick={(color) => dispatch(annotationColorPicked(color))}
       />
+
+      <UpdateFontSize />
 
       {placing && hasAnnotationValueMenu(placing) && (
         <p className="mt-2 text-slate-500 text-xs">{ANNOTATION_VALUE_HINT}</p>
