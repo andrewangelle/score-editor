@@ -16,7 +16,7 @@ Token-saving choices baked in (all draw from your subscription pool):
 Run:
     pip install claude-agent-sdk
     python3 .claude/loops/audit.py docs/plan.md --paths src/auth src/db
-    python3 .claude/loops/audit.py --paths src/auth --run-tests "npm test"
+    python3 .claude/loops/audit.py docs/plan.md --run-tests "npm test"
 
 Requires an authenticated Claude Code / subscription login in the environment.
 """
@@ -30,9 +30,9 @@ import sys
 from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 
 # ---- Config (edit these) ----------------------------------------------------
-AUDIT_MODEL = "opus"   # Claude Code model alias; strong enough to verify claims
-FIX_MODEL   = "sonnet"    # cheap model for mechanical edits
-AUDIT_EFFORT = "high"  # low | medium | high | xhigh | max
+AUDIT_MODEL = "opus"     # Claude Code model alias; strong enough to verify claims
+FIX_MODEL   = "sonnet"   # cheaper model for mechanical edits
+AUDIT_EFFORT = "high"    # low | medium | high | xhigh | max
 FIX_EFFORT   = "medium"
 MAX_ITERS = 8
 REQUIRED_CLEAN = 2       # consecutive clean audits before declaring convergence
@@ -62,10 +62,11 @@ Report ONLY issues you can back with concrete evidence. For each, give:
 Be efficient: read the plan once, verify the specific claims, then decide. Do not
 re-read files you have already seen.
 
-End your response with exactly one line, and nothing after it:
-VERDICT: PASS   (no evidence-backed issues remain)
-or
-VERDICT: FAIL   (issues listed above)
+Put all of your explanation and findings ABOVE the verdict. Then finish with a
+single final line that is EXACTLY one of the following, with no other text on that
+line (no parentheses, no commentary):
+VERDICT: PASS
+VERDICT: FAIL
 """
 
 FIX_PROMPT = """\
@@ -74,6 +75,8 @@ findings below. Edit the file in place. Preserve its structure and intent; chang
 only what the findings require, and update any downstream steps that depended on a
 corrected assumption. Do not add unrelated content. Do not mark anything resolved
 that you did not actually change.
+
+When done, briefly summarize what you changed.
 
 Audit findings:
 {findings}
@@ -88,13 +91,20 @@ def sha(path: str) -> str:
         return ""
 
 
-async def run(prompt, model, effort, allowed, mode):
+def verdict_is_pass(text: str) -> bool:
+    """True only if the last VERDICT line says PASS. Tolerates trailing text."""
+    verdicts = re.findall(r"^VERDICT:\s*(PASS|FAIL)\b", text, re.M | re.I)
+    return bool(verdicts) and verdicts[-1].upper() == "PASS"
+
+
+async def run(prompt, model, effort, allowed, mode, disallowed=None):
     """One headless call; returns (final_text, subtype, cost)."""
     text, subtype, cost = "", "unknown", 0.0
     options = ClaudeAgentOptions(
         model=model,
         effort=effort,
         allowed_tools=allowed,
+        disallowed_tools=disallowed or [],
         permission_mode=mode,
         max_turns=TURN_CAP,
         setting_sources=["project"] if LOAD_PROJECT_CONTEXT else [],
@@ -125,19 +135,20 @@ async def main(plan, scope_paths, test_cmd, max_iters):
     total_cost = 0.0
 
     for i in range(1, max_iters + 1):
-        print(f"\n=== Iteration {i}: auditing {plan} ===")
+        print(f"\n{'='*60}\n=== Iteration {i}: AUDIT ({AUDIT_MODEL}/{AUDIT_EFFORT})\n{'='*60}")
         audit_text, subtype, cost = await run(
             AUDIT_PROMPT.format(plan=plan, scope=scope, tests_clause=tests_clause),
             AUDIT_MODEL, AUDIT_EFFORT, audit_tools, "plan",
         )
         total_cost += cost
-        print(f"[audit {subtype}]  step ${cost:.4f}  running ${total_cost:.4f}")
+        print(audit_text.strip() or "(no audit output)")
+        print(f"\n[audit {subtype}]  step ${cost:.4f}  running ${total_cost:.4f}")
 
         if subtype != "success":
             print(f"Audit did not complete cleanly ({subtype}); stopping.", file=sys.stderr)
             return 1
 
-        if re.search(r"^VERDICT:\s*PASS\s*$", audit_text, re.M):
+        if verdict_is_pass(audit_text):
             clean += 1
             print(f"Clean audit ({clean}/{REQUIRED_CLEAN})")
             if clean >= REQUIRED_CLEAN:
@@ -145,21 +156,30 @@ async def main(plan, scope_paths, test_cmd, max_iters):
                 return 0
             continue
 
-        # FAIL -> fix
+        # FAIL -> fix, then loop back to re-audit
         clean = 0
         before = sha(plan)
-        print("--- applying fixes ---")
-        _, fix_subtype, cost = await run(
+        print(f"\n{'-'*60}\n--- Iteration {i}: FIX ({FIX_MODEL}/{FIX_EFFORT})\n{'-'*60}")
+        fix_text, fix_subtype, cost = await run(
             FIX_PROMPT.format(plan=plan, findings=audit_text),
-            FIX_MODEL, FIX_EFFORT, ["Read", "Edit", "Glob", "Grep"], "acceptEdits",
+            FIX_MODEL, FIX_EFFORT, ["Read", "Edit", "Glob", "Grep"],
+            # bypassPermissions: acceptEdits won't auto-approve edits under .claude/,
+            # and headless has no one to answer a prompt. Deny Bash to stay bounded.
+            "bypassPermissions", disallowed=["Bash"],
         )
         total_cost += cost
-        print(f"[fix {fix_subtype}]  step ${cost:.4f}  running ${total_cost:.4f}")
+        print(fix_text.strip() or "(no fix summary)")
+        print(f"\n[fix {fix_subtype}]  step ${cost:.4f}  running ${total_cost:.4f}")
 
         if sha(plan) == before:
-            print("Plan unchanged after fix step (stall); stopping.", file=sys.stderr)
-            print(f"Last findings:\n{audit_text}", file=sys.stderr)
+            print("\n[!] The fix step made NO change to the plan file.", file=sys.stderr)
+            print("    Either there was nothing concrete to change, or the fixer",
+                  file=sys.stderr)
+            print("    could not apply edits. Stopping so it doesn't spin.",
+                  file=sys.stderr)
             return 1
+
+        print(f"\n    plan updated -> re-auditing...")
 
     print(f"\n[!] Hit max-iters ({max_iters}) without converging. "
           f"Total ${total_cost:.4f}", file=sys.stderr)
