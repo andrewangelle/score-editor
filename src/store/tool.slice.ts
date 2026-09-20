@@ -3,29 +3,19 @@ import type {
   AnnotationColor,
   AnnotationKind,
 } from '#/lib/pdf/annotations/annotations';
-import { DEFAULT_COLOR } from '#/lib/pdf/annotations/annotations';
+import { DEFAULT_COLOR, DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
+import { annotationSelected } from '#/store/annotations.slice';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 
 /**
  * Which tool the page surface is currently under.
- *
- * Editing rectangles and dropping notes are mutually exclusive — the region
- * layer and the note layer both want the same clicks — so this is one value
- * rather than two flags that have to be talked out of disagreeing.
  */
 export type Tool = AnnotationKind | 'regions';
 
 type ToolState = {
-  /** Null means plain page editing: no overlay is taking clicks. */
   active: Tool | null;
   color: AnnotationColor;
-  /**
-   * The value picked from the menu, carried by every mark placed until it is
-   * picked again. Null means the mark opens an editor to be typed into, which
-   * is the only way positions and performance notes are ever written.
-   */
   value: string | null;
-  /** The font size the next placed mark carries. Null means the kind default. */
   fontSize: number | null;
 };
 
@@ -43,26 +33,30 @@ export const toolSlice = createSlice({
     /** Picks a tool, or puts the active one away when it is picked again. */
     toolToggled(state, action: PayloadAction<Tool>) {
       state.active = state.active === action.payload ? null : action.payload;
-      // A value belongs to the kind it was picked for: a 6 chosen for strings
-      // must not follow the cursor into fingerings, where there is no sixth.
       state.value = null;
+      state.fontSize =
+        state.active !== null && state.active !== 'regions'
+          ? DEFAULT_SIZE[state.active]
+          : null;
     },
 
     annotationColorPicked(state, action: PayloadAction<AnnotationColor>) {
       state.color = action.payload;
     },
 
-    /** Picks a value off the menu, or puts it back when it is picked again. */
     annotationValuePicked(state, action: PayloadAction<string>) {
       state.value = state.value === action.payload ? null : action.payload;
     },
 
-    /** Picks the font size the next placed mark, and future pick, will carry. */
     annotationFontSizePicked(state, action: PayloadAction<number>) {
       state.fontSize = action.payload;
     },
+
+    annotationFontSizeReset(state) {
+      state.fontSize = null;
+    },
   },
-  extraReducers: (builder) => {
+  extraReducers(builder) {
     const closeDocument = (state: ToolState): ToolState => ({
       ...initialState,
       color: state.color,
@@ -71,18 +65,42 @@ export const toolSlice = createSlice({
 
     builder
       .addCase(documentOpened, closeDocument)
-      .addCase(documentClosed, closeDocument);
+      .addCase(documentClosed, closeDocument)
+      .addCase(annotationSelected, (state) => {
+        state.fontSize =
+          state.active && state.active !== 'regions'
+            ? DEFAULT_SIZE[state.active]
+            : null;
+      });
   },
   selectors: {
-    selectIsEditingRegions: (state) => state.active === 'regions',
+    selectIsEditingRegions(state) {
+      return state.active === 'regions';
+    },
+
     /** The note kind being placed, if the active tool places notes at all. */
-    selectPlacing: (state): AnnotationKind | null =>
-      state.active === 'regions' ? null : state.active,
-    selectAnnotationColor: (state) => state.color,
+    selectPlacing(state): AnnotationKind | null {
+      if (state.active === 'regions') {
+        return null;
+      }
+      return state.active;
+    },
+
+    selectAnnotationColor(state) {
+      return state.color;
+    },
+
     /** The menu value the next mark carries, if one is picked. */
-    selectAnnotationValue: (state): string | null =>
-      state.active === 'regions' ? null : state.value,
-    selectAnnotationFontSize: (state) => state.fontSize,
+    selectAnnotationValue(state): string | null {
+      if (state.active === 'regions') {
+        return null;
+      }
+      return state.value;
+    },
+
+    selectAnnotationFontSize(state) {
+      return state.fontSize;
+    },
   },
 });
 
@@ -91,6 +109,7 @@ export const {
   annotationColorPicked,
   annotationValuePicked,
   annotationFontSizePicked,
+  annotationFontSizeReset,
 } = toolSlice.actions;
 
 export const {

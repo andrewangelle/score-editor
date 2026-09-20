@@ -1,7 +1,10 @@
-import { DEFAULT_COLOR } from '#/lib/pdf/annotations/annotations';
+import { DEFAULT_COLOR, DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
+import { annotationSelected } from '#/store/annotations.slice';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 import {
   annotationColorPicked,
+  annotationFontSizePicked,
+  annotationFontSizeReset,
   annotationValuePicked,
   toolSlice,
   toolToggled,
@@ -80,7 +83,7 @@ describe('choosing the ink', () => {
       active: 'note',
       color: 'green',
       value: null,
-      fontSize: null,
+      fontSize: DEFAULT_SIZE.note,
     });
   });
 });
@@ -134,6 +137,79 @@ describe('picking a value off the menu', () => {
     const state = { tool: { ...IDLE, active: 'regions' as const, value: '3' } };
 
     expect(selectAnnotationValue(state)).toBeNull();
+  });
+});
+
+describe('picking a font size', () => {
+  it('starts with no size, so each kind uses its default', () => {
+    expect(IDLE.fontSize).toBeNull();
+  });
+
+  it('seeds the kind default when a tool is picked up', () => {
+    for (const kind of ['fingering', 'string', 'position', 'note'] as const) {
+      expect(run(toolToggled(kind)).fontSize).toBe(DEFAULT_SIZE[kind]);
+    }
+  });
+
+  it('resets to the new kind default when switching tools', () => {
+    const state = run(
+      toolToggled('string'),
+      annotationFontSizePicked(12),
+      toolToggled('position'),
+    );
+
+    expect(state.fontSize).toBe(DEFAULT_SIZE.position);
+  });
+
+  it('clears when the tool is put away', () => {
+    expect(
+      run(toolToggled('fingering'), toolToggled('fingering')).fontSize,
+    ).toBeNull();
+  });
+
+  it('clears for the regions tool', () => {
+    expect(run(toolToggled('regions')).fontSize).toBeNull();
+  });
+
+  it('holds a manually picked size until the tool changes', () => {
+    expect(
+      run(toolToggled('fingering'), annotationFontSizePicked(10)).fontSize,
+    ).toBe(10);
+  });
+
+  it('resets back to null so new marks use the kind default', () => {
+    expect(
+      run(annotationFontSizePicked(10), annotationFontSizeReset()).fontSize,
+    ).toBeNull();
+  });
+
+  it('resets to the kind default when the selection changes', () => {
+    const state = run(
+      toolToggled('position'),
+      annotationFontSizePicked(12),
+      annotationSelected('some-id'),
+    );
+
+    expect(state.fontSize).toBe(DEFAULT_SIZE.position);
+  });
+
+  it('resets to the kind default when an annotation is deselected', () => {
+    const state = run(
+      toolToggled('position'),
+      annotationFontSizePicked(12),
+      annotationSelected(null),
+    );
+
+    expect(state.fontSize).toBe(DEFAULT_SIZE.position);
+  });
+
+  it('clears fontSize on selection change when no tool is active', () => {
+    const state = run(
+      annotationFontSizePicked(8.5),
+      annotationSelected('some-id'),
+    );
+
+    expect(state.fontSize).toBeNull();
   });
 });
 

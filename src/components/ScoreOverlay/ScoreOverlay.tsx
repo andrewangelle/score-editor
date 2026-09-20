@@ -205,7 +205,11 @@ export function ScoreOverlay({
             size: fontSize ?? DEFAULT_SIZE[placing],
           }),
         );
-        if (carrying) return;
+
+        if (carrying) {
+          return;
+        }
+
         setEditing(placed.payload.id);
         setDraft('');
       }}

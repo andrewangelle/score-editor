@@ -21,8 +21,8 @@ export function EditScorePanel({
         replaceTarget={replaceTarget}
         onExtract={onExtract}
       />
-      <EditRegions />
       <AddAnnotations />
+      <EditRegions />
     </aside>
   );
 }
