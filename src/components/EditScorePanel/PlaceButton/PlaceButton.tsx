@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { getPlaceButtonStyles } from '#/components/EditScorePanel/PlaceButton/PlaceButton.styles';
 
 type PlaceButtonProps = {
   active: boolean;
+  children: ReactNode;
   onClick: () => void;
-  children: React.ReactNode;
 };
 
 export function PlaceButton({ active, onClick, children }: PlaceButtonProps) {

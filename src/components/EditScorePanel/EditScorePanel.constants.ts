@@ -3,6 +3,7 @@ export const ANNOTATIONS_DESCRIPTION =
   'Click the page to place. Annotations stay anchored to the music, so they follow into every part you extract.';
 export const ANNOTATION_VALUE_HINT =
   'Pick a number from the menu above the page and click to place it, or place a blank one and type.';
+export const APPLY_FONT_SIZE = 'Apply';
 export const CANCEL = 'Cancel';
 export const DESELECT_ALL = 'Deselect all';
 export const DONE_EDITING = 'Done editing';
