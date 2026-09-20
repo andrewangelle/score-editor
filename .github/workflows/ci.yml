@@ -152,6 +152,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write   # for labels on PRs
+      issues: write
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
