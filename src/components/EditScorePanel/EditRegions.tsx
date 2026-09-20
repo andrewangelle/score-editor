@@ -1,3 +1,4 @@
+import { CollapsibleSection } from '#/components/EditScorePanel/CollapsibleSection';
 import {
   DONE_EDITING,
   EDIT_REGIONS,
@@ -18,11 +19,11 @@ export function EditRegions() {
   const editingRegions = useAppSelector(selectIsEditingRegions);
 
   return (
-    <section
+    <CollapsibleSection
       data-testid="EditRegionsSection"
       className="border-slate-200 border-t pt-4"
+      title={REGIONS}
     >
-      <h2 className="font-semibold text-slate-900 text-sm">{REGIONS}</h2>
       <p className="mt-0.5 text-slate-500 text-xs">{REGIONS_DESCRIPTION}</p>
 
       <div className="mt-3 flex">
@@ -46,6 +47,6 @@ export function EditRegions() {
       >
         {RESET_REGIONS}
       </button>
-    </section>
+    </CollapsibleSection>
   );
 }

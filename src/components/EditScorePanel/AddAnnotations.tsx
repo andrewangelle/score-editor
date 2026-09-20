@@ -1,3 +1,4 @@
+import { CollapsibleSection } from '#/components/EditScorePanel/CollapsibleSection';
 import { ColorPicker } from '#/components/EditScorePanel/ColorPicker/ColorPicker';
 import {
   ANNOTATION_VALUE_HINT,
@@ -7,9 +8,13 @@ import {
   PERFORMANCE,
   POSITION,
   POSITION_HINT,
+  SELECT_ANNOTATION,
   STRING,
 } from '#/components/EditScorePanel/EditScorePanel.constants';
-import { PLACE_BUTTON_GRID_CLASS } from '#/components/EditScorePanel/EditScorePanel.styles';
+import {
+  PLACE_BUTTON_GRID_CLASS,
+  SUBSECTION_CLASS,
+} from '#/components/EditScorePanel/EditScorePanel.styles';
 import { getAnnotationCountMessage } from '#/components/EditScorePanel/EditScorePanel.utils';
 import { PlaceButton } from '#/components/EditScorePanel/PlaceButton/PlaceButton';
 import { UpdateFontSize } from '#/components/EditScorePanel/UpdateFontSize/UpdateFontSize';
@@ -30,12 +35,14 @@ export function AddAnnotations() {
   const annotationColor = useAppSelector(selectAnnotationColor);
 
   return (
-    <section
+    <CollapsibleSection
       data-testid="AddAnnotations"
       className="border-slate-200 border-t pt-4"
+      title={ANNOTATIONS}
     >
-      <h2 className="font-semibold text-slate-900 text-sm">{ANNOTATIONS}</h2>
       <p className="mt-0.5 text-slate-500 text-xs">{ANNOTATIONS_DESCRIPTION}</p>
+
+      <p className={SUBSECTION_CLASS}>{SELECT_ANNOTATION}</p>
 
       <div className={PLACE_BUTTON_GRID_CLASS}>
         <PlaceButton
@@ -82,6 +89,6 @@ export function AddAnnotations() {
       <p className="mt-3 text-slate-500 text-xs">
         {getAnnotationCountMessage(annotationCount)}
       </p>
-    </section>
+    </CollapsibleSection>
   );
 }
