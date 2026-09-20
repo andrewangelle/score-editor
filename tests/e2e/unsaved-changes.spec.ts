@@ -31,6 +31,7 @@ test.describe('Unsaved changes indicator and save button', () => {
     const header = page.locator('header');
     await expect(header).not.toContainText('unsaved changes');
 
+    await appPage.expandAnnotations();
     await page.getByRole('button', { name: 'Fingering' }).click();
     await page.getByRole('button', { name: '1', exact: true }).click();
     await appPage.clickOnPage(0.3, 0.3);
@@ -48,6 +49,7 @@ test.describe('Unsaved changes indicator and save button', () => {
   }) => {
     const header = page.locator('header');
 
+    await appPage.expandAnnotations();
     await page.getByRole('button', { name: 'Fingering' }).click();
     await page.getByRole('button', { name: '1', exact: true }).click();
     await appPage.clickOnPage(0.3, 0.3);

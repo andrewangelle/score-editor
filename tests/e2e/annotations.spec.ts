@@ -8,6 +8,7 @@ test.describe('Annotations', () => {
     await appPage.loadTestPDF();
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandAnnotations();
   });
 
   test('places annotations, saves, reopens, and verifies persistence', async ({
@@ -56,6 +57,7 @@ test.describe('Annotations', () => {
     await appPage.loadPDFFromPath(savedPath);
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandAnnotations();
 
     // Assert annotations were restored
     const restoredCount = await appPage.getAnnotationCount();
@@ -76,6 +78,7 @@ test.describe('Annotation placement precision', () => {
     await appPage.loadTestPDF();
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandAnnotations();
   });
 
   test('places annotations at the exact cursor position', async ({
@@ -150,6 +153,7 @@ test.describe('Annotation clipboard and undo/redo', () => {
     await appPage.loadTestPDF();
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandAnnotations();
   });
 
   test('undo and redo annotation placement via toolbar buttons', async ({
