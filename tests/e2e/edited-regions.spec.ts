@@ -11,6 +11,7 @@ test.describe('Edited regions', () => {
     await appPage.loadTestPDF();
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandRegions();
 
     // Select only the first part so regions are manageable
     await appPage.deselectAllParts();
@@ -59,6 +60,7 @@ test.describe('Edited regions', () => {
     await appPage.loadPDFFromPath(savedPath);
     await appPage.waitForCanvas();
     await appPage.waitForAnalysis();
+    await appPage.expandRegions();
 
     // The reset button is enabled only when regions are manual (edited)
     await expect(

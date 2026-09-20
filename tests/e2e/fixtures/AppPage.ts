@@ -75,10 +75,28 @@ export class AppPage {
     });
   }
 
+  async expandSection(testId: string) {
+    const section = this.page.getByTestId(testId);
+    await expect(section).toBeVisible({ timeout: 15_000 });
+    const toggle = section.getByRole('button', { expanded: false });
+    if ((await toggle.count()) > 0) {
+      await toggle.click();
+    }
+  }
+
   async waitForAnalysis() {
+    await this.expandSection('DetectedInstruments');
     await expect(
       this.page.getByText(/\d+ staves · \d+ sections detected/),
     ).toBeVisible({ timeout: 15_000 });
+  }
+
+  async expandAnnotations() {
+    await this.expandSection('AddAnnotations');
+  }
+
+  async expandRegions() {
+    await this.expandSection('EditRegionsSection');
   }
 
   async deselectAllParts() {
@@ -191,6 +209,7 @@ export class AppPage {
   }
 
   async getAnnotationCount(): Promise<number> {
+    await this.expandSection('AddAnnotations');
     const text = await this.page
       .locator('section')
       .filter({ hasText: /\d+ placed/ })
