@@ -1,5 +1,8 @@
 import { createSelector } from '@reduxjs/toolkit';
-import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
+import {
+  DEFAULT_SIZE,
+  hasAnnotationValueMenu,
+} from '#/lib/pdf/annotations/annotations';
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
 import {
@@ -23,7 +26,11 @@ import {
   selectRenames,
   selectSelectedOrdinals,
 } from '#/store/score.slice';
-import { selectAnnotationValue, selectPlacing } from '#/store/tool.slice';
+import {
+  selectAnnotationFontSize,
+  selectAnnotationValue,
+  selectPlacing,
+} from '#/store/tool.slice';
 
 /**
  * Selectors that read across two slices. They live here rather than in one of
@@ -109,4 +116,19 @@ export const selectHasUnsavedChanges = createSelector(
     selectHasUnsavedRegions,
   ],
   (document, annotations, regions) => document || annotations || regions,
+);
+
+export const selectAnnotationFontSizeValue = createSelector(
+  [
+    selectSelectedAnnotationId,
+    selectSelectedAnnotationSize,
+    selectAnnotationFontSize,
+    selectPlacing,
+  ],
+  (selectedAnnotationId, selectedAnnotationSize, fontSize, placing) => {
+    if (!selectedAnnotationId) return fontSize ?? '';
+    const kindDefault = placing ? DEFAULT_SIZE[placing] : null;
+    const userHasTyped = fontSize !== null && fontSize !== kindDefault;
+    return userHasTyped ? fontSize : (selectedAnnotationSize ?? '');
+  },
 );
