@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { type Marking, numericValue } from '#/lib/pdf/markings';
+import { type Marking, numericValue } from '#/lib/pdf/markings/markings';
 import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
 
 export type MarkingsRow = {

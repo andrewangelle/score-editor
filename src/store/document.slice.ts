@@ -6,8 +6,12 @@ import {
 } from '@reduxjs/toolkit';
 import type { ScoreAnnotation } from '#/lib/pdf/annotations/annotations';
 import type { PageEdit } from '#/lib/pdf/document/document';
+import {
+  isUnchanged,
+  movePage,
+  removePage,
+} from '#/lib/pdf/document/document.edits';
 import type { EditorState } from '#/lib/pdf/editorState';
-import { isUnchanged, movePage, removePage } from '#/lib/pdf/edits';
 
 /**
  * Work recovered from the file that was just opened.

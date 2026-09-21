@@ -10,7 +10,7 @@ import {
   type Marking,
   markingKey,
   markingWithin,
-} from '#/lib/pdf/markings';
+} from '#/lib/pdf/markings/markings';
 import type { Rect, Staff, System } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 

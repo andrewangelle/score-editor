@@ -12,7 +12,7 @@ import {
   type Marking,
   notationFonts,
   textMarkings,
-} from '#/lib/pdf/markings';
+} from '#/lib/pdf/markings/markings';
 import { extractRegions } from '#/lib/pdf/partExtraction';
 import {
   DEFAULT_LAYOUT,

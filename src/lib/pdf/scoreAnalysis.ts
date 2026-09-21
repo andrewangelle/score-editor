@@ -2,7 +2,7 @@
  * Runs staff detection across a whole document and turns it into a part list.
  * A part is identified by its *position* within a system
  */
-import { detectMarkings, type Marking } from '#/lib/pdf/markings';
+import { detectMarkings, type Marking } from '#/lib/pdf/markings/markings';
 import type { Part } from '#/lib/pdf/partExtraction';
 import { loadPdfjs } from '#/lib/pdf/pdfjsClient';
 import {
