@@ -138,16 +138,22 @@ export class AppPage {
     }
   }
 
-  async getMarkingCounts(): Promise<{ measure: number; tempo: number }> {
+  async getMarkingCounts(): Promise<{
+    measure: number;
+    tempo: number;
+    timeSignature: number;
+  }> {
     const text = await this.page
       .locator('label')
       .filter({ hasText: 'Keep measure numbers & tempo marks' })
       .innerText();
     const measureMatch = text.match(/(\d+) measure/);
     const tempoMatch = text.match(/(\d+) tempo/);
+    const timeSigMatch = text.match(/(\d+) time/);
     return {
       measure: measureMatch ? Number(measureMatch[1]) : 0,
       tempo: tempoMatch ? Number(tempoMatch[1]) : 0,
+      timeSignature: timeSigMatch ? Number(timeSigMatch[1]) : 0,
     };
   }
 
@@ -181,7 +187,27 @@ export class AppPage {
 
     const [download] = await Promise.all([
       this.page.waitForEvent('download'),
-      this.page.locator('form').getByRole('button', { name: 'Save' }).click(),
+      this.page
+        .locator('form:has(#save-copy-name)')
+        .getByRole('button', { name: 'Save' })
+        .click(),
+    ]);
+    return download;
+  }
+
+  async exportMarkings(name: string): Promise<Download> {
+    await this.page.getByRole('button', { name: 'Export markings' }).click();
+
+    const nameInput = this.page.locator('#export-markings-name');
+    await expect(nameInput).toBeVisible();
+    await nameInput.fill(name);
+
+    const [download] = await Promise.all([
+      this.page.waitForEvent('download'),
+      this.page
+        .locator('form:has(#export-markings-name)')
+        .getByRole('button', { name: 'Save' })
+        .click(),
     ]);
     return download;
   }

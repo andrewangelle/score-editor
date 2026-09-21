@@ -17,6 +17,8 @@ type SaveCopyPromptProps = {
   suggestion: string;
   onSave: (typed: string) => void;
   onCancel: () => void;
+  inputId?: string;
+  label?: string;
 };
 
 export function SaveCopyPrompt({
@@ -24,6 +26,8 @@ export function SaveCopyPrompt({
   suggestion,
   onSave,
   onCancel,
+  inputId = 'save-copy-name',
+  label = SAVE_COPY_AS,
 }: SaveCopyPromptProps) {
   const [typed, setTyped] = useState(suggestion);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,14 +64,14 @@ export function SaveCopyPrompt({
           className={SAVE_COPY_FORM_CLASS}
         >
           <label
-            htmlFor="save-copy-name"
+            htmlFor={inputId}
             className="font-medium text-slate-700 text-sm"
           >
-            {SAVE_COPY_AS}
+            {label}
           </label>
 
           <input
-            id="save-copy-name"
+            id={inputId}
             ref={inputRef}
             value={typed}
             onChange={(event) => setTyped(event.target.value)}

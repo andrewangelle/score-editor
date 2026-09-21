@@ -30,6 +30,9 @@ export const MARKINGS_CHECKBOX_CLASS =
 export const EXTRACT_BUTTON_CLASS =
   'mt-4 w-full rounded-lg bg-blue-600 px-3 py-2 font-medium text-sm text-white hover:bg-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed';
 
+export const EXPORT_MARKINGS_BUTTON_CLASS =
+  'mt-2 w-full rounded-lg border border-blue-300 px-3 py-2 font-medium text-sm text-blue-600 hover:bg-blue-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed';
+
 export const REPLACE_CONFIRM_CLASS =
   'mt-2 rounded-lg border border-red-200 bg-red-50 p-2';
 

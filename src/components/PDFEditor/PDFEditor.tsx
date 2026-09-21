@@ -29,6 +29,7 @@ import {
 import {
   downloadBytes,
   getAnalyseScoreError,
+  getExportMarkingsError,
   getExtractError,
   getFileHandleError,
   getSaveButtonCTA,
@@ -56,6 +57,10 @@ import {
 } from '#/lib/pdf/document/document.bytes';
 import type { EditorState } from '#/lib/pdf/editorState';
 import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
+import {
+  extractMarkings,
+  markingsExportFileName,
+} from '#/lib/pdf/markingsExport';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
 import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
@@ -140,6 +145,7 @@ export function PDFEditor() {
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isNamingCopy, setNamingCopy] = useState(false);
+  const [isNamingMarkingsExport, setNamingMarkingsExport] = useState(false);
 
   function reportSaved(message: string) {
     setStatus({ message, revision });
@@ -297,12 +303,31 @@ export function PDFEditor() {
     });
   }
 
+  async function handleExportMarkings(typed: string) {
+    setNamingMarkingsExport(false);
+    if (!bytes || !analysis) return;
+
+    setIsBusy(true);
+    setError(null);
+    try {
+      const exported = await extractMarkings(bytes, analysis);
+      const fileName = typed.endsWith('.pdf') ? typed : `${typed}.pdf`;
+      downloadBytes(exported, fileName, 'application/pdf');
+      reportSaved(`Saved ${fileName}`);
+    } catch (cause) {
+      setError(getExportMarkingsError(cause));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   function handleClose() {
     dispatch(documentClosed());
     releaseDocumentBytes();
     setStatus(null);
     setError(null);
     setNamingCopy(false);
+    setNamingMarkingsExport(false);
   }
 
   if (!bytes) {
@@ -406,6 +431,15 @@ export function PDFEditor() {
         onCancel={() => setNamingCopy(false)}
       />
 
+      <SaveCopyPrompt
+        open={isNamingMarkingsExport}
+        suggestion={markingsExportFileName(name)}
+        onSave={handleExportMarkings}
+        onCancel={() => setNamingMarkingsExport(false)}
+        inputId="export-markings-name"
+        label="Export markings as"
+      />
+
       {error && (
         <p className={ERROR_MESSAGE_CLASS} role="alert">
           {error}
@@ -450,6 +484,7 @@ export function PDFEditor() {
         {analysis && !analysisNote && (
           <EditScorePanel
             onExtract={handleExtract}
+            onExportMarkings={() => setNamingMarkingsExport(true)}
             replaceTarget={
               fileHandle
                 ? { name: fileHandle.name, onReplace: handleExtractToFile }

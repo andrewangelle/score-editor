@@ -183,6 +183,9 @@ export const scoreSlice = createSlice({
         return {
           measure: markings.filter((mark) => mark.kind === 'measure').length,
           tempo: markings.filter((mark) => mark.kind === 'tempo').length,
+          timeSignature: markings.filter(
+            (mark) => mark.kind === 'time-signature',
+          ).length,
         };
       },
     ),

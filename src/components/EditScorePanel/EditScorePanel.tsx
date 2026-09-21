@@ -7,10 +7,12 @@ export type EditScorePanelProps = {
   replaceTarget: { name: string; onReplace: () => void } | null;
   isBusy: boolean;
   onExtract: () => void;
+  onExportMarkings: () => void;
 };
 
 export function EditScorePanel({
   onExtract,
+  onExportMarkings,
   replaceTarget,
   isBusy,
 }: EditScorePanelProps) {
@@ -20,6 +22,7 @@ export function EditScorePanel({
         isBusy={isBusy}
         replaceTarget={replaceTarget}
         onExtract={onExtract}
+        onExportMarkings={onExportMarkings}
       />
       <AddAnnotations />
       <EditRegions />

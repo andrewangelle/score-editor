@@ -7,9 +7,12 @@ export function getDetectedPartsMessage(parts: Part[], instruments: number) {
 export function getDetectionDescription(markings: {
   measure: number;
   tempo: number;
+  timeSignature: number;
 }) {
   return `${markings.measure} measure ${
     markings.measure === 1 ? 'number' : 'numbers'
+  } · ${markings.timeSignature} time ${
+    markings.timeSignature === 1 ? 'signature' : 'signatures'
   } · ${markings.tempo} tempo ${
     markings.tempo === 1 ? 'mark' : 'marks'
   } found. A score prints these for the system as a whole, so they are stamped above every part cut from it.`;

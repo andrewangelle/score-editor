@@ -51,6 +51,11 @@ export function getSaveError(cause: unknown) {
   return COULD_NOT_SAVE;
 }
 
+export function getExportMarkingsError(cause: unknown) {
+  if (cause instanceof Error) return cause.message;
+  return 'Could not export markings';
+}
+
 export function downloadBytes(
   bytes: Uint8Array,
   fileName: string,

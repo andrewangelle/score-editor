@@ -11,7 +11,7 @@ import type {
 } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 
-export type MarkingKind = 'measure' | 'tempo';
+export type MarkingKind = 'measure' | 'tempo' | 'time-signature';
 
 export type Marking = {
   id: string;
@@ -34,7 +34,7 @@ export type Candidate = {
   pageIndex: number;
   systemIndex: number;
   staffIndex: number;
-  side: 'above' | 'below';
+  side: 'above' | 'below' | 'on';
   text: string;
   rect: Rect;
   offset: number;
@@ -233,6 +233,25 @@ export function pageCandidates(
         }
       }
     });
+
+    const topStaff = system.staves[0];
+    if (topStaff) {
+      const pairs = pairTimeSigs(items, topStaff, system, notation);
+      for (const pair of pairs) {
+        candidates.push({
+          pageIndex: page.pageIndex,
+          systemIndex,
+          staffIndex: 0,
+          side: 'on',
+          text: pair.text,
+          rect: pair.rect,
+          offset: 0,
+          rightGap: (system.right - pair.rect.right) / height,
+          size: (pair.rect.top - pair.rect.bottom) / height,
+          value: null,
+        });
+      }
+    }
   });
 
   return candidates;
@@ -259,6 +278,21 @@ export function detectMarkings(
     const ink = page?.ink ?? [];
 
     return markings.map((marking) => {
+      if (marking.kind === 'time-signature') {
+        const timeSigStaff = page?.systems[marking.systemIndex]?.staves[0];
+        if (timeSigStaff) {
+          const pad = staffHeight(timeSigStaff) * 0.25;
+          return {
+            ...marking,
+            rect: {
+              ...marking.rect,
+              bottom: Math.min(marking.rect.bottom, timeSigStaff.bottom) - pad,
+              top: Math.max(marking.rect.top, timeSigStaff.top) + pad,
+            },
+          };
+        }
+        return marking;
+      }
       const staff = page?.systems[marking.systemIndex]?.staves[0];
       const padded = {
         left: marking.rect.left - options.padding,
@@ -317,6 +351,16 @@ export function resolveMarkings(
     }
   }
 
+  const timeSigs = candidates.filter(
+    (candidate) =>
+      !kind.has(candidate) &&
+      candidate.side === 'on' &&
+      candidate.staffIndex === 0,
+  );
+  for (const candidate of timeSigs) {
+    kind.set(candidate, 'time-signature');
+  }
+
   // Tempo marks come off the system header only: text above an inner staff is
   // that player's own instruction ("pizz."), and stamping it onto everyone
   // else's part would be a lie about who plays what.
@@ -352,7 +396,73 @@ export function resolveMarkings(
 /** A bare number, with or without the brackets some engravers box them in. */
 const BARE_NUMBER = /^[([{]?\s*(\d{1,4})\s*[)\]}]?$/;
 
-function numericValue(text: string): number | null {
+const TIME_SIG_DIGIT = /^\d{1,2}$/;
+
+type TimeSigPair = {
+  numerator: PageTextItem;
+  denominator: PageTextItem;
+  rect: Rect;
+  text: string;
+};
+
+function pairTimeSigs(
+  items: readonly PageTextItem[],
+  staff: Staff,
+  system: System,
+  notation: Set<string>,
+): TimeSigPair[] {
+  const digits = items.filter((item) => {
+    const str = item.str.trim();
+    if (!TIME_SIG_DIGIT.test(str)) return false;
+    if (!notation.has(item.fontName)) return false;
+    if (item.rect.bottom > staff.top || item.rect.top < staff.bottom)
+      return false;
+    if (item.rect.right < system.left || item.rect.left > system.right)
+      return false;
+    return true;
+  });
+
+  digits.sort((a, b) => a.rect.left - b.rect.left);
+
+  const groups: PageTextItem[][] = [];
+  for (const item of digits) {
+    const group = groups.at(-1);
+    const width = item.rect.right - item.rect.left;
+    if (group && Math.abs(item.rect.left - group[0].rect.left) <= width * 0.5) {
+      group.push(item);
+    } else {
+      groups.push([item]);
+    }
+  }
+
+  const pairs: TimeSigPair[] = [];
+  for (const group of groups) {
+    if (group.length !== 2) continue;
+    const height = group[0].rect.top - group[0].rect.bottom;
+    const tolerance = Math.max(height * 0.35, 0.5);
+    if (Math.abs(group[0].rect.bottom - group[1].rect.bottom) <= tolerance)
+      continue;
+
+    const sorted = [...group].sort((a, b) => b.rect.top - a.rect.top);
+    const numerator = sorted[0];
+    const denominator = sorted[1];
+    pairs.push({
+      numerator,
+      denominator,
+      rect: {
+        left: Math.min(numerator.rect.left, denominator.rect.left),
+        right: Math.max(numerator.rect.right, denominator.rect.right),
+        bottom: Math.min(numerator.rect.bottom, denominator.rect.bottom),
+        top: Math.max(numerator.rect.top, denominator.rect.top),
+      },
+      text: `${numerator.str.trim()}/${denominator.str.trim()}`,
+    });
+  }
+
+  return pairs;
+}
+
+export function numericValue(text: string): number | null {
   const match = BARE_NUMBER.exec(text);
   return match ? Number(match[1]) : null;
 }
