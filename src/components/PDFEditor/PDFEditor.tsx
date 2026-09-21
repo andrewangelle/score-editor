@@ -60,7 +60,7 @@ import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import {
   extractMarkings,
   markingsExportFileName,
-} from '#/lib/pdf/markingsExport';
+} from '#/lib/pdf/markings/markings.extract';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
 import { DEFAULT_LAYOUT, sortRegions } from '#/lib/pdf/regions';
 import { analyzeScore } from '#/lib/pdf/scoreAnalysis';

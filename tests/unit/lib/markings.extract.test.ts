@@ -1,8 +1,8 @@
-import type { Marking } from '#/lib/pdf/markings';
+import type { Marking } from '#/lib/pdf/markings/markings';
 import {
   collectMarkingsRows,
   markingsExportFileName,
-} from '#/lib/pdf/markingsExport';
+} from '#/lib/pdf/markings/markings.extract';
 import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
 
 function marking(

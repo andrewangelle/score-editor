@@ -220,6 +220,7 @@ export async function extractRegions(
         placed.region.pageIndex,
         placed.region.rect,
       );
+
       for (const annotation of inRegion) {
         stampAnnotation(
           outPage,

@@ -11,11 +11,15 @@ export function movePage(
 ): PageEdit[] {
   const from = pages.findIndex((page) => page.id === id);
   const to = from + direction;
-  if (from === -1 || to < 0 || to >= pages.length) return pages as PageEdit[];
+
+  if (from === -1 || to < 0 || to >= pages.length) {
+    return pages as PageEdit[];
+  }
 
   const next = [...pages];
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
+
   return next;
 }
 
@@ -23,6 +27,9 @@ export function isUnchanged(
   pages: readonly PageEdit[],
   original: readonly PageEdit[],
 ): boolean {
-  if (pages.length !== original.length) return false;
+  if (pages.length !== original.length) {
+    return false;
+  }
+
   return pages.every((page, index) => page.id === original[index].id);
 }
