@@ -4,6 +4,7 @@ import type { EditScorePanelProps } from '#/components/EditScorePanel/EditScoreP
 import {
   CANCEL,
   DESELECT_ALL,
+  EXPORT_MARKINGS,
   INSTRUMENTS,
   KEEP_MEASURE,
   MANUAL_INFO,
@@ -12,6 +13,7 @@ import {
   TEMPO_MARKS,
 } from '#/components/EditScorePanel/EditScorePanel.constants';
 import {
+  EXPORT_MARKINGS_BUTTON_CLASS,
   EXTRACT_BUTTON_CLASS,
   MANUAL_INFO_CLASS,
   MARKINGS_CHECKBOX_CLASS,
@@ -53,6 +55,7 @@ import { selectRegions } from '#/store/selectors';
 
 export function DetectedInstruments({
   onExtract,
+  onExportMarkings,
   replaceTarget,
   isBusy,
 }: EditScorePanelProps) {
@@ -141,6 +144,17 @@ export function DetectedInstruments({
         className={EXTRACT_BUTTON_CLASS}
       >
         {getBusyMessage(isBusy, regionCount)}
+      </button>
+
+      <button
+        type="button"
+        onClick={onExportMarkings}
+        disabled={
+          isBusy || (markings.tempo === 0 && markings.timeSignature === 0)
+        }
+        className={EXPORT_MARKINGS_BUTTON_CLASS}
+      >
+        {EXPORT_MARKINGS}
       </button>
 
       {replaceTarget && (

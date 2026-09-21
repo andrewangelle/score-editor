@@ -339,6 +339,139 @@ function liftedClips(doc: PDFDocument): number[] {
   return [...seen.values()];
 }
 
+describe('time-signature detection', () => {
+  function twoStaffPage(pageIndex = 0): PageStaves {
+    return page(pageIndex, [700, 600]);
+  }
+
+  function notationDigit(
+    str: string,
+    x: number,
+    y: number,
+    height = 12.8,
+  ): PageTextItem {
+    return {
+      str,
+      fontName: 'notation',
+      rect: { left: x, right: x + 5.1, bottom: y, top: y + height },
+    };
+  }
+
+  function notationNote(x: number, y: number): PageTextItem {
+    return {
+      str: 'œ',
+      fontName: 'notation',
+      rect: { left: x, right: x + 6, bottom: y, top: y + 10 },
+    };
+  }
+
+  // Notation font needs ≥4 items with ≥50% on-staff to register.
+  function notationFontItems(): PageTextItem[] {
+    return [
+      notationNote(150, 688),
+      notationNote(170, 692),
+      notationNote(190, 696),
+      notationNote(210, 684),
+    ];
+  }
+
+  it('detects a stacked time signature on the top staff', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit('5', 111.3, midY + 2),
+        notationDigit('4', 111.5, midY - 12),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    const timeSigs = found.filter((m) => m.kind === 'time-signature');
+    expect(timeSigs).toHaveLength(1);
+    expect(timeSigs[0].text).toBe('5/4');
+  });
+
+  it('does not detect a stacked pair on an inner staff', () => {
+    const pages = [twoStaffPage()];
+    const innerStaff = pages[0].systems[0].staves[1];
+    const midY = innerStaff.bottom + (innerStaff.top - innerStaff.bottom) / 2;
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit('3', 111.3, midY + 2),
+        notationDigit('4', 111.5, midY - 12),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(0);
+  });
+
+  it('rejects three items at one x-position', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit('5', 111.3, midY + 6),
+        notationDigit('4', 111.5, midY - 2),
+        notationDigit('8', 111.4, midY - 10),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(0);
+  });
+
+  it('does not classify non-digit notation text as a time signature', () => {
+    const pages = [twoStaffPage()];
+    const items = [
+      [
+        ...notationFontItems(),
+        {
+          str: 'mf',
+          fontName: 'notation',
+          rect: { left: 120, right: 140, bottom: 715, top: 725 },
+        },
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(0);
+  });
+
+  it('does not interfere with measure numbers', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit('4', 111.3, midY + 2),
+        notationDigit('4', 111.5, midY - 12),
+        text('1', 96, topStaff.top + 5),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(1);
+    expect(found.filter((m) => m.kind === 'measure')).toHaveLength(0);
+  });
+
+  it('ignores a lone notation digit with no pair', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    const items = [[...notationFontItems(), notationDigit('3', 111.3, midY)]];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(0);
+  });
+});
+
 describe('extraction with markings', () => {
   async function source(): Promise<Uint8Array> {
     const doc = await PDFDocument.create();

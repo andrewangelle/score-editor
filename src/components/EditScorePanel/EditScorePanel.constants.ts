@@ -10,6 +10,7 @@ export const DONE_EDITING = 'Done editing';
 export const EDIT_REGIONS = 'Edit regions';
 export const EDIT_REGIONS_HINT =
   'Drag on empty space to add. Drag a rectangle to move it, or its edges to resize. Select one to delete it.';
+export const EXPORT_MARKINGS = 'Export markings';
 export const FINGERING = 'Fingering';
 export const FONT_SIZE_TEXT = 'Select font size:';
 export const INSTRUMENTS = 'Instruments';

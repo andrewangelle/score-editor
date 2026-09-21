@@ -288,7 +288,8 @@ export function markingsFor(
   markings: readonly Marking[] = [],
 ): Marking[] {
   const system = markings.filter(
-    (marking) => marking.systemIndex === systemIndex,
+    (marking) =>
+      marking.systemIndex === systemIndex && marking.kind !== 'time-signature',
   );
   const held = new Set(
     system.filter((marking) => markingWithin(marking, rect)).map(markingKey),
