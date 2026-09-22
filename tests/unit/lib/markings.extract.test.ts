@@ -18,10 +18,12 @@ function marking(
   };
 }
 
+/** `barlines[i]` is the closing barlines of system `i`; omitted, none are known. */
 function scorePage(
   pageIndex: number,
   systemCount: number,
   markings: Marking[] = [],
+  barlines: (number[] | undefined)[] = [],
 ): ScorePage {
   return {
     pageIndex,
@@ -44,6 +46,7 @@ function scorePage(
       right: 500,
       top: 700 - i * 100,
       bottom: 680 - i * 100,
+      barlines: barlines[i],
     })),
     markings,
   };
@@ -253,8 +256,19 @@ describe('collectMarkingsRows', () => {
       rect: { left: 100, right: 120, bottom: 620, top: 630 },
     });
 
+    // Four bars on the first system, so counting back from 5 lands on 1.
     const result = collectMarkingsRows(
-      analysis([scorePage(0, 2, [ts, tempo, m5])]),
+      analysis([
+        scorePage(
+          0,
+          2,
+          [ts, tempo, m5],
+          [
+            [200, 300, 400, 500],
+            [300, 500],
+          ],
+        ),
+      ]),
     );
 
     expect(result.rows).toHaveLength(1);
@@ -329,6 +343,123 @@ describe('collectMarkingsRows', () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].eventMarkings).toHaveLength(1);
     expect(result.rows[0].eventMarkings[0].text).toBe('5/8');
+  });
+});
+
+describe('collectMarkingsRows counting barlines', () => {
+  const number = (text: string, systemIndex: number, left = 100) =>
+    marking({
+      kind: 'measure',
+      text,
+      systemIndex,
+      rect: { left, right: left + 20, bottom: 720, top: 730 },
+    });
+  const tempo = (text: string, systemIndex: number, left: number) =>
+    marking({
+      kind: 'tempo',
+      text,
+      systemIndex,
+      rect: { left, right: left + 40, bottom: 740, top: 750 },
+    });
+
+  it('counts bars from the number printed at the start of the system', () => {
+    const m22 = number('22', 0);
+    const opening = tempo('Allegro', 0, 105);
+    const later = tempo('Adagio', 0, 310);
+
+    const result = collectMarkingsRows(
+      analysis([
+        scorePage(0, 1, [m22, opening, later], [[200, 300, 400, 500]]),
+      ]),
+    );
+
+    expect(result.rows.map((row) => row.measure)).toEqual([22, 24]);
+    expect(result.rows[0].measureMarking).toBe(m22);
+    // Nothing is printed over bar 24, so there is no clip to lift for it.
+    expect(result.rows[1].measureMarking).toBeNull();
+  });
+
+  it('carries the count across a system with no printed number', () => {
+    const result = collectMarkingsRows(
+      analysis([
+        scorePage(
+          0,
+          2,
+          [number('10', 0), tempo('rit.', 1, 360)],
+          [
+            [250, 500],
+            [200, 350, 500],
+          ],
+        ),
+      ]),
+    );
+
+    expect(result.rows.map((row) => row.measure)).toEqual([14]);
+  });
+
+  it('counts back from the first printed number for events before it', () => {
+    const result = collectMarkingsRows(
+      analysis([
+        scorePage(
+          0,
+          2,
+          [
+            tempo('Allegro', 0, 105),
+            tempo('Meno mosso', 0, 310),
+            number('5', 1),
+          ],
+          [[200, 300, 400, 500], [500]],
+        ),
+      ]),
+    );
+
+    expect(result.rows.map((row) => row.measure)).toEqual([1, 3]);
+  });
+
+  it('counts from 1 when no numbers are printed at all', () => {
+    const result = collectMarkingsRows(
+      analysis([
+        scorePage(
+          0,
+          2,
+          [tempo('Allegro', 0, 105), tempo('rit.', 1, 360)],
+          [
+            [250, 500],
+            [200, 350, 500],
+          ],
+        ),
+      ]),
+    );
+
+    expect(result.measuresInferred).toBe(true);
+    expect(result.rows.map((row) => row.measure)).toEqual([1, 5]);
+  });
+
+  it('ignores a number the barline count does not corroborate', () => {
+    // "12" read off the margin onto the wrong system: it sits in the bar that
+    // "14" names, and would pull the tempo mark back two bars.
+    const result = collectMarkingsRows(
+      analysis([
+        scorePage(
+          0,
+          3,
+          [
+            number('10', 0),
+            number('12', 1),
+            number('14', 2),
+            number('12', 2, 102),
+            tempo('a tempo', 2, 310),
+          ],
+          [
+            [300, 500],
+            [300, 500],
+            [300, 500],
+          ],
+        ),
+      ]),
+    );
+
+    expect(result.rows.map((row) => row.measure)).toEqual([15]);
   });
 });
 

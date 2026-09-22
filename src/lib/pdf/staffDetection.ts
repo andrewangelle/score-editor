@@ -51,6 +51,12 @@ export type System = {
   right: number;
   top: number;
   bottom: number;
+  /**
+   * x of every barline that closes a bar, left to right. The opening barline is
+   * left out, so the count is the number of bars in the system. Absent when the
+   * page's geometry was never read.
+   */
+  barlines?: number[];
 };
 
 export type PageStaves = {
@@ -130,11 +136,12 @@ export async function detectPageStaves(
   const staves = groupIntoStaves(rules, options);
   const text = await readVisibleText(page, clips);
   const ink = [...boxes, ...text.map((item) => withDescent(item.rect))];
+  const verticals = verticalsFromBoxes(boxes, options);
   const systems = groupIntoSystems(
     attachContentBounds(staves, ink, options),
-    verticalsFromBoxes(boxes, options),
+    verticals,
     options,
-  );
+  ).map((system) => ({ ...system, barlines: findBarlines(system, verticals) }));
 
   return {
     pageIndex,
@@ -864,6 +871,81 @@ export function groupIntoSystems(
     top: Math.max(...group.map((s) => s.top)),
     bottom: Math.min(...group.map((s) => s.bottom)),
   }));
+}
+
+/**
+ * The barlines of a system, told apart from stems by crossing *every* staff at
+ * one x. Staves braced by one long rule and staves with a rule each (vocal
+ * scores) both pass, since each staff is checked on its own.
+ *
+ * Lines closer than a staff space are one barline — double, final and repeat
+ * barlines are drawn as two or three.
+ */
+export function findBarlines(
+  system: System,
+  verticals: readonly VerticalRule[],
+): number[] {
+  const spacing = Math.max(...system.staves.map((staff) => staff.lineSpacing));
+  if (!(spacing > 0)) return [];
+
+  const slack = spacing * 0.5;
+
+  // A stem long enough to cross a whole staff overshoots it and stops in the
+  // gap, and when two players share a rhythm their stems do line up. A barline
+  // either runs on into a neighbouring staff or stops at the staff's own outer
+  // lines; once it bridges, its far ends may overshoot freely, since engravers
+  // run system barlines past staves they have hidden.
+  const crossing = system.staves.map((staff, index) => {
+    const above = system.staves[index - 1];
+    const below = system.staves[index + 1];
+    // A one- or two-line staff has no outer lines to stop at; its barline runs a
+    // space or two either side, still short of a stem's three and a half.
+    const overshoot = staff.lineCount < 3 ? spacing * 2 : slack;
+    return verticals
+      .filter((rule) => {
+        if (rule.x < system.left - slack || rule.x > system.right + slack) {
+          return false;
+        }
+        if (
+          rule.bottom > staff.bottom + slack ||
+          rule.top < staff.top - slack
+        ) {
+          return false;
+        }
+        const bridges =
+          (above !== undefined && rule.top >= above.bottom - slack) ||
+          (below !== undefined && rule.bottom <= below.top + slack);
+        return (
+          bridges ||
+          (rule.top <= staff.top + overshoot &&
+            rule.bottom >= staff.bottom - overshoot)
+        );
+      })
+      .map((rule) => rule.x);
+  });
+
+  const aligned = crossing[0]
+    .filter((x) =>
+      crossing.every((xs) => xs.some((other) => Math.abs(other - x) <= 1)),
+    )
+    .sort((a, b) => a - b);
+
+  const clusters: number[][] = [];
+  for (const x of aligned) {
+    const cluster = clusters.at(-1);
+    if (cluster && x - cluster[cluster.length - 1] <= spacing * 1.5) {
+      cluster.push(x);
+    } else {
+      clusters.push([x]);
+    }
+  }
+
+  // The opening barline does not close a bar. It can sit a couple of spaces in
+  // from where the staff lines start, behind a bracket, but never as far in as a
+  // real first bar, which holds at least a clef.
+  return clusters
+    .map((cluster) => (cluster[0] + cluster[cluster.length - 1]) / 2)
+    .filter((x) => x > system.left + spacing * 3);
 }
 
 function systemGapThreshold(gaps: number[], staves: Staff[]): number {
