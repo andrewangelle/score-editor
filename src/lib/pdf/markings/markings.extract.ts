@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { type Marking, numericValue } from '#/lib/pdf/markings/markings';
-import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
+import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
 
 export type MarkingsRow = {
   measure: number | null;
@@ -87,19 +87,20 @@ export function collectMarkingsRows(
 
   // For each event marking, find the nearest measure number to its left on the
   // same system, or fall back to the last measure from the previous system.
-  function findMeasure(event: Marking): MeasureEntry | null {
-    const evKey = systemKey(event.pageIndex, event.systemIndex);
+  // When the event precedes every known measure, falls back to measure 1.
+  function findMeasure(event: Marking): MeasureEntry {
+    const eventKey = systemKey(event.pageIndex, event.systemIndex);
 
     // Measures on the same system, at or to the left of the event.
     const sameSystem = measures.filter(
-      (m) => m.key === evKey && m.left <= event.rect.left,
+      (m) => m.key === eventKey && m.left <= event.rect.left,
     );
     if (sameSystem.length > 0) {
       return sameSystem[sameSystem.length - 1];
     }
 
     // Same system but event is before any measure number — use first of system.
-    const anyOnSystem = measures.filter((m) => m.key === evKey);
+    const anyOnSystem = measures.filter((m) => m.key === eventKey);
     if (anyOnSystem.length > 0) {
       return anyOnSystem[0];
     }
@@ -116,7 +117,17 @@ export function collectMarkingsRows(
         best = m;
       }
     }
-    return best;
+    if (best) {
+      return best;
+    }
+
+    // Event precedes every known measure — the score's opening.
+    return {
+      key: eventKey,
+      value: 1,
+      marking: null,
+      left: Number.NEGATIVE_INFINITY,
+    };
   }
 
   // Build global system ordinal for ordering.
@@ -131,15 +142,16 @@ export function collectMarkingsRows(
     return (systemOffsets.get(pageIndex) ?? 0) + systemIndex;
   }
 
+  const filteredEvents = filterCourtesyTimeSigs(eventMarkings, analysis.pages);
+
   // Group events by measure.
   const rowMap = new Map<
     number,
     { measure: number; measureMarking: Marking | null; events: Marking[] }
   >();
 
-  for (const event of eventMarkings) {
+  for (const event of filteredEvents) {
     const entry = findMeasure(event);
-    if (!entry) continue;
 
     const existing = rowMap.get(entry.value);
     if (existing) {
@@ -339,6 +351,56 @@ export async function extractMarkings(
   output.setCreator('PDF Editor');
   output.setModificationDate(new Date());
   return output.save();
+}
+
+/**
+ * Removes courtesy (cautionary) time signatures that engravers place at the
+ * very end of a system to warn the player of an upcoming change. The "real"
+ * time signature at the start of the next system is kept; the courtesy
+ * duplicate is dropped so the export doesn't show the same change twice.
+ */
+function filterCourtesyTimeSigs(
+  events: Marking[],
+  pages: readonly ScorePage[],
+): Marking[] {
+  const timeSigs = events.filter((e) => e.kind === 'time-signature');
+  if (timeSigs.length === 0) return events;
+
+  const courtesy = new Set<Marking>();
+
+  for (const ts of timeSigs) {
+    const system = pages[ts.pageIndex]?.systems[ts.systemIndex];
+    if (!system) continue;
+
+    const systemWidth = system.right - system.left;
+    if (systemWidth <= 0) continue;
+
+    const posInSystem = (ts.rect.left - system.left) / systemWidth;
+    if (posInSystem < 0.8) continue;
+
+    // Identify the next system in reading order.
+    const page = pages[ts.pageIndex];
+    let nextPageIdx = ts.pageIndex;
+    let nextSysIdx = ts.systemIndex + 1;
+    if (nextSysIdx >= page.systems.length) {
+      nextPageIdx++;
+      nextSysIdx = 0;
+    }
+
+    const hasMatch = timeSigs.some(
+      (other) =>
+        other !== ts &&
+        other.pageIndex === nextPageIdx &&
+        other.systemIndex === nextSysIdx &&
+        other.text === ts.text,
+    );
+
+    if (hasMatch) {
+      courtesy.add(ts);
+    }
+  }
+
+  return courtesy.size > 0 ? events.filter((e) => !courtesy.has(e)) : events;
 }
 
 export function markingsExportFileName(name: string): string {

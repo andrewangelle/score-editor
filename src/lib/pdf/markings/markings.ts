@@ -373,7 +373,7 @@ export function resolveMarkings(
       // "=" of a metronome mark.
       /[=\p{L}]/u.test(candidate.text),
   );
-  for (const candidate of withoutFurniture(prose)) {
+  for (const candidate of withoutFurniture(withoutLyrics(prose))) {
     kind.set(candidate, 'tempo');
   }
 
@@ -398,6 +398,24 @@ const BARE_NUMBER = /^[([{]?\s*(\d{1,4})\s*[)\]}]?$/;
 
 const TIME_SIG_DIGIT = /^\d{1,2}$/;
 
+// SMuFL U+E080–U+E089 encode the time-signature digits 0–9 as private-use
+// glyphs. pdf.js surfaces them as their raw code points, not as ASCII.
+const SMUFL_TS_BASE = 0xe080;
+
+function timeSigDigitValue(str: string): number | null {
+  const trimmed = str.trim();
+
+  if (TIME_SIG_DIGIT.test(trimmed)) return Number(trimmed);
+
+  if (trimmed.length === 1) {
+    const cp = trimmed.codePointAt(0)!;
+    if (cp >= SMUFL_TS_BASE && cp <= SMUFL_TS_BASE + 9)
+      return cp - SMUFL_TS_BASE;
+  }
+
+  return null;
+}
+
 type TimeSigPair = {
   numerator: PageTextItem;
   denominator: PageTextItem;
@@ -412,8 +430,7 @@ function pairTimeSigs(
   notation: Set<string>,
 ): TimeSigPair[] {
   const digits = items.filter((item) => {
-    const str = item.str.trim();
-    if (!TIME_SIG_DIGIT.test(str)) return false;
+    if (timeSigDigitValue(item.str) === null) return false;
     if (!notation.has(item.fontName)) return false;
     if (item.rect.bottom > staff.top || item.rect.top < staff.bottom)
       return false;
@@ -446,6 +463,9 @@ function pairTimeSigs(
     const sorted = [...group].sort((a, b) => b.rect.top - a.rect.top);
     const numerator = sorted[0];
     const denominator = sorted[1];
+    const numVal = timeSigDigitValue(numerator.str);
+    const denVal = timeSigDigitValue(denominator.str);
+    if (numVal === null || denVal === null) continue;
     pairs.push({
       numerator,
       denominator,
@@ -455,7 +475,7 @@ function pairTimeSigs(
         bottom: Math.min(numerator.rect.bottom, denominator.rect.bottom),
         top: Math.max(numerator.rect.top, denominator.rect.top),
       },
-      text: `${numerator.str.trim()}/${denominator.str.trim()}`,
+      text: `${numVal}/${denVal}`,
     });
   }
 
@@ -707,13 +727,24 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
   const chain = longestNonDecreasing(inReadingOrder(group));
   const values = chain.map((candidate) => candidate.value ?? 0);
 
+  const range = values[values.length - 1] - values[0];
+  const medianVal = median(values);
+
   if (
     chain.length >= 2 &&
     chain.length / group.length >= AGREEMENT &&
     values[values.length - 1] > values[0] &&
     // A numbering counts through many values; tuplets that happen to end higher
     // than they started still only ever say two or three things.
-    new Set(values).size >= Math.min(3, chain.length)
+    new Set(values).size >= Math.min(3, chain.length) &&
+    // Fingerings repeat the same small set (1-6) regardless of score length;
+    // real measure numbers span a range at least roughly proportional to the
+    // number of entries.
+    (chain.length <= 4 || range >= chain.length * 0.3) &&
+    // A group polluted by notation digits (fingerings, string numbers) has many
+    // low values with a few real bar numbers reaching high, pulling the median
+    // far below the max. A real numbering distributes values more evenly.
+    (chain.length <= 10 || medianVal >= values[values.length - 1] * 0.1)
   ) {
     return chain;
   }
@@ -727,6 +758,56 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
   return withoutPages.length < group.length
     ? measureNumbersIn(withoutPages)
     : [];
+}
+
+/**
+ * Vocal scores have lyrics above the top staff, right where tempo marks sit.
+ * Lyrics appear as many short syllable fragments per system, often joined by
+ * hyphens, while tempo marks are sparse and longer. On a system that carries
+ * enough fragments to look like a lyric line, only items that positively
+ * identify as tempo marks survive.
+ */
+function withoutLyrics(candidates: readonly Candidate[]): Candidate[] {
+  if (candidates.length === 0) return [];
+
+  // Syllable hyphens in various engraver conventions: "me - sa", "es- tá",
+  // "- no", "ap-e", "ven-to". A hyphen next to a word boundary (space or
+  // string edge) on at least one side is always a lyric join.
+  const syllableHyphen = /(?:^|\s)-|-(?:\s|$)/;
+
+  // Count prose per system — lyrics make individual systems dense.
+  const perSystem = new Map<string, Candidate[]>();
+  for (const c of candidates) {
+    const key = `${c.pageIndex}:${c.systemIndex}`;
+    const list = perSystem.get(key) ?? [];
+    list.push(c);
+    perSystem.set(key, list);
+  }
+
+  // A tempo mark looks like a tempo mark: contains "=" (metronome), starts
+  // with a digit cluster (rehearsal number or BPM), or is a substantial phrase.
+  const looksLikeTempo = (text: string) =>
+    /[=]/.test(text) ||
+    (/\d/.test(text) && text.length >= 3) ||
+    (text.length >= 6 && /^[A-Z]/.test(text.trim()));
+
+  // Systems with many prose fragments are lyric lines. On those systems, only
+  // keep candidates that positively identify as tempo/rehearsal marks.
+  const lyricSystems = new Set<string>();
+  for (const [key, list] of perSystem) {
+    if (list.length >= 4) lyricSystems.add(key);
+  }
+
+  return candidates.filter((candidate) => {
+    if (syllableHyphen.test(candidate.text)) return false;
+
+    const key = `${candidate.pageIndex}:${candidate.systemIndex}`;
+    if (lyricSystems.has(key)) {
+      return looksLikeTempo(candidate.text);
+    }
+
+    return true;
+  });
 }
 
 /**
