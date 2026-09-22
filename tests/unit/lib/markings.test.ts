@@ -237,6 +237,66 @@ describe('detectMarkings', () => {
     expect(first.rect.left).toBeLessThanOrEqual(92);
     expect(first.rect.top).toBeGreaterThanOrEqual(720);
   });
+
+  it('rejects a group of small repeating values (fingerings)', () => {
+    // Simulate guitar fingering digits 1-6 scattered across 20 pages at the
+    // same placement as measure numbers. The values repeat heavily and never
+    // climb beyond 6, so they should not be read as a measure numbering.
+    const pages = Array.from({ length: 20 }, (_, i) => page(i, [700, 600]));
+    const fingeringValues = [1, 3, 2, 4, 6, 5, 2, 3, 1, 4];
+    const items = pages.map(() =>
+      fingeringValues.map((v, j) => text(String(v), 96 + j * 40, 712)),
+    );
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.filter((m) => m.kind === 'measure')).toHaveLength(0);
+  });
+
+  it('keeps real measures when fingerings are in a separate group', () => {
+    const pages = Array.from({ length: 4 }, (_, i) => page(i, [700, 600]));
+    const items = pages.map((_, index) => [
+      // Measure numbers: above the staff, consistent size.
+      text(String(index * 8 + 1), 96, 712),
+      // Fingerings: closer to the staff, smaller size — a separate group.
+      text('3', 200, 701, { size: 3 }),
+      text('2', 300, 701, { size: 3 }),
+    ]);
+
+    const measures = detectMarkings(pages, items)
+      .flat()
+      .filter((m) => m.kind === 'measure');
+    expect(measures.map((m) => m.text)).toEqual(['1', '9', '17', '25']);
+  });
+
+  it('filters lyrics from tempo candidates on dense systems', () => {
+    const pages = [page(0, [700, 600])];
+    const items = [
+      [
+        text('Allegro = 96', 120, 715),
+        // Lyric syllables scattered above staff 0 — same system, far enough
+        // apart not to merge with the tempo mark.
+        text('so', 250, 715),
+        text('li', 290, 715),
+        text('dão', 330, 715),
+        text('u', 380, 715),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    const tempos = found.filter((m) => m.kind === 'tempo');
+    expect(tempos).toHaveLength(1);
+    expect(tempos[0].text).toBe('Allegro = 96');
+  });
+
+  it('filters syllable-hyphenated lyrics regardless of density', () => {
+    const pages = [page(0, [700, 600])];
+    const items = [[text('Allegro', 120, 715), text('es- tá', 250, 715)]];
+
+    const found = detectMarkings(pages, items).flat();
+    const tempos = found.filter((m) => m.kind === 'tempo');
+    expect(tempos).toHaveLength(1);
+    expect(tempos[0].text).toBe('Allegro');
+  });
 });
 
 describe('markings on regions', () => {
@@ -459,6 +519,47 @@ describe('time-signature detection', () => {
     const found = detectMarkings(pages, items).flat();
     expect(found.filter((m) => m.kind === 'time-signature')).toHaveLength(1);
     expect(found.filter((m) => m.kind === 'measure')).toHaveLength(0);
+  });
+
+  it('detects SMuFL-encoded time-signature digits', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    // U+E084 = SMuFL time-signature digit 4
+    const smufl4 = String.fromCodePoint(0xe084);
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit(smufl4, 111.3, midY + 2),
+        notationDigit(smufl4, 111.5, midY - 12),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    const timeSigs = found.filter((m) => m.kind === 'time-signature');
+    expect(timeSigs).toHaveLength(1);
+    expect(timeSigs[0].text).toBe('4/4');
+  });
+
+  it('detects mixed SMuFL numerator and denominator', () => {
+    const pages = [twoStaffPage()];
+    const topStaff = pages[0].systems[0].staves[0];
+    const midY = topStaff.bottom + (topStaff.top - topStaff.bottom) / 2;
+    // U+E083 = 3, U+E088 = 8
+    const smufl3 = String.fromCodePoint(0xe083);
+    const smufl8 = String.fromCodePoint(0xe088);
+    const items = [
+      [
+        ...notationFontItems(),
+        notationDigit(smufl3, 111.3, midY + 2),
+        notationDigit(smufl8, 111.5, midY - 12),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    const timeSigs = found.filter((m) => m.kind === 'time-signature');
+    expect(timeSigs).toHaveLength(1);
+    expect(timeSigs[0].text).toBe('3/8');
   });
 
   it('ignores a lone notation digit with no pair', () => {

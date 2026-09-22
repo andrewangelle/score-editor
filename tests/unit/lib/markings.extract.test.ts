@@ -229,6 +229,107 @@ describe('collectMarkingsRows', () => {
     expect(result.rows[0].measure).toBe(5);
     expect(result.rows[0].eventMarkings[0].text).toBe('rit.');
   });
+
+  it('includes events on the first system when no measure "1" exists', () => {
+    const ts = marking({
+      kind: 'time-signature',
+      text: '3/4',
+      pageIndex: 0,
+      systemIndex: 0,
+      rect: { left: 105, right: 120, bottom: 690, top: 710 },
+    });
+    const tempo = marking({
+      kind: 'tempo',
+      text: 'Allegro',
+      pageIndex: 0,
+      systemIndex: 0,
+      rect: { left: 130, right: 200, bottom: 740, top: 750 },
+    });
+    const m5 = marking({
+      kind: 'measure',
+      text: '5',
+      pageIndex: 0,
+      systemIndex: 1,
+      rect: { left: 100, right: 120, bottom: 620, top: 630 },
+    });
+
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 2, [ts, tempo, m5])]),
+    );
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].measure).toBe(1);
+    expect(result.rows[0].measureMarking).toBeNull();
+    expect(result.rows[0].eventMarkings).toHaveLength(2);
+    expect(result.rows[0].eventMarkings[0].kind).toBe('time-signature');
+    expect(result.rows[0].eventMarkings[1].kind).toBe('tempo');
+  });
+
+  it('filters courtesy time signatures at the end of a system', () => {
+    const m1 = marking({
+      kind: 'measure',
+      text: '1',
+      pageIndex: 0,
+      systemIndex: 0,
+      rect: { left: 100, right: 120, bottom: 720, top: 730 },
+    });
+    const tsCourtesy = marking({
+      kind: 'time-signature',
+      text: '3/4',
+      pageIndex: 0,
+      systemIndex: 0,
+      // Near the right edge (system spans 100–500, so 480 is at 95%)
+      rect: { left: 480, right: 495, bottom: 690, top: 710 },
+    });
+    const m5 = marking({
+      kind: 'measure',
+      text: '5',
+      pageIndex: 0,
+      systemIndex: 1,
+      rect: { left: 100, right: 120, bottom: 620, top: 630 },
+    });
+    const tsReal = marking({
+      kind: 'time-signature',
+      text: '3/4',
+      pageIndex: 0,
+      systemIndex: 1,
+      rect: { left: 105, right: 120, bottom: 590, top: 610 },
+    });
+
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 2, [m1, tsCourtesy, m5, tsReal])]),
+    );
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].measure).toBe(5);
+    expect(result.rows[0].eventMarkings).toHaveLength(1);
+    expect(result.rows[0].eventMarkings[0]).toBe(tsReal);
+  });
+
+  it('keeps a right-edge time signature when no match exists on the next system', () => {
+    const m1 = marking({
+      kind: 'measure',
+      text: '1',
+      pageIndex: 0,
+      systemIndex: 0,
+      rect: { left: 100, right: 120, bottom: 720, top: 730 },
+    });
+    const tsEnd = marking({
+      kind: 'time-signature',
+      text: '5/8',
+      pageIndex: 0,
+      systemIndex: 0,
+      rect: { left: 480, right: 495, bottom: 690, top: 710 },
+    });
+
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 1, [m1, tsEnd])]),
+    );
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].eventMarkings).toHaveLength(1);
+    expect(result.rows[0].eventMarkings[0].text).toBe('5/8');
+  });
 });
 
 describe('markingsExportFileName', () => {
