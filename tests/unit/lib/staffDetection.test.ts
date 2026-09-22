@@ -80,6 +80,16 @@ describe('staff detection', () => {
     }
   });
 
+  it('finds the barlines closing each bar, and not the opening one', () => {
+    for (const page of pages) {
+      for (const system of page.systems) {
+        // The fixture's bars close at 230, 370 and the right margin; the one-line
+        // drum staff has to vouch for them like every other staff.
+        expect(system.barlines?.map(Math.round)).toEqual([230, 370, 560]);
+      }
+    }
+  });
+
   it('finds one staff per part in each system', () => {
     for (const page of pages) {
       for (const system of page.systems) {

@@ -13,20 +13,22 @@ export type MarkingsExportResult = {
   measuresInferred: boolean;
 };
 
-type SystemKey = `${number}:${number}`;
+/** A bar's place in the document: which system, and which bar across it. */
+type BarPosition = { system: number; bar: number };
 
-function systemKey(pageIndex: number, systemIndex: number): SystemKey {
-  return `${pageIndex}:${systemIndex}`;
-}
+type Anchor = BarPosition & { value: number; marking: Marking };
 
+/**
+ * Places every event in a bar by counting the barlines to its left, then numbers
+ * that bar by counting bars from the nearest printed measure number. A printed
+ * number always wins over the count, so a miscounted system only misnumbers the
+ * events between it and the next printed number. Events ahead of the first
+ * printed number count backwards from it; a score with none at all counts from 1.
+ */
 export function collectMarkingsRows(
   analysis: ScoreAnalysis,
 ): MarkingsExportResult {
   const allMarkings = analysis.pages.flatMap((page) => page.markings);
-
-  const measureMarkings = allMarkings.filter(
-    (marking) => marking.kind === 'measure',
-  );
 
   const eventMarkings = allMarkings.filter(
     (marking) => marking.kind === 'tempo' || marking.kind === 'time-signature',
@@ -36,110 +38,111 @@ export function collectMarkingsRows(
     return { rows: [], measuresInferred: false };
   }
 
-  const measuresInferred = measureMarkings.length === 0;
-
-  // Build an ordered list of measure entries keyed by (pageIndex, systemIndex).
-  type MeasureEntry = {
-    key: SystemKey;
-    value: number;
-    marking: Marking | null;
-    left: number;
-  };
-
-  const measures: MeasureEntry[] = [];
-
-  if (measuresInferred) {
-    let systemOrdinal = 0;
-    for (const page of analysis.pages) {
-      for (let si = 0; si < page.systems.length; si++) {
-        systemOrdinal++;
-        measures.push({
-          key: systemKey(page.pageIndex, si),
-          value: systemOrdinal,
-          marking: null,
-          left: Number.NEGATIVE_INFINITY,
-        });
-      }
-    }
-  } else {
-    const sorted = [...measureMarkings].sort(
-      (a, b) =>
-        a.pageIndex - b.pageIndex ||
-        a.systemIndex - b.systemIndex ||
-        a.rect.left - b.rect.left,
-    );
-
-    for (const marking of sorted) {
-      const value = numericValue(marking.text);
-
-      if (value === null) {
-        continue;
-      }
-
-      measures.push({
-        key: systemKey(marking.pageIndex, marking.systemIndex),
-        value,
-        marking,
-        left: marking.rect.left,
-      });
-    }
-  }
-
-  // For each event marking, find the nearest measure number to its left on the
-  // same system, or fall back to the last measure from the previous system.
-  // When the event precedes every known measure, falls back to measure 1.
-  function findMeasure(event: Marking): MeasureEntry {
-    const eventKey = systemKey(event.pageIndex, event.systemIndex);
-
-    // Measures on the same system, at or to the left of the event.
-    const sameSystem = measures.filter(
-      (m) => m.key === eventKey && m.left <= event.rect.left,
-    );
-    if (sameSystem.length > 0) {
-      return sameSystem[sameSystem.length - 1];
-    }
-
-    // Same system but event is before any measure number — use first of system.
-    const anyOnSystem = measures.filter((m) => m.key === eventKey);
-    if (anyOnSystem.length > 0) {
-      return anyOnSystem[0];
-    }
-
-    // Look back through all previous systems.
-    const eventGlobal = globalSystemIndex(event.pageIndex, event.systemIndex);
-    let best: MeasureEntry | null = null;
-    for (const m of measures) {
-      const mGlobal = globalSystemIndex(
-        Number(m.key.split(':')[0]),
-        Number(m.key.split(':')[1]),
-      );
-      if (mGlobal < eventGlobal) {
-        best = m;
-      }
-    }
-    if (best) {
-      return best;
-    }
-
-    // Event precedes every known measure — the score's opening.
-    return {
-      key: eventKey,
-      value: 1,
-      marking: null,
-      left: Number.NEGATIVE_INFINITY,
-    };
-  }
-
-  // Build global system ordinal for ordering.
-  const systemOffsets = new Map<number, number>();
+  // Every system in reading order, and where each page's systems start in it.
+  const systems = analysis.pages.flatMap((page) => page.systems);
+  const pageOffsets = new Map<number, number>();
   let offset = 0;
   for (const page of analysis.pages) {
-    systemOffsets.set(page.pageIndex, offset);
+    pageOffsets.set(page.pageIndex, offset);
     offset += page.systems.length;
   }
+  const systemOf = (marking: Marking) =>
+    (pageOffsets.get(marking.pageIndex) ?? 0) + marking.systemIndex;
 
-  function globalSystemIndex(pageIndex: number, systemIndex: number): number {
-    return (systemOffsets.get(pageIndex) ?? 0) + systemIndex;
+  // Without barlines a system is read as a single bar, which leaves the printed
+  // numbers to do all the work.
+  const barlinesOf = (index: number) => systems[index]?.barlines ?? [];
+  const barCount = (index: number) => Math.max(barlinesOf(index).length, 1);
+
+  const barAt = (system: number, x: number): number =>
+    barlinesOf(system).filter((barline) => barline < x).length;
+
+  /** Bars from one position to a later one. */
+  const barsBetween = (from: BarPosition, to: BarPosition): number => {
+    if (from.system === to.system) return to.bar - from.bar;
+    let bars = barCount(from.system) - from.bar;
+    for (let index = from.system + 1; index < to.system; index++) {
+      bars += barCount(index);
+    }
+    return bars + to.bar;
+  };
+
+  const compare = (a: BarPosition, b: BarPosition) =>
+    a.system - b.system || a.bar - b.bar;
+
+  const printed: Anchor[] = [];
+  for (const marking of allMarkings) {
+    if (marking.kind !== 'measure') continue;
+    const value = numericValue(marking.text);
+    if (value === null) continue;
+
+    const system = systemOf(marking);
+    const spacing = systems[system]?.staves[0]?.lineSpacing ?? 0;
+    // Engravers centre a number over the bar's opening barline as often as they
+    // start it there, so the bar it names is judged from its middle with a
+    // staff space of give.
+    const middle = (marking.rect.left + marking.rect.right) / 2;
+    printed.push({
+      system,
+      bar: barAt(system, middle + spacing),
+      value,
+      marking,
+    });
+  }
+  printed.sort(
+    (a, b) => compare(a, b) || a.marking.rect.left - b.marking.rect.left,
+  );
+
+  const start = { system: 0, bar: 0 };
+  const anchors = corroborated(
+    printed,
+    (anchor) => anchor.value - barsBetween(start, anchor),
+  );
+
+  const measuresInferred = anchors.length === 0;
+
+  function measureOf(event: Marking): {
+    measure: number;
+    marking: Marking | null;
+  } {
+    const system = systemOf(event);
+    const position = { system, bar: barAt(system, event.rect.left) };
+
+    // Several numbers in one bar only happen when barlines went unread; the one
+    // nearest the event's left is then the closest guess.
+    const sameBar = anchors.filter((anchor) => compare(anchor, position) === 0);
+    if (sameBar.length > 0) {
+      const anchor =
+        lastWhere(
+          sameBar,
+          (candidate) => candidate.marking.rect.left <= event.rect.left,
+        ) ?? sameBar[0];
+      return { measure: anchor.value, marking: anchor.marking };
+    }
+
+    const before = lastWhere(
+      anchors,
+      (anchor) => compare(anchor, position) < 0,
+    );
+    if (before) {
+      return {
+        measure: before.value + barsBetween(before, position),
+        marking: null,
+      };
+    }
+
+    const after = anchors[0];
+    if (after) {
+      return {
+        measure: Math.max(after.value - barsBetween(position, after), 0),
+        marking: null,
+      };
+    }
+
+    return {
+      measure: 1 + barsBetween(start, position),
+      marking: null,
+    };
   }
 
   const filteredEvents = filterCourtesyTimeSigs(eventMarkings, analysis.pages);
@@ -151,15 +154,16 @@ export function collectMarkingsRows(
   >();
 
   for (const event of filteredEvents) {
-    const entry = findMeasure(event);
+    const { measure, marking } = measureOf(event);
 
-    const existing = rowMap.get(entry.value);
+    const existing = rowMap.get(measure);
     if (existing) {
       existing.events.push(event);
+      existing.measureMarking ??= marking;
     } else {
-      rowMap.set(entry.value, {
-        measure: entry.value,
-        measureMarking: entry.marking,
+      rowMap.set(measure, {
+        measure,
+        measureMarking: marking,
         events: [event],
       });
     }
@@ -265,7 +269,7 @@ export async function extractMarkings(
   if (measuresInferred) {
     const headerSize = 8;
     const header =
-      '(Measure numbers are approximate — no bar numbers were detected)';
+      '(No bar numbers were detected — measure numbers were counted from barlines)';
     outPage.drawText(header, {
       x: margin,
       y: cursor - headerSize,
@@ -351,6 +355,65 @@ export async function extractMarkings(
   output.setCreator('PDF Editor');
   output.setModificationDate(new Date());
   return output.save();
+}
+
+/** How many neighbouring bars either side may vouch for a printed number. */
+const CORROBORATION_REACH = 3;
+
+/**
+ * The printed numbers the barline count agrees with. A number is read off the
+ * margin between systems, so it can land on the wrong one, and stray digits pass
+ * for numbers; either would misnumber every event up to the next number. A real
+ * number and its neighbours differ by exactly the bars counted between them —
+ * their `offset` agrees — where a misplaced one is out by a whole system.
+ *
+ * Only a number for a *different* bar vouches, since the copies an engraver
+ * repeats over each group of staves agree with each other whether right or
+ * wrong. With nothing to corroborate against, every number is kept.
+ */
+function corroborated(
+  anchors: readonly Anchor[],
+  offset: (anchor: Anchor) => number,
+): Anchor[] {
+  const bars: Anchor[][] = [];
+  for (const anchor of anchors) {
+    const bar = bars.at(-1);
+    const first = bar?.[0];
+    if (
+      bar &&
+      first &&
+      first.system === anchor.system &&
+      first.bar === anchor.bar &&
+      first.value === anchor.value
+    ) {
+      bar.push(anchor);
+    } else {
+      bars.push([anchor]);
+    }
+  }
+
+  const kept = bars.filter((bar, index) => {
+    const own = offset(bar[0]);
+    const near = [
+      ...bars.slice(Math.max(index - CORROBORATION_REACH, 0), index),
+      ...bars.slice(index + 1, index + 1 + CORROBORATION_REACH),
+    ];
+    return near.some(
+      (other) => other[0].value !== bar[0].value && offset(other[0]) === own,
+    );
+  });
+
+  return kept.length > 0 ? kept.flat() : [...anchors];
+}
+
+function lastWhere<T>(
+  items: readonly T[],
+  predicate: (item: T) => boolean,
+): T | undefined {
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (predicate(items[i])) return items[i];
+  }
+  return undefined;
 }
 
 /**
