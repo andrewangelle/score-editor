@@ -385,8 +385,8 @@ export function resolveMarkings(
   );
   // Rehearsal marks and playing directions share the tempo mark's place above
   // the system. A rehearsal mark is told apart by the box drawn around it, and a
-  // tempo mark by the metronome figure it carries; words alone ("accel.",
-  // "flutter tongue") are a direction. All three are kept, so parts carry them.
+  // tempo mark by the metronome figure it carries; words alone are a direction.
+  // All three are kept, so parts carry them.
   for (const candidate of withoutFurniture(withoutLyrics(prose))) {
     kind.set(
       candidate,
@@ -451,12 +451,22 @@ function pairTimeSigs(
   notation: Set<string>,
 ): TimeSigPair[] {
   const digits = items.filter((item) => {
-    if (timeSigDigitValue(item.str) === null) return false;
-    if (!notation.has(item.fontName)) return false;
-    if (item.rect.bottom > staff.top || item.rect.top < staff.bottom)
+    if (timeSigDigitValue(item.str) === null) {
       return false;
-    if (item.rect.right < system.left || item.rect.left > system.right)
+    }
+
+    if (!notation.has(item.fontName)) {
       return false;
+    }
+
+    if (item.rect.bottom > staff.top || item.rect.top < staff.bottom) {
+      return false;
+    }
+
+    if (item.rect.right < system.left || item.rect.left > system.right) {
+      return false;
+    }
+
     return true;
   });
 
@@ -475,18 +485,27 @@ function pairTimeSigs(
 
   const pairs: TimeSigPair[] = [];
   for (const group of groups) {
-    if (group.length !== 2) continue;
+    if (group.length !== 2) {
+      continue;
+    }
+
     const height = group[0].rect.top - group[0].rect.bottom;
     const tolerance = Math.max(height * 0.35, 0.5);
-    if (Math.abs(group[0].rect.bottom - group[1].rect.bottom) <= tolerance)
+
+    if (Math.abs(group[0].rect.bottom - group[1].rect.bottom) <= tolerance) {
       continue;
+    }
 
     const sorted = [...group].sort((a, b) => b.rect.top - a.rect.top);
     const numerator = sorted[0];
     const denominator = sorted[1];
     const numVal = timeSigDigitValue(numerator.str);
     const denVal = timeSigDigitValue(denominator.str);
-    if (numVal === null || denVal === null) continue;
+
+    if (numVal === null || denVal === null) {
+      continue;
+    }
+
     pairs.push({
       numerator,
       denominator,
@@ -640,9 +659,18 @@ function enclosure(rect: Rect, ink: readonly Rect[], limit: number): Rect {
       box.right >= rect.left &&
       box.bottom <= rect.top &&
       box.top >= rect.bottom;
-    if (!touches) continue;
-    if (box.right - box.left > width + limit * 2) continue;
-    if (box.top - box.bottom > height + limit * 2) continue;
+
+    if (!touches) {
+      continue;
+    }
+
+    if (box.right - box.left > width + limit * 2) {
+      continue;
+    }
+
+    if (box.top - box.bottom > height + limit * 2) {
+      continue;
+    }
 
     grown.left = Math.max(Math.min(grown.left, box.left), rect.left - limit);
     grown.right = Math.min(
@@ -747,6 +775,7 @@ function longestNonDecreasing(ordered: readonly Candidate[]): Candidate[] {
   for (let i = 0; i < ordered.length; i++) {
     length[i] = 1;
     previous[i] = -1;
+
     for (let j = 0; j < i; j++) {
       const climbs = (ordered[j].value ?? 0) <= (ordered[i].value ?? 0);
       if (climbs && length[j] + 1 > length[i]) {
@@ -754,11 +783,16 @@ function longestNonDecreasing(ordered: readonly Candidate[]): Candidate[] {
         previous[i] = j;
       }
     }
-    if (end === -1 || length[i] > length[end]) end = i;
+
+    if (end === -1 || length[i] > length[end]) {
+      end = i;
+    }
   }
 
   const chain: Candidate[] = [];
-  for (let i = end; i >= 0; i = previous[i]) chain.push(ordered[i]);
+  for (let i = end; i >= 0; i = previous[i]) {
+    chain.push(ordered[i]);
+  }
   return chain.reverse();
 }
 
@@ -810,6 +844,7 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
   const withoutPages = group.filter(
     (candidate) => candidate.value !== candidate.pageIndex + 1,
   );
+
   return withoutPages.length < group.length
     ? measureNumbersIn(withoutPages)
     : [];
@@ -832,23 +867,28 @@ function withoutLyrics(candidates: readonly Candidate[]): Candidate[] {
 
   // Count prose per system — lyrics make individual systems dense.
   const perSystem = new Map<string, Candidate[]>();
-  for (const c of candidates) {
-    const key = `${c.pageIndex}:${c.systemIndex}`;
+
+  for (const candidate of candidates) {
+    const key = `${candidate.pageIndex}:${candidate.systemIndex}`;
     const list = perSystem.get(key) ?? [];
-    list.push(c);
+    list.push(candidate);
     perSystem.set(key, list);
   }
 
   // A tempo mark looks like a tempo mark: contains "=" (metronome), starts
   // with a digit cluster (rehearsal number or BPM), or is a substantial phrase.
-  const looksLikeTempo = (text: string) =>
-    /[=]/.test(text) ||
-    (/\d/.test(text) && text.length >= 3) ||
-    (text.length >= 6 && /^[A-Z]/.test(text.trim()));
+  function looksLikeTempo(text: string) {
+    return (
+      /[=]/.test(text) ||
+      (/\d/.test(text) && text.length >= 3) ||
+      (text.length >= 6 && /^[A-Z]/.test(text.trim()))
+    );
+  }
 
   // Systems with many prose fragments are lyric lines. On those systems, only
   // keep candidates that positively identify as tempo/rehearsal marks.
   const lyricSystems = new Set<string>();
+
   for (const [key, list] of perSystem) {
     if (list.length >= 4) lyricSystems.add(key);
   }
@@ -878,9 +918,12 @@ function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
 
   // Keyed on the words *and* where they fall: a running header is pinned to one
   // spot page after page, while a tempo returns at whatever bar it applies to.
-  const place = (candidate: Candidate) =>
-    `${candidate.text}@${Math.round(candidate.rect.left / 4)}`;
+  function place(candidate: Candidate) {
+    return `${candidate.text}@${Math.round(candidate.rect.left / 4)}`;
+  }
+
   const repeats = new Map<string, Set<number>>();
+
   for (const candidate of candidates) {
     const pages = repeats.get(place(candidate)) ?? new Set<number>();
     pages.add(candidate.pageIndex);
