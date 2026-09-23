@@ -3,6 +3,7 @@ import { DetectedParts } from '#/components/EditScorePanel/DetectedParts';
 import { EditRegions } from '#/components/EditScorePanel/EditRegions';
 import { PANEL_CLASS } from '#/components/EditScorePanel/EditScorePanel.styles';
 import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
+import { ScoreMetadata } from './ScoreMetadata';
 
 export type EditScorePanelProps = {
   replaceTarget: { name: string; onReplace: () => void } | null;
@@ -26,6 +27,7 @@ export function EditScorePanel({
         onExportMarkings={onExportMarkings}
       />
       <AddAnnotations />
+      <ScoreMetadata isBusy={isBusy} onExportMarkings={onExportMarkings} />
       <EditRegions />
     </aside>
   );

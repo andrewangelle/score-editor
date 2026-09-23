@@ -10,8 +10,8 @@ export const DONE_EDITING = 'Done editing';
 export const EDIT_REGIONS = 'Edit regions';
 export const EDIT_REGIONS_HINT =
   'Drag on empty space to add. Drag a rectangle to move it, or its edges to resize. Select one to delete it.';
-export const EXPORT_TEMPO_MAP = 'Export tempo map';
-export const EXPORT_TIME_SIGNATURE_MAP = 'Export time signature map';
+export const EXPORT_TEMPO_MAP = 'Export Tempo Map';
+export const EXPORT_TIME_SIGNATURE_MAP = 'Export Time Signature Map';
 export const FINGERING = 'Fingering';
 export const FONT_SIZE_TEXT = 'Select font size:';
 export const KEEP_MEASURE = 'Keep measure numbers';
@@ -27,6 +27,7 @@ export const REGIONS_DESCRIPTION =
   'The rectangles that will be cut. Detection proposes them; adjust or add your own for anything it gets wrong — or for a PDF with no staves at all.';
 export const REPLACE = 'Replace';
 export const RESET_REGIONS = 'Reset to detected staves';
+export const SCORE_METADATA = 'Score metadata';
 export const SELECT_ALL = 'Select all';
 export const SELECT_ANNOTATION = 'Select annotation:';
 export const SELECT_COLOR = 'Select color:';

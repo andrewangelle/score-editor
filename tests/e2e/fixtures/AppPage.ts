@@ -99,6 +99,10 @@ export class AppPage {
     await this.expandSection('EditRegionsSection');
   }
 
+  async expandScoreMetadata() {
+    await this.expandSection('ScoreMetadata');
+  }
+
   async deselectAllParts() {
     const button = this.page.getByRole('button', { name: 'Deselect all' });
     if (await button.isVisible()) {
@@ -199,6 +203,7 @@ export class AppPage {
     map: 'time signature' | 'tempo',
     name: string,
   ): Promise<Download> {
+    await this.expandScoreMetadata();
     await this.page.getByRole('button', { name: `Export ${map} map` }).click();
 
     const nameInput = this.page.locator('#export-markings-name');
