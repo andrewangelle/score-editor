@@ -57,29 +57,37 @@ export function collectMarkingsRows(
     offset += page.systems.length;
   }
 
-  const systemOf = (marking: Marking) =>
-    (pageOffsets.get(marking.pageIndex) ?? 0) + marking.systemIndex;
+  function systemOf(marking: Marking) {
+    return (pageOffsets.get(marking.pageIndex) ?? 0) + marking.systemIndex;
+  }
 
   // Without barlines a system is read as a single bar, which leaves the printed
   // numbers to do all the work.
-  const barlinesOf = (index: number) => systems[index]?.barlines ?? [];
-  const barCount = (index: number) => Math.max(barlinesOf(index).length, 1);
+  function barlinesOf(index: number) {
+    return systems[index]?.barlines ?? [];
+  }
 
-  const barAt = (system: number, x: number): number =>
-    barlinesOf(system).filter((barline) => barline < x).length;
+  function barCount(index: number) {
+    return Math.max(barlinesOf(index).length, 1);
+  }
+
+  function barAt(system: number, x: number): number {
+    return barlinesOf(system).filter((barline) => barline < x).length;
+  }
 
   /** Bars from one position to a later one. */
-  const barsBetween = (from: BarPosition, to: BarPosition): number => {
+  function barsBetween(from: BarPosition, to: BarPosition): number {
     if (from.system === to.system) return to.bar - from.bar;
     let bars = barCount(from.system) - from.bar;
     for (let index = from.system + 1; index < to.system; index++) {
       bars += barCount(index);
     }
     return bars + to.bar;
-  };
+  }
 
-  const compare = (a: BarPosition, b: BarPosition) =>
-    a.system - b.system || a.bar - b.bar;
+  function compare(a: BarPosition, b: BarPosition) {
+    return a.system - b.system || a.bar - b.bar;
+  }
 
   const printed: Anchor[] = [];
   for (const marking of allMarkings) {
@@ -112,7 +120,7 @@ export function collectMarkingsRows(
   );
 
   const start = { system: 0, bar: 0 };
-  const anchors = corroborated(
+  const anchors = corroboratedMeasureNumbers(
     printed,
     (anchor) => anchor.value - barsBetween(start, anchor),
   );
@@ -393,7 +401,7 @@ const CORROBORATION_REACH = 3;
  * repeats over each group of staves agree with each other whether right or
  * wrong. With nothing to corroborate against, every number is kept.
  */
-function corroborated(
+function corroboratedMeasureNumbers(
   anchors: readonly Anchor[],
   offset: (anchor: Anchor) => number,
 ): Anchor[] {
