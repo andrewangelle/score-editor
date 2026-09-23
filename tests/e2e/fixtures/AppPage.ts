@@ -85,7 +85,7 @@ export class AppPage {
   }
 
   async waitForAnalysis() {
-    await this.expandSection('DetectedInstruments');
+    await this.expandSection('DetectedParts');
     await expect(
       this.page.getByText(/\d+ staves · \d+ sections detected/),
     ).toBeVisible({ timeout: 15_000 });

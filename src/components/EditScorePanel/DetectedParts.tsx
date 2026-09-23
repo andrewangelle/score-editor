@@ -6,9 +6,9 @@ import {
   DESELECT_ALL,
   EXPORT_TEMPO_MAP,
   EXPORT_TIME_SIGNATURE_MAP,
-  INSTRUMENTS,
   KEEP_MEASURE,
   MANUAL_INFO,
+  PARTS,
   REPLACE,
   SELECT_ALL,
   TEMPO_MARKS,
@@ -54,7 +54,7 @@ import {
 } from '#/store/score.slice';
 import { selectRegions } from '#/store/selectors';
 
-export function DetectedInstruments({
+export function DetectedParts({
   onExtract,
   onExportMarkings,
   replaceTarget,
@@ -74,8 +74,8 @@ export function DetectedInstruments({
 
   return (
     <CollapsibleSection
-      data-testid="DetectedInstruments"
-      title={INSTRUMENTS}
+      data-testid="DetectedParts"
+      title={PARTS}
       headerRight={
         <button
           type="button"

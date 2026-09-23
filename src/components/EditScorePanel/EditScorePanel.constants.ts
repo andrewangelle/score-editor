@@ -14,10 +14,10 @@ export const EXPORT_TEMPO_MAP = 'Export tempo map';
 export const EXPORT_TIME_SIGNATURE_MAP = 'Export time signature map';
 export const FINGERING = 'Fingering';
 export const FONT_SIZE_TEXT = 'Select font size:';
-export const INSTRUMENTS = 'Instruments';
 export const KEEP_MEASURE = 'Keep measure numbers';
 export const MANUAL_INFO =
   'Regions were edited by hand, so they no longer follow these checkboxes. Reset them below to go back to the detected staves.';
+export const PARTS = 'Parts';
 export const PERFORMANCE = 'Performance';
 export const POSITION = 'Position Ⅴ';
 export const POSITION_HINT =

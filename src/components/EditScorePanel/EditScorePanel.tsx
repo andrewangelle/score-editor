@@ -1,5 +1,5 @@
 import { AddAnnotations } from '#/components/EditScorePanel/AddAnnotations';
-import { DetectedInstruments } from '#/components/EditScorePanel/DetectedInstruments';
+import { DetectedParts } from '#/components/EditScorePanel/DetectedParts';
 import { EditRegions } from '#/components/EditScorePanel/EditRegions';
 import { PANEL_CLASS } from '#/components/EditScorePanel/EditScorePanel.styles';
 import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
@@ -19,7 +19,7 @@ export function EditScorePanel({
 }: EditScorePanelProps) {
   return (
     <aside data-testid="EditScorePanel" className={PANEL_CLASS}>
-      <DetectedInstruments
+      <DetectedParts
         isBusy={isBusy}
         replaceTarget={replaceTarget}
         onExtract={onExtract}
