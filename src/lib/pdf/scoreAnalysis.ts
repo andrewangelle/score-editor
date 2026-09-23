@@ -71,10 +71,10 @@ export async function analyzeScore(bytes: Uint8Array): Promise<ScoreAnalysis> {
       detected.map((page) => page.text ?? []),
     );
 
-    // `ink` and `text` run to thousands of entries per page and are done with.
-    // This analysis is held in the store, so it must not carry them further.
+    // `ink`, `frames` and `text` run to thousands of entries per page and are
+    // done with. This analysis is held in the store, so it must not carry them.
     const pages: ScorePage[] = detected.map(
-      ({ ink: _ink, text: _text, ...page }, i) => ({
+      ({ ink: _ink, frames: _frames, text: _text, ...page }, i) => ({
         ...page,
         markings: markings[i] ?? [],
       }),

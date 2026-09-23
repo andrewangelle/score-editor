@@ -15,6 +15,12 @@ export type PdfOps = {
   constructPath: number;
   paintFormXObjectBegin?: number;
   paintFormXObjectEnd?: number;
+  stroke?: number;
+  closeStroke?: number;
+  fillStroke?: number;
+  eoFillStroke?: number;
+  closeFillStroke?: number;
+  closeEOFillStroke?: number;
 };
 
 type OperatorList = { fnArray: number[]; argsArray: unknown[][] };
@@ -70,6 +76,8 @@ export type PageStaves = {
    * so a second reader (`markings.ts`) doesn't need to recompute
    */
   ink?: Rect[];
+  /** The subset of `ink` that was stroked: outlines, such as the box around a rehearsal mark. */
+  frames?: Rect[];
   text?: PageTextItem[];
 };
 
@@ -131,7 +139,7 @@ export async function detectPageStaves(
   const viewport = page.getViewport({ scale: 1 });
   const operators = preloadedOperators ?? (await page.getOperatorList());
 
-  const { boxes, clips } = collectGeometry(operators, ops);
+  const { boxes, frames, clips } = collectGeometry(operators, ops);
   const rules = consolidateRules(rulesFromBoxes(boxes, options), options);
   const staves = groupIntoStaves(rules, options);
   const text = await readVisibleText(page, clips);
@@ -150,6 +158,7 @@ export async function detectPageStaves(
     systems,
     clips,
     ink: boxes,
+    frames,
     text,
   };
 }
@@ -305,8 +314,22 @@ function toMatrix(value: unknown): Matrix | null {
 
 export type PageGeometry = {
   boxes: Box[];
+  frames: Box[];
   clips: Box[] | null;
 };
+
+function strokeOps(ops: PdfOps): Set<number> {
+  return new Set(
+    [
+      ops.stroke,
+      ops.closeStroke,
+      ops.fillStroke,
+      ops.eoFillStroke,
+      ops.closeFillStroke,
+      ops.closeEOFillStroke,
+    ].filter((op): op is number => op !== undefined),
+  );
+}
 
 /**
  * The single geometry pass: staff lines, barlines and "ink near a staff" are all
@@ -317,7 +340,9 @@ export function collectGeometry(
   ops: PdfOps,
 ): PageGeometry {
   const boxes: Box[] = [];
+  const frames: Box[] = [];
   const clips: Box[] = [];
+  const strokes = strokeOps(ops);
   let ctm: Matrix = IDENTITY;
   let clip: Box | null = null;
   const stack: { ctm: Matrix; clip: Box | null }[] = [];
@@ -325,10 +350,11 @@ export function collectGeometry(
 
   const recorded = new Set<Box>();
 
-  const push = (box: Box): void => {
+  const push = (box: Box, stroked: boolean): void => {
     const visible = clip ? intersect(box, clip) : box;
     if (!visible) return;
     boxes.push(visible);
+    if (stroked) frames.push(visible);
 
     if (!clip) {
       unclipped = true;
@@ -402,11 +428,12 @@ export function collectGeometry(
     if (clip && clip.left > clip.right) continue;
 
     // pdf.js hands us [drawOp, [pathBuffer], [minX, minY, maxX, maxY]].
+    const stroked = strokes.has(args?.[0] as number);
     const buffer = pathBuffer(args?.[1]);
     const subpaths = buffer ? subpathBoxes(buffer) : null;
 
     if (subpaths) {
-      for (const box of subpaths) push(transformBox(ctm, box));
+      for (const box of subpaths) push(transformBox(ctm, box), stroked);
       continue;
     }
 
@@ -422,10 +449,15 @@ export function collectGeometry(
         right: minMax[2],
         top: minMax[3],
       }),
+      stroked,
     );
   }
 
-  return { boxes, clips: unclipped || clips.length === 0 ? null : clips };
+  return {
+    boxes,
+    frames,
+    clips: unclipped || clips.length === 0 ? null : clips,
+  };
 }
 
 /** Horizontal rules: wide, near-zero height. Candidate staff lines. */
