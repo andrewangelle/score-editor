@@ -207,6 +207,39 @@ describe('detectMarkings', () => {
     expect(found[0].kind).toBe('tempo');
   });
 
+  it('reads boxed text above the system as a rehearsal mark, not a tempo', () => {
+    const pages = [page(0, [700, 600])];
+    // "B" is 4.8 wide and 8 tall; its box is stroked with a little room around it.
+    const box = { left: 298, right: 307, bottom: 713, top: 724 };
+    pages[0].ink = [box];
+    pages[0].frames = [box];
+    const items = [[text('Andante = 96', 120, 715), text('B', 300, 715)]];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.map((mark) => [mark.text, mark.kind])).toEqual([
+      ['Andante = 96', 'tempo'],
+      ['B', 'rehearsal'],
+    ]);
+  });
+
+  it('does not read a filled shape behind text as a rehearsal box', () => {
+    const pages = [page(0, [700, 600])];
+    // Same outline as a rehearsal box, but painted rather than stroked.
+    pages[0].ink = [{ left: 298, right: 307, bottom: 713, top: 724 }];
+    const items = [[text('B', 300, 715)]];
+
+    expect(detectMarkings(pages, items).flat()[0].kind).toBe('tempo');
+  });
+
+  it('does not read a stroke far larger than the text as its box', () => {
+    const pages = [page(0, [700, 600])];
+    // A slur arching over the words: it spans them, but is no snug frame.
+    pages[0].frames = [{ left: 100, right: 300, bottom: 712, top: 740 }];
+    const items = [[text('rit.', 150, 715)]];
+
+    expect(detectMarkings(pages, items).flat()[0].kind).toBe('tempo');
+  });
+
   it('leaves the notation font’s own glyphs alone', () => {
     const pages = [page(0, [700, 600])];
     const notes = [696, 692, 688].map((y, i) =>

@@ -11,6 +11,7 @@ import {
 } from '#/components/PDFEditor/PDFEditor.constants';
 import { PdfLoadError } from '#/lib/pdf/document/document.errors';
 import type { PdfFileHandle } from '#/lib/pdf/fileAccess';
+import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
 
 export function getSaveButtonTitle(fileHandle: PdfFileHandle | null) {
   return fileHandle ? `${OVERWRITE} ${fileHandle.name}` : EDIT_TITLE;
@@ -49,6 +50,12 @@ export function getExtractError(cause: unknown) {
 export function getSaveError(cause: unknown) {
   if (cause instanceof Error) return cause.message;
   return COULD_NOT_SAVE;
+}
+
+export function getExportMarkingsLabel(kind: MarkingsExportKind) {
+  return kind === 'time-signature'
+    ? 'Export time signature map as'
+    : 'Export tempo map as';
 }
 
 export function getExportMarkingsError(cause: unknown) {

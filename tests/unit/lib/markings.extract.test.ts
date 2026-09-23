@@ -92,6 +92,7 @@ describe('collectMarkingsRows', () => {
 
     const result = collectMarkingsRows(
       analysis([scorePage(0, 1, [m1, m5, m9, tempo1, tempo5])]),
+      'tempo',
     );
 
     expect(result.measuresInferred).toBe(false);
@@ -110,14 +111,17 @@ describe('collectMarkingsRows', () => {
       rect: { left: 105, right: 120, bottom: 690, top: 710 },
     });
 
-    const result = collectMarkingsRows(analysis([scorePage(0, 1, [m1, ts])]));
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 1, [m1, ts])]),
+      'time-signature',
+    );
 
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].eventMarkings[0].text).toBe('3/4');
     expect(result.rows[0].eventMarkings[0].kind).toBe('time-signature');
   });
 
-  it('orders time signatures before tempo marks in a row', () => {
+  it('exports only the kind it is asked for', () => {
     const m1 = marking({ kind: 'measure', text: '1' });
     const tempo = marking({
       kind: 'tempo',
@@ -129,14 +133,31 @@ describe('collectMarkingsRows', () => {
       text: '4/4',
       rect: { left: 105, right: 120, bottom: 690, top: 710 },
     });
+    const score = analysis([scorePage(0, 1, [m1, tempo, ts])]);
+
+    const timeSignatures = collectMarkingsRows(score, 'time-signature');
+    expect(timeSignatures.rows).toHaveLength(1);
+    expect(timeSignatures.rows[0].eventMarkings).toEqual([ts]);
+
+    const tempos = collectMarkingsRows(score, 'tempo');
+    expect(tempos.rows).toHaveLength(1);
+    expect(tempos.rows[0].eventMarkings).toEqual([tempo]);
+  });
+
+  it('leaves rehearsal marks out of the tempo map', () => {
+    const m1 = marking({ kind: 'measure', text: '1' });
+    const rehearsal = marking({
+      kind: 'rehearsal',
+      text: 'A',
+      rect: { left: 105, right: 115, bottom: 740, top: 750 },
+    });
 
     const result = collectMarkingsRows(
-      analysis([scorePage(0, 1, [m1, tempo, ts])]),
+      analysis([scorePage(0, 1, [m1, rehearsal])]),
+      'tempo',
     );
 
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].eventMarkings[0].kind).toBe('time-signature');
-    expect(result.rows[0].eventMarkings[1].kind).toBe('tempo');
+    expect(result.rows).toHaveLength(0);
   });
 
   it('parses bracketed measure numbers via numericValue', () => {
@@ -151,7 +172,10 @@ describe('collectMarkingsRows', () => {
       rect: { left: 105, right: 140, bottom: 740, top: 750 },
     });
 
-    const result = collectMarkingsRows(analysis([scorePage(0, 1, [m, tempo])]));
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 1, [m, tempo])]),
+      'tempo',
+    );
 
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].measure).toBe(9);
@@ -167,7 +191,10 @@ describe('collectMarkingsRows', () => {
       rect: { left: 105, right: 180, bottom: 740, top: 750 },
     });
 
-    const result = collectMarkingsRows(analysis([scorePage(0, 2, [tempo])]));
+    const result = collectMarkingsRows(
+      analysis([scorePage(0, 2, [tempo])]),
+      'tempo',
+    );
 
     expect(result.measuresInferred).toBe(true);
     expect(result.rows).toHaveLength(1);
@@ -193,6 +220,7 @@ describe('collectMarkingsRows', () => {
 
     const result = collectMarkingsRows(
       analysis([scorePage(0, 3, [tempo1]), scorePage(1, 3, [tempo2])]),
+      'tempo',
     );
 
     expect(result.measuresInferred).toBe(true);
@@ -200,11 +228,12 @@ describe('collectMarkingsRows', () => {
     expect(measures).toEqual([1, 4]);
   });
 
-  it('returns empty rows when no tempo or time-signature markings exist', () => {
+  it('returns empty rows when no markings of the kind exist', () => {
     const m1 = marking({ kind: 'measure', text: '1' });
-    const result = collectMarkingsRows(analysis([scorePage(0, 1, [m1])]));
+    const score = analysis([scorePage(0, 1, [m1])]);
 
-    expect(result.rows).toHaveLength(0);
+    expect(collectMarkingsRows(score, 'tempo').rows).toHaveLength(0);
+    expect(collectMarkingsRows(score, 'time-signature').rows).toHaveLength(0);
   });
 
   it('associates a tempo marking between two measure numbers correctly', () => {
@@ -226,6 +255,7 @@ describe('collectMarkingsRows', () => {
 
     const result = collectMarkingsRows(
       analysis([scorePage(0, 1, [m5, m9, tempo])]),
+      'tempo',
     );
 
     expect(result.rows).toHaveLength(1);
@@ -257,26 +287,28 @@ describe('collectMarkingsRows', () => {
     });
 
     // Four bars on the first system, so counting back from 5 lands on 1.
-    const result = collectMarkingsRows(
-      analysis([
-        scorePage(
-          0,
-          2,
-          [ts, tempo, m5],
-          [
-            [200, 300, 400, 500],
-            [300, 500],
-          ],
-        ),
-      ]),
-    );
+    const score = analysis([
+      scorePage(
+        0,
+        2,
+        [ts, tempo, m5],
+        [
+          [200, 300, 400, 500],
+          [300, 500],
+        ],
+      ),
+    ]);
 
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].measure).toBe(1);
-    expect(result.rows[0].measureMarking).toBeNull();
-    expect(result.rows[0].eventMarkings).toHaveLength(2);
-    expect(result.rows[0].eventMarkings[0].kind).toBe('time-signature');
-    expect(result.rows[0].eventMarkings[1].kind).toBe('tempo');
+    for (const [kind, event] of [
+      ['time-signature', ts],
+      ['tempo', tempo],
+    ] as const) {
+      const result = collectMarkingsRows(score, kind);
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].measure).toBe(1);
+      expect(result.rows[0].measureMarking).toBeNull();
+      expect(result.rows[0].eventMarkings).toEqual([event]);
+    }
   });
 
   it('filters courtesy time signatures at the end of a system', () => {
@@ -312,6 +344,7 @@ describe('collectMarkingsRows', () => {
 
     const result = collectMarkingsRows(
       analysis([scorePage(0, 2, [m1, tsCourtesy, m5, tsReal])]),
+      'time-signature',
     );
 
     expect(result.rows).toHaveLength(1);
@@ -338,6 +371,7 @@ describe('collectMarkingsRows', () => {
 
     const result = collectMarkingsRows(
       analysis([scorePage(0, 1, [m1, tsEnd])]),
+      'time-signature',
     );
 
     expect(result.rows).toHaveLength(1);
@@ -371,6 +405,7 @@ describe('collectMarkingsRows counting barlines', () => {
       analysis([
         scorePage(0, 1, [m22, opening, later], [[200, 300, 400, 500]]),
       ]),
+      'tempo',
     );
 
     expect(result.rows.map((row) => row.measure)).toEqual([22, 24]);
@@ -392,6 +427,7 @@ describe('collectMarkingsRows counting barlines', () => {
           ],
         ),
       ]),
+      'tempo',
     );
 
     expect(result.rows.map((row) => row.measure)).toEqual([14]);
@@ -411,6 +447,7 @@ describe('collectMarkingsRows counting barlines', () => {
           [[200, 300, 400, 500], [500]],
         ),
       ]),
+      'tempo',
     );
 
     expect(result.rows.map((row) => row.measure)).toEqual([1, 3]);
@@ -429,6 +466,7 @@ describe('collectMarkingsRows counting barlines', () => {
           ],
         ),
       ]),
+      'tempo',
     );
 
     expect(result.measuresInferred).toBe(true);
@@ -457,6 +495,7 @@ describe('collectMarkingsRows counting barlines', () => {
           ],
         ),
       ]),
+      'tempo',
     );
 
     expect(result.rows.map((row) => row.measure)).toEqual([15]);
@@ -464,11 +503,16 @@ describe('collectMarkingsRows counting barlines', () => {
 });
 
 describe('markingsExportFileName', () => {
-  it('replaces .pdf with -markings.pdf', () => {
-    expect(markingsExportFileName('score.pdf')).toBe('score-markings.pdf');
+  it('names the export after the map it holds', () => {
+    expect(markingsExportFileName('score.pdf', 'time-signature')).toBe(
+      'score-time-signature-map.pdf',
+    );
+    expect(markingsExportFileName('score.pdf', 'tempo')).toBe(
+      'score-tempo-map.pdf',
+    );
   });
 
   it('uses "score" as fallback for empty name', () => {
-    expect(markingsExportFileName('')).toBe('score-markings.pdf');
+    expect(markingsExportFileName('', 'tempo')).toBe('score-tempo-map.pdf');
   });
 });

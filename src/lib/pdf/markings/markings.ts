@@ -11,7 +11,7 @@ import type {
 } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 
-export type MarkingKind = 'measure' | 'tempo' | 'time-signature';
+export type MarkingKind = 'measure' | 'tempo' | 'time-signature' | 'rehearsal';
 
 export type Marking = {
   id: string;
@@ -41,6 +41,8 @@ export type Candidate = {
   rightGap: number;
   size: number;
   value: number | null;
+  /** Enclosed by a stroked outline, as a rehearsal mark is by its box. */
+  framed: boolean;
 };
 
 export const DEFAULT_MARKINGS: MarkingOptions = {
@@ -164,6 +166,7 @@ export function pageCandidates(
 
   const pageTextItem = textMarkings(items);
   const notation = notationFonts(items, page.systems);
+  const frames = page.frames ?? [];
   const candidates: Candidate[] = [];
 
   // Systems in reading order, so each one knows what is directly above it.
@@ -225,7 +228,7 @@ export function pageCandidates(
           }
 
           candidates.push(
-            against(mark, system, staffIndex, side, {
+            against(mark, system, staffIndex, side, frames, {
               pageIndex: page.pageIndex,
               systemIndex,
             }),
@@ -249,6 +252,7 @@ export function pageCandidates(
           rightGap: (system.right - pair.rect.right) / height,
           size: (pair.rect.top - pair.rect.bottom) / height,
           value: null,
+          framed: isFramed(pair.rect, frames),
         });
       }
     }
@@ -354,6 +358,7 @@ export function resolveMarkings(
   const timeSigs = candidates.filter(
     (candidate) =>
       !kind.has(candidate) &&
+      !candidate.framed &&
       candidate.side === 'on' &&
       candidate.staffIndex === 0,
   );
@@ -373,8 +378,10 @@ export function resolveMarkings(
       // "=" of a metronome mark.
       /[=\p{L}]/u.test(candidate.text),
   );
+  // A rehearsal mark shares the tempo mark's place above the system and is told
+  // apart only by the box drawn around it. It is still kept, so parts carry it.
   for (const candidate of withoutFurniture(withoutLyrics(prose))) {
-    kind.set(candidate, 'tempo');
+    kind.set(candidate, candidate.framed ? 'rehearsal' : 'tempo');
   }
 
   const pages: Marking[][] = Array.from({ length: pageCount }, () => []);
@@ -542,6 +549,7 @@ function against(
   system: System,
   staffIndex: number,
   side: 'above' | 'below',
+  frames: readonly Rect[],
   page: { pageIndex: number; systemIndex: number },
 ): Candidate {
   const staff = system.staves[staffIndex];
@@ -562,7 +570,29 @@ function against(
     rightGap: (system.right - run.rect.right) / height,
     size: (run.rect.top - run.rect.bottom) / height,
     value: numericValue(run.str),
+    framed: isFramed(run.rect, frames),
   };
+}
+
+/**
+ * Whether a stroked outline closes around the text on every side and fits it
+ * snugly. pdf.js reports a glyph's box a little taller than the ink it draws, so
+ * the text may poke a fraction of its height past the outline; an outline more
+ * than a line of text wider or taller than the words is something else — a
+ * slur, a bracket, a rehearsal box further along — that merely crosses them.
+ */
+function isFramed(rect: Rect, frames: readonly Rect[]): boolean {
+  const height = rect.top - rect.bottom;
+  const tolerance = height * 0.25;
+  return frames.some(
+    (frame) =>
+      frame.left <= rect.left + tolerance &&
+      frame.right >= rect.right - tolerance &&
+      frame.bottom <= rect.bottom + tolerance &&
+      frame.top >= rect.top - tolerance &&
+      frame.right - frame.left <= rect.right - rect.left + height * 2 &&
+      frame.top - frame.bottom <= height * 2,
+  );
 }
 
 /**

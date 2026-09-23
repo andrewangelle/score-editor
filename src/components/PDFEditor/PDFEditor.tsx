@@ -30,6 +30,7 @@ import {
   downloadBytes,
   getAnalyseScoreError,
   getExportMarkingsError,
+  getExportMarkingsLabel,
   getExtractError,
   getFileHandleError,
   getSaveButtonCTA,
@@ -59,6 +60,7 @@ import type { EditorState } from '#/lib/pdf/editorState';
 import { type PdfFileHandle, writePdfFile } from '#/lib/pdf/fileAccess';
 import {
   extractMarkings,
+  type MarkingsExportKind,
   markingsExportFileName,
 } from '#/lib/pdf/markings/markings.extract';
 import { extractRegions, partFileName } from '#/lib/pdf/partExtraction';
@@ -145,7 +147,15 @@ export function PDFEditor() {
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isNamingCopy, setNamingCopy] = useState(false);
-  const [isNamingMarkingsExport, setNamingMarkingsExport] = useState(false);
+  // The kind outlives the prompt closing, so it keeps its label as it slides away.
+  const [markingsExport, setMarkingsExport] = useState<{
+    kind: MarkingsExportKind;
+    open: boolean;
+  }>({ kind: 'time-signature', open: false });
+
+  function closeMarkingsExport() {
+    setMarkingsExport((current) => ({ ...current, open: false }));
+  }
 
   function reportSaved(message: string) {
     setStatus({ message, revision });
@@ -303,14 +313,14 @@ export function PDFEditor() {
     });
   }
 
-  async function handleExportMarkings(typed: string) {
-    setNamingMarkingsExport(false);
+  async function handleExportMarkings(kind: MarkingsExportKind, typed: string) {
+    closeMarkingsExport();
     if (!bytes || !analysis) return;
 
     setIsBusy(true);
     setError(null);
     try {
-      const exported = await extractMarkings(bytes, analysis);
+      const exported = await extractMarkings(bytes, analysis, kind);
       const fileName = typed.endsWith('.pdf') ? typed : `${typed}.pdf`;
       downloadBytes(exported, fileName, 'application/pdf');
       reportSaved(`Saved ${fileName}`);
@@ -327,7 +337,7 @@ export function PDFEditor() {
     setStatus(null);
     setError(null);
     setNamingCopy(false);
-    setNamingMarkingsExport(false);
+    closeMarkingsExport();
   }
 
   if (!bytes) {
@@ -432,12 +442,13 @@ export function PDFEditor() {
       />
 
       <SaveCopyPrompt
-        open={isNamingMarkingsExport}
-        suggestion={markingsExportFileName(name)}
-        onSave={handleExportMarkings}
-        onCancel={() => setNamingMarkingsExport(false)}
+        key={markingsExport.kind}
+        open={markingsExport.open}
+        suggestion={markingsExportFileName(name, markingsExport.kind)}
+        onSave={(typed) => handleExportMarkings(markingsExport.kind, typed)}
+        onCancel={closeMarkingsExport}
         inputId="export-markings-name"
-        label="Export markings as"
+        label={getExportMarkingsLabel(markingsExport.kind)}
       />
 
       {error && (
@@ -484,7 +495,7 @@ export function PDFEditor() {
         {analysis && !analysisNote && (
           <EditScorePanel
             onExtract={handleExtract}
-            onExportMarkings={() => setNamingMarkingsExport(true)}
+            onExportMarkings={(kind) => setMarkingsExport({ kind, open: true })}
             replaceTarget={
               fileHandle
                 ? { name: fileHandle.name, onReplace: handleExtractToFile }

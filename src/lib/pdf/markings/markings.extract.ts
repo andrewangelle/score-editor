@@ -1,5 +1,9 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { type Marking, numericValue } from '#/lib/pdf/markings/markings';
+import {
+  type Marking,
+  type MarkingKind,
+  numericValue,
+} from '#/lib/pdf/markings/markings';
 import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
 
 export type MarkingsRow = {
@@ -7,6 +11,12 @@ export type MarkingsRow = {
   measureMarking: Marking | null;
   eventMarkings: Marking[];
 };
+
+/** What a markings export maps: the time signatures, or the tempo marks. */
+export type MarkingsExportKind = Extract<
+  MarkingKind,
+  'time-signature' | 'tempo'
+>;
 
 export type MarkingsExportResult = {
   rows: MarkingsRow[];
@@ -27,12 +37,11 @@ type Anchor = BarPosition & { value: number; marking: Marking };
  */
 export function collectMarkingsRows(
   analysis: ScoreAnalysis,
+  kind: MarkingsExportKind,
 ): MarkingsExportResult {
   const allMarkings = analysis.pages.flatMap((page) => page.markings);
 
-  const eventMarkings = allMarkings.filter(
-    (marking) => marking.kind === 'tempo' || marking.kind === 'time-signature',
-  );
+  const eventMarkings = allMarkings.filter((marking) => marking.kind === kind);
 
   if (eventMarkings.length === 0) {
     return { rows: [], measuresInferred: false };
@@ -42,10 +51,12 @@ export function collectMarkingsRows(
   const systems = analysis.pages.flatMap((page) => page.systems);
   const pageOffsets = new Map<number, number>();
   let offset = 0;
+
   for (const page of analysis.pages) {
     pageOffsets.set(page.pageIndex, offset);
     offset += page.systems.length;
   }
+
   const systemOf = (marking: Marking) =>
     (pageOffsets.get(marking.pageIndex) ?? 0) + marking.systemIndex;
 
@@ -72,16 +83,23 @@ export function collectMarkingsRows(
 
   const printed: Anchor[] = [];
   for (const marking of allMarkings) {
-    if (marking.kind !== 'measure') continue;
+    if (marking.kind !== 'measure') {
+      continue;
+    }
+
     const value = numericValue(marking.text);
-    if (value === null) continue;
+    if (value === null) {
+      continue;
+    }
 
     const system = systemOf(marking);
     const spacing = systems[system]?.staves[0]?.lineSpacing ?? 0;
+
     // Engravers centre a number over the bar's opening barline as often as they
     // start it there, so the bar it names is judged from its middle with a
     // staff space of give.
     const middle = (marking.rect.left + marking.rect.right) / 2;
+
     printed.push({
       system,
       bar: barAt(system, middle + spacing),
@@ -172,19 +190,11 @@ export function collectMarkingsRows(
   // Sort rows by measure number ascending.
   const sorted = [...rowMap.values()].sort((a, b) => a.measure - b.measure);
 
-  const rows: MarkingsRow[] = sorted.map((entry) => {
-    // Time signatures before tempo marks within each row.
-    const events = [...entry.events].sort((a, b) => {
-      const kindOrder = (k: string) => (k === 'time-signature' ? 0 : 1);
-      return kindOrder(a.kind) - kindOrder(b.kind);
-    });
-
-    return {
-      measure: entry.measure,
-      measureMarking: entry.measureMarking,
-      eventMarkings: events,
-    };
-  });
+  const rows: MarkingsRow[] = sorted.map((entry) => ({
+    measure: entry.measure,
+    measureMarking: entry.measureMarking,
+    eventMarkings: entry.events,
+  }));
 
   return { rows, measuresInferred };
 }
@@ -198,9 +208,10 @@ export type MarkingsExportOptions = {
 export async function extractMarkings(
   sourceBytes: Uint8Array,
   analysis: ScoreAnalysis,
+  kind: MarkingsExportKind,
   options?: MarkingsExportOptions,
 ): Promise<Uint8Array> {
-  const { rows, measuresInferred } = collectMarkingsRows(analysis);
+  const { rows, measuresInferred } = collectMarkingsRows(analysis, kind);
 
   const pageWidth = options?.pageSize?.width ?? 612;
   const pageHeight = options?.pageSize?.height ?? 792;
@@ -240,6 +251,7 @@ export async function extractMarkings(
         },
       );
     }
+
     for (const event of row.eventMarkings) {
       clips.set(clipKey(event.pageIndex, event.rect), {
         pageIndex: event.pageIndex,
@@ -270,12 +282,14 @@ export async function extractMarkings(
     const headerSize = 8;
     const header =
       '(No bar numbers were detected — measure numbers were counted from barlines)';
+
     outPage.drawText(header, {
       x: margin,
       y: cursor - headerSize,
       size: headerSize,
       font,
     });
+
     cursor -= headerSize + rowGap;
   }
 
@@ -291,6 +305,7 @@ export async function extractMarkings(
         rowHeight = Math.max(rowHeight, embed.height * scale);
       }
     }
+
     for (const event of row.eventMarkings) {
       const embed = embedded.get(clipKey(event.pageIndex, event.rect));
       if (embed) {
@@ -312,6 +327,7 @@ export async function extractMarkings(
       const embed = embedded.get(
         clipKey(row.measureMarking.pageIndex, row.measureMarking.rect),
       );
+
       if (embed) {
         const scale = Math.min(1, printableWidth / embed.width);
         outPage.drawPage(embed, {
@@ -329,22 +345,28 @@ export async function extractMarkings(
         size: labelFontSize,
         font,
       });
+
       x += font.widthOfTextAtSize(String(row.measure), labelFontSize) + clipGap;
     }
 
     // Draw event marking clips.
     for (const event of row.eventMarkings) {
       const embed = embedded.get(clipKey(event.pageIndex, event.rect));
-      if (!embed) continue;
+
+      if (!embed) {
+        continue;
+      }
 
       const scale = Math.min(1, (pageWidth - margin - x) / embed.width, 1);
       const clampedScale = Math.max(scale, 0.1);
+
       outPage.drawPage(embed, {
         x,
         y: cursor - embed.height * clampedScale,
         width: embed.width * clampedScale,
         height: embed.height * clampedScale,
       });
+
       x += embed.width * clampedScale + clipGap;
     }
 
@@ -466,7 +488,15 @@ function filterCourtesyTimeSigs(
   return courtesy.size > 0 ? events.filter((e) => !courtesy.has(e)) : events;
 }
 
-export function markingsExportFileName(name: string): string {
+const EXPORT_SUFFIX: Record<MarkingsExportKind, string> = {
+  'time-signature': 'time-signature-map',
+  tempo: 'tempo-map',
+};
+
+export function markingsExportFileName(
+  name: string,
+  kind: MarkingsExportKind,
+): string {
   const base = name.replace(/\.pdf$/i, '') || 'score';
-  return `${base}-markings.pdf`;
+  return `${base}-${EXPORT_SUFFIX[kind]}.pdf`;
 }

@@ -195,8 +195,11 @@ export class AppPage {
     return download;
   }
 
-  async exportMarkings(name: string): Promise<Download> {
-    await this.page.getByRole('button', { name: 'Export markings' }).click();
+  async exportMarkings(
+    map: 'time signature' | 'tempo',
+    name: string,
+  ): Promise<Download> {
+    await this.page.getByRole('button', { name: `Export ${map} map` }).click();
 
     const nameInput = this.page.locator('#export-markings-name');
     await expect(nameInput).toBeVisible();

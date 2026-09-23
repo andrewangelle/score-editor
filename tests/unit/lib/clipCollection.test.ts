@@ -21,7 +21,11 @@ const OPS: PdfOps = {
   constructPath: 4,
   paintFormXObjectBegin: 5,
   paintFormXObjectEnd: 6,
+  stroke: 7,
 };
+
+/** Any paint op that is not a stroke. */
+const FILL = 8;
 
 const IDENTITY = [1, 0, 0, 1, 0, 0];
 const PAGE = { width: 600, height: 800 };
@@ -103,5 +107,26 @@ describe('the clips a page reports', () => {
     );
 
     expect(clips).toBeNull();
+  });
+});
+
+describe('the frames a page reports', () => {
+  const drawn = (op: number, box: number[]): Op => ({
+    fn: OPS.constructPath,
+    args: [op, undefined, box],
+  });
+
+  it('keeps stroked outlines apart from the rest of the ink', () => {
+    // A rehearsal mark's box is stroked; a notehead or a beam is filled.
+    const { boxes, frames } = collectGeometry(
+      operatorList([
+        drawn(OPS.stroke as number, [300, 713, 309, 722]),
+        drawn(FILL, [100, 650, 106, 655]),
+      ]),
+      OPS,
+    );
+
+    expect(boxes).toHaveLength(2);
+    expect(frames).toEqual([{ left: 300, bottom: 713, right: 309, top: 722 }]);
   });
 });
