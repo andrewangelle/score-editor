@@ -11,7 +11,12 @@ import type {
 } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
 
-export type MarkingKind = 'measure' | 'tempo' | 'time-signature' | 'rehearsal';
+export type MarkingKind =
+  | 'measure'
+  | 'tempo'
+  | 'time-signature'
+  | 'rehearsal'
+  | 'direction';
 
 export type Marking = {
   id: string;
@@ -378,10 +383,19 @@ export function resolveMarkings(
       // "=" of a metronome mark.
       /[=\p{L}]/u.test(candidate.text),
   );
-  // A rehearsal mark shares the tempo mark's place above the system and is told
-  // apart only by the box drawn around it. It is still kept, so parts carry it.
+  // Rehearsal marks and playing directions share the tempo mark's place above
+  // the system. A rehearsal mark is told apart by the box drawn around it, and a
+  // tempo mark by the metronome figure it carries; words alone ("accel.",
+  // "flutter tongue") are a direction. All three are kept, so parts carry them.
   for (const candidate of withoutFurniture(withoutLyrics(prose))) {
-    kind.set(candidate, candidate.framed ? 'rehearsal' : 'tempo');
+    kind.set(
+      candidate,
+      candidate.framed
+        ? 'rehearsal'
+        : isMetronomeMark(candidate.text)
+          ? 'tempo'
+          : 'direction',
+    );
   }
 
   const pages: Marking[][] = Array.from({ length: pageCount }, () => []);
@@ -415,8 +429,8 @@ function timeSigDigitValue(str: string): number | null {
   if (TIME_SIG_DIGIT.test(trimmed)) return Number(trimmed);
 
   if (trimmed.length === 1) {
-    const cp = trimmed.codePointAt(0)!;
-    if (cp >= SMUFL_TS_BASE && cp <= SMUFL_TS_BASE + 9)
+    const cp = trimmed.codePointAt(0);
+    if (cp && cp >= SMUFL_TS_BASE && cp <= SMUFL_TS_BASE + 9)
       return cp - SMUFL_TS_BASE;
   }
 
@@ -487,6 +501,17 @@ function pairTimeSigs(
   }
 
   return pairs;
+}
+
+/**
+ * A beat and its rate: "q = 108", "Andante = 96", "♩ = c. 60-72". The note glyph
+ * often reaches the text layer as nothing at all, so only the "=" and the number
+ * after it are looked for.
+ */
+const METRONOME_MARK = /=\s*(?:c(?:irc)?a?\.?\s*)?\d/i;
+
+export function isMetronomeMark(text: string): boolean {
+  return METRONOME_MARK.test(text);
 }
 
 export function numericValue(text: string): number | null {

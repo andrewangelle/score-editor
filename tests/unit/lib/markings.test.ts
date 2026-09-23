@@ -222,13 +222,32 @@ describe('detectMarkings', () => {
     ]);
   });
 
+  it('reads only a metronome mark as a tempo, and other words as directions', () => {
+    const pages = [page(0, [700, 600])];
+    // Three runs, not four: a system any busier is read as a line of lyrics.
+    const items = [
+      [
+        text('q = 60-72', 110, 715),
+        text('flutter tongue', 200, 715),
+        text('accel. ad lib.', 340, 715),
+      ],
+    ];
+
+    const found = detectMarkings(pages, items).flat();
+    expect(found.map((mark) => [mark.text, mark.kind])).toEqual([
+      ['q = 60-72', 'tempo'],
+      ['flutter tongue', 'direction'],
+      ['accel. ad lib.', 'direction'],
+    ]);
+  });
+
   it('does not read a filled shape behind text as a rehearsal box', () => {
     const pages = [page(0, [700, 600])];
     // Same outline as a rehearsal box, but painted rather than stroked.
     pages[0].ink = [{ left: 298, right: 307, bottom: 713, top: 724 }];
     const items = [[text('B', 300, 715)]];
 
-    expect(detectMarkings(pages, items).flat()[0].kind).toBe('tempo');
+    expect(detectMarkings(pages, items).flat()[0].kind).toBe('direction');
   });
 
   it('does not read a stroke far larger than the text as its box', () => {
@@ -237,7 +256,7 @@ describe('detectMarkings', () => {
     pages[0].frames = [{ left: 100, right: 300, bottom: 712, top: 740 }];
     const items = [[text('rit.', 150, 715)]];
 
-    expect(detectMarkings(pages, items).flat()[0].kind).toBe('tempo');
+    expect(detectMarkings(pages, items).flat()[0].kind).toBe('direction');
   });
 
   it('leaves the notation font’s own glyphs alone', () => {
@@ -326,9 +345,7 @@ describe('detectMarkings', () => {
     const items = [[text('Allegro', 120, 715), text('es- tá', 250, 715)]];
 
     const found = detectMarkings(pages, items).flat();
-    const tempos = found.filter((m) => m.kind === 'tempo');
-    expect(tempos).toHaveLength(1);
-    expect(tempos[0].text).toBe('Allegro');
+    expect(found.map((m) => m.text)).toEqual(['Allegro']);
   });
 });
 
