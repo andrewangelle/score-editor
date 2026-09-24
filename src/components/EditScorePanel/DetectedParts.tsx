@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { CollapsibleSection } from '#/components/EditScorePanel/CollapsibleSection';
-import type { EditScorePanelProps } from '#/components/EditScorePanel/EditScorePanel';
 import {
   CANCEL,
   DESELECT_ALL,
@@ -33,7 +32,16 @@ import {
   getReplaceConfirmMessage,
 } from '#/components/EditScorePanel/EditScorePanel.utils';
 import { IrregularSystemsNote } from '#/components/EditScorePanel/IrregularSystemsNote';
-import type { Part } from '#/lib/pdf/partExtraction';
+import { downloadBytes } from '#/components/PDFEditor/PDFEditor.utils';
+import { useExtractToFile } from '#/hooks/useExtractToFile';
+import { useExtractWith } from '#/hooks/useExtractWith';
+import { documentFileHandle } from '#/lib/pdf/document/document.bytes';
+import { type Part, partFileName } from '#/lib/pdf/partExtraction';
+import {
+  selectDocumentId,
+  selectDocumentName,
+  selectIsBusy,
+} from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { selectIsManual } from '#/store/regions.slice';
 import {
@@ -47,15 +55,12 @@ import {
   selectMarkingCounts,
   selectParts,
   selectSelectedOrdinals,
+  selectSelectedParts,
   selectSystemCount,
 } from '#/store/score.slice';
 import { selectRegions } from '#/store/selectors';
 
-export function DetectedParts({
-  onExtract,
-  replaceTarget,
-  isBusy,
-}: EditScorePanelProps) {
+export function DetectedParts() {
   const dispatch = useAppDispatch();
   const [confirmingReplace, setConfirmingReplace] = useState(false);
   const parts = useAppSelector(selectParts);
@@ -67,6 +72,30 @@ export function DetectedParts({
   const isManual = useAppSelector(selectIsManual);
   const keepMarkings = useAppSelector(selectKeepMarkings);
   const markings = useAppSelector(selectMarkingCounts);
+  const name = useAppSelector(selectDocumentName);
+  const selectedParts = useAppSelector(selectSelectedParts);
+  const extractWith = useExtractWith();
+  const isBusy = useAppSelector(selectIsBusy);
+  const documentId = useAppSelector(selectDocumentId);
+  const fileHandle = documentFileHandle(documentId);
+  const handleExtractToFile = useExtractToFile();
+
+  const replaceTarget = fileHandle
+    ? { name: fileHandle.name, onReplace: handleExtractToFile }
+    : null;
+
+  /** Downloads the cut regions, leaving the score where it is. */
+  function handleExtract() {
+    return extractWith((extracted) => {
+      const fileName = partFileName(
+        name,
+        isManual ? [] : selectedParts,
+        'regions',
+      );
+      downloadBytes(extracted, fileName, 'application/pdf');
+      return `Saved ${fileName}`;
+    });
+  }
 
   return (
     <CollapsibleSection
@@ -136,7 +165,7 @@ export function DetectedParts({
 
       <button
         type="button"
-        onClick={onExtract}
+        onClick={handleExtract}
         disabled={isBusy || regionCount === 0}
         className={EXTRACT_BUTTON_CLASS}
       >

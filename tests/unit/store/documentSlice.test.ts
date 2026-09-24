@@ -1,11 +1,18 @@
 import type { PageEdit } from '#/lib/pdf/document/document';
 import {
   documentClosed,
+  documentErrorReported,
   documentFileReplaced,
   documentOpened,
   documentReset,
   documentSaved,
   documentSlice,
+  documentStatusDismissed,
+  documentStatusReported,
+  documentWorkFinished,
+  documentWorkStarted,
+  markingsExportClosed,
+  markingsExportOpened,
   pageDeleted,
   pageMoved,
   pageSelected,
@@ -290,5 +297,58 @@ describe('selectors', () => {
     expect(selectIsDirty({ document: backAgain })).toBe(false);
     expect(selectCanUndo({ document: backAgain })).toBe(false);
     expect(selectPageCount({ document: backAgain })).toBe(3);
+  });
+});
+
+describe('file work', () => {
+  const statusOf = (state: ReturnType<typeof documentSlice.reducer>) =>
+    documentSlice.selectors.selectStatusMessage({ document: state });
+
+  it('clears the previous error when new work starts', () => {
+    const state = run(
+      documentErrorReported('Could not save'),
+      documentWorkStarted(),
+    );
+
+    expect(state.isBusy).toBe(true);
+    expect(state.error).toBeNull();
+    expect(run(documentWorkStarted(), documentWorkFinished()).isBusy).toBe(
+      false,
+    );
+  });
+
+  it('shows a status only while the document is the version it described', () => {
+    const saved = run(
+      documentStatusReported({ message: 'Saved', revision: OPEN.revision }),
+    );
+    expect(statusOf(saved)).toBe('Saved');
+
+    const edited = documentSlice.reducer(
+      saved,
+      pageMoved({ id: 'a', direction: 1 }),
+    );
+    expect(statusOf(edited)).toBeNull();
+    expect(
+      statusOf(documentSlice.reducer(saved, documentStatusDismissed())),
+    ).toBeNull();
+  });
+
+  it('keeps the markings kind when the prompt closes', () => {
+    const state = run(markingsExportOpened('tempo'), markingsExportClosed());
+
+    expect(state.markingsExport).toEqual({ kind: 'tempo', open: false });
+  });
+
+  it('forgets the status, error and prompts on close', () => {
+    const state = run(
+      documentStatusReported({ message: 'Saved', revision: OPEN.revision }),
+      documentErrorReported('Could not save'),
+      markingsExportOpened('tempo'),
+      documentClosed(),
+    );
+
+    expect(state.status).toBeNull();
+    expect(state.error).toBeNull();
+    expect(state.markingsExport.open).toBe(false);
   });
 });

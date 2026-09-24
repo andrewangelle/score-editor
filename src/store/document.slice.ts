@@ -12,6 +12,7 @@ import {
   removePage,
 } from '#/lib/pdf/document/document.edits';
 import type { EditorState } from '#/lib/pdf/editorState';
+import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
 
 /**
  * Work recovered from the file that was just opened.
@@ -65,6 +66,14 @@ type DocumentState = {
    * would go on calling a document "saved" while the file holds something else.
    */
   fileHoldsDocument: boolean;
+  /** The last save, tagged with the document version it described. */
+  status: { message: string; revision: number } | null;
+  error: string | null;
+  /** True while the file is being read, written or exported. */
+  isBusy: boolean;
+  isNamingCopy: boolean;
+  // The kind outlives the prompt closing, so it keeps its label as it slides away.
+  markingsExport: { kind: MarkingsExportKind; open: boolean };
 };
 
 const initialState: DocumentState = {
@@ -77,6 +86,11 @@ const initialState: DocumentState = {
   revision: 0,
   savedRevision: null,
   fileHoldsDocument: true,
+  status: null,
+  error: null,
+  isBusy: false,
+  isNamingCopy: false,
+  markingsExport: { kind: 'time-signature', open: false },
 };
 
 /**
@@ -126,6 +140,8 @@ export const documentSlice = createSlice({
       state.selectedPageId = action.payload.pages[0]?.id ?? null;
       state.savedRevision = null;
       state.fileHoldsDocument = true;
+      // Revisions carry on across documents, so the last one's message would match.
+      state.status = null;
     },
 
     /**
@@ -150,6 +166,49 @@ export const documentSlice = createSlice({
 
     documentClosed() {
       return initialState;
+    },
+
+    documentWorkStarted(state) {
+      state.isBusy = true;
+      state.error = null;
+    },
+
+    documentWorkFinished(state) {
+      state.isBusy = false;
+    },
+
+    documentErrorReported(state, action: PayloadAction<string>) {
+      state.error = action.payload;
+    },
+
+    documentStatusReported(
+      state,
+      action: PayloadAction<{ message: string; revision: number }>,
+    ) {
+      state.status = {
+        message: action.payload.message,
+        revision: action.payload.revision,
+      };
+    },
+
+    documentStatusDismissed(state) {
+      state.status = null;
+    },
+
+    saveCopyPromptOpened(state) {
+      state.isNamingCopy = true;
+    },
+
+    saveCopyPromptClosed(state) {
+      state.isNamingCopy = false;
+    },
+
+    markingsExportOpened(state, action: PayloadAction<MarkingsExportKind>) {
+      state.markingsExport = { kind: action.payload, open: true };
+    },
+
+    markingsExportClosed(state) {
+      state.markingsExport.open = false;
     },
 
     pageSelected(state, action: PayloadAction<string>) {
@@ -212,6 +271,13 @@ export const documentSlice = createSlice({
         ? !isUnchanged(state.pages, state.original)
         : state.savedRevision !== state.revision),
     selectRevision: (state) => state.revision,
+    /** The last message, while the document is still the version it described. */
+    selectStatusMessage: (state) =>
+      state.status?.revision === state.revision ? state.status.message : null,
+    selectDocumentError: (state) => state.error,
+    selectIsBusy: (state) => state.isBusy,
+    selectIsNamingCopy: (state) => state.isNamingCopy,
+    selectMarkingsExport: (state) => state.markingsExport,
   },
 });
 
@@ -220,6 +286,15 @@ export const {
   documentClosed,
   documentSaved,
   documentFileReplaced,
+  documentWorkStarted,
+  documentWorkFinished,
+  documentErrorReported,
+  documentStatusReported,
+  documentStatusDismissed,
+  saveCopyPromptOpened,
+  saveCopyPromptClosed,
+  markingsExportOpened,
+  markingsExportClosed,
   pageSelected,
   pageMoved,
   pageDeleted,
@@ -237,4 +312,9 @@ export const {
   selectIsDirty,
   selectHasUnsavedChanges,
   selectRevision,
+  selectStatusMessage,
+  selectDocumentError,
+  selectIsBusy,
+  selectIsNamingCopy,
+  selectMarkingsExport,
 } = documentSlice.selectors;

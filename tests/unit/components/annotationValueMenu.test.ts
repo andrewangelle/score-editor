@@ -1,7 +1,7 @@
 import {
   getAnnotationSelectionPrompt,
   isTextField,
-} from '#/components/AnnotationValueMenu/AnnotationValueMenu.utils';
+} from '#/components/PDFEditor/AnnotationValueMenu/AnnotationValueMenu.utils';
 
 /** Enough of an element for the guard, which only reads these three. */
 function element(tagName: string, isContentEditable = false) {
