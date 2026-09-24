@@ -51,7 +51,7 @@ export function SaveCopyPrompt({
   }, [open]);
 
   return (
-    <div className={getSaveCopyRevealStyles(open)}>
+    <div data-testid="SaveCopyPrompt" className={getSaveCopyRevealStyles(open)}>
       <div className="min-h-0">
         <form
           onSubmit={(event) => {

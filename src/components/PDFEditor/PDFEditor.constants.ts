@@ -1,9 +1,6 @@
 export const CANCEL = 'Cancel';
-export const COULD_NOT_ANALYZE =
-  'This document could not be analysed as a score.';
 export const COULD_NOT_EXTRACT =
   'Something went wrong while extracting those parts.';
-export const COULD_NOT_OPEN = 'Could not open that file';
 export const COULD_NOT_SAVE = 'Something went wrong while saving';
 export const EDIT_TITLE = 'Name and download an edited copy';
 export const EDITOR_DESCRIPTION = `
@@ -12,7 +9,6 @@ score and you can also split out individual instruments and mark up
 fingerings, string numbers, left-hand positions and performance notes.
 `;
 export const LOADING_STAVES = 'Looking for staves...';
-export const LOADING_VIEWER = 'Loading viewer…';
 export const OVERWRITE = 'Overwrite';
 export const PARTS = 'Parts';
 export const READING_PDF = 'Reading PDF…';

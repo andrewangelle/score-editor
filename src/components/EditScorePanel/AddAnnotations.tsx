@@ -21,18 +21,12 @@ import { UpdateFontSize } from '#/components/EditScorePanel/UpdateFontSize/Updat
 import { hasAnnotationValueMenu } from '#/lib/pdf/annotations/annotations';
 import { selectAnnotationCount } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import {
-  annotationColorPicked,
-  selectAnnotationColor,
-  selectPlacing,
-  toolToggled,
-} from '#/store/tool.slice';
+import { selectPlacing, toolToggled } from '#/store/tool.slice';
 
 export function AddAnnotations() {
   const dispatch = useAppDispatch();
   const annotationCount = useAppSelector(selectAnnotationCount);
   const placing = useAppSelector(selectPlacing);
-  const annotationColor = useAppSelector(selectAnnotationColor);
 
   return (
     <CollapsibleSection
@@ -51,18 +45,21 @@ export function AddAnnotations() {
         >
           {FINGERING}
         </PlaceButton>
+
         <PlaceButton
           active={placing === 'string'}
           onClick={() => dispatch(toolToggled('string'))}
         >
           {STRING}
         </PlaceButton>
+
         <PlaceButton
           active={placing === 'position'}
           onClick={() => dispatch(toolToggled('position'))}
         >
           {POSITION}
         </PlaceButton>
+
         <PlaceButton
           active={placing === 'note'}
           onClick={() => dispatch(toolToggled('note'))}
@@ -71,11 +68,7 @@ export function AddAnnotations() {
         </PlaceButton>
       </div>
 
-      <ColorPicker
-        value={annotationColor}
-        onPick={(color) => dispatch(annotationColorPicked(color))}
-      />
-
+      <ColorPicker />
       <UpdateFontSize />
 
       {placing && hasAnnotationValueMenu(placing) && (

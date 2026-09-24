@@ -7,12 +7,12 @@ import {
   VALUE_MENU_HINT_CLASS,
   VALUE_MENU_LABEL_CLASS,
   VALUE_MENU_ROW_CLASS,
-} from '#/components/AnnotationValueMenu/AnnotationValueMenu.styles';
+} from '#/components/PDFEditor/AnnotationValueMenu/AnnotationValueMenu.styles';
 import {
   getAnnotationSelectionPrompt,
   isTextField,
   MENU_LABEL,
-} from '#/components/AnnotationValueMenu/AnnotationValueMenu.utils';
+} from '#/components/PDFEditor/AnnotationValueMenu/AnnotationValueMenu.utils';
 import {
   type AnnotationKind,
   annotationValueChoices,

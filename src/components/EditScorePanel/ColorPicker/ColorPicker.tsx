@@ -7,17 +7,19 @@ import { SUBSECTION_CLASS } from '#/components/EditScorePanel/EditScorePanel.sty
 import {
   ANNOTATION_COLOR_ORDER,
   ANNOTATION_COLORS,
-  type AnnotationColor,
 } from '#/lib/pdf/annotations/annotations';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
+import {
+  annotationColorPicked,
+  selectAnnotationColor,
+} from '#/store/tool.slice';
 
-type ColorPickerProps = {
-  value: AnnotationColor;
-  onPick: (color: AnnotationColor) => void;
-};
+export function ColorPicker() {
+  const dispatch = useAppDispatch();
+  const annotationColor = useAppSelector(selectAnnotationColor);
 
-export function ColorPicker({ value, onPick }: ColorPickerProps) {
   return (
-    <div>
+    <div data-testid="ColorPicker">
       <p className={SUBSECTION_CLASS}>{SELECT_COLOR}</p>
 
       <fieldset className={COLOR_PICKER_FIELDSET_CLASS}>
@@ -25,7 +27,7 @@ export function ColorPicker({ value, onPick }: ColorPickerProps) {
 
         {ANNOTATION_COLOR_ORDER.map((color) => {
           const { label, css } = ANNOTATION_COLORS[color];
-          const selected = color === value;
+          const selected = color === annotationColor;
 
           return (
             <label key={color} title={label} className="cursor-pointer">
@@ -34,7 +36,7 @@ export function ColorPicker({ value, onPick }: ColorPickerProps) {
                 name="annotation-color"
                 value={color}
                 checked={selected}
-                onChange={() => onPick(color)}
+                onChange={() => dispatch(annotationColorPicked(color))}
                 className="peer sr-only cursor-pointer"
               />
               <span

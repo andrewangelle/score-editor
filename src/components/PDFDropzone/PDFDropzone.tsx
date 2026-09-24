@@ -16,37 +16,46 @@ import {
   CHOOSE_FILE_INPUT_LABEL_CLASS,
   getDragContainerStyles,
 } from '#/components/PDFDropzone/PDFDropzone.styles';
-import { getFileOpenErrorMessage } from '#/components/PDFDropzone/PDFDropzone.utils';
+import {
+  getAnalyseScoreError,
+  getFileHandleError,
+  getFileOpenErrorMessage,
+} from '#/components/PDFDropzone/PDFDropzone.utils';
+import { readPdfFile } from '#/lib/pdf/document/document';
+import { holdDocumentBytes } from '#/lib/pdf/document/document.bytes';
 import {
   droppedFileHandle,
   type PdfFileHandle,
   pickPdfFile,
   supportsInPlaceSave,
 } from '#/lib/pdf/fileAccess';
+import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
+import {
+  documentErrorReported,
+  documentOpened,
+  documentRestored,
+  documentWorkFinished,
+  documentWorkStarted,
+  selectIsBusy,
+} from '#/store/document.slice';
+import { useAppDispatch, useAppSelector } from '#/store/hooks';
+import { scoreAnalysed, scoreAnalysisFailed } from '#/store/score.slice';
 
-type PdfDropzoneProps = {
-  onFile: (file: File, handle: PdfFileHandle | null) => void;
-  onError: (message: string) => void;
-  disabled?: boolean;
-};
-
-export function PDFDropzone({
-  onFile,
-  onError,
-  disabled = false,
-}: PdfDropzoneProps) {
+export function PDFDropzone() {
+  const dispatch = useAppDispatch();
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
   const dragDepth = useRef(0);
   const [canPick] = useState(supportsInPlaceSave);
+  const isBusy = useAppSelector(selectIsBusy);
 
   async function handleDrop(event: React.DragEvent) {
     event.preventDefault();
     dragDepth.current = 0;
     setIsDragging(false);
 
-    if (disabled) {
+    if (isBusy) {
       return;
     }
 
@@ -56,17 +65,17 @@ export function PDFDropzone({
     }
 
     const item = event.dataTransfer.items[0];
-    onFile(file, await droppedFileHandle(item));
+    handleFile(file, await droppedFileHandle(item));
   }
 
   async function handlePick() {
     try {
       const picked = await pickPdfFile();
       if (picked) {
-        onFile(picked.file, picked.handle);
+        handleFile(picked.file, picked.handle);
       }
     } catch (cause) {
-      onError(getFileOpenErrorMessage(cause));
+      reportError(getFileOpenErrorMessage(cause));
     }
   }
 
@@ -75,7 +84,7 @@ export function PDFDropzone({
 
     dragDepth.current += 1;
 
-    if (!disabled) {
+    if (!isBusy) {
       setIsDragging(true);
     }
   }
@@ -94,11 +103,61 @@ export function PDFDropzone({
     const file = event.target.files?.[0];
 
     if (file) {
-      onFile(file, null);
+      handleFile(file, null);
     }
 
     // reset after handling
     event.target.value = '';
+  }
+
+  /**
+   * Runs after the document is on screen: a best-effort enrichment, so a score
+   * that cannot be parsed leaves the plain page editor usable.
+   */
+  async function analyseScore(id: string, source: Uint8Array) {
+    try {
+      dispatch(
+        scoreAnalysed({ documentId: id, analysis: await analyzeScore(source) }),
+      );
+    } catch (cause) {
+      dispatch(
+        scoreAnalysisFailed({
+          documentId: id,
+          message: getAnalyseScoreError(cause),
+        }),
+      );
+    }
+  }
+
+  function reportError(message: string) {
+    dispatch(documentErrorReported(message));
+  }
+
+  async function handleFile(file: File, handle: PdfFileHandle | null) {
+    dispatch(documentWorkStarted());
+    try {
+      const loaded = await readPdfFile(file);
+      const id = crypto.randomUUID();
+
+      // Hand off the bytes before announcing the document
+      holdDocumentBytes(id, loaded.bytes, handle);
+      dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
+
+      // Strictly after the open: every slice empties itself on that.
+      if (loaded.annotations.length > 0 || loaded.state) {
+        dispatch(
+          documentRestored({
+            annotations: loaded.annotations,
+            state: loaded.state,
+          }),
+        );
+      }
+      void analyseScore(id, loaded.bytes);
+    } catch (cause) {
+      reportError(getFileHandleError(cause));
+    } finally {
+      dispatch(documentWorkFinished());
+    }
   }
 
   return (
@@ -108,7 +167,7 @@ export function PDFDropzone({
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
-      className={getDragContainerStyles(isDragging, disabled)}
+      className={getDragContainerStyles(isDragging, isBusy)}
     >
       <p className="text-lg font-medium text-slate-800">
         {DROP_INSTRUCTION_HEADING}
@@ -120,7 +179,7 @@ export function PDFDropzone({
         <button
           type="button"
           onClick={handlePick}
-          disabled={disabled}
+          disabled={isBusy}
           className={CHOOSE_FILE_BUTTON_CLASS}
         >
           {CHOOSE_FILE}
@@ -135,7 +194,7 @@ export function PDFDropzone({
             type="file"
             accept="application/pdf,.pdf"
             className="sr-only"
-            disabled={disabled}
+            disabled={isBusy}
             onChange={onInputChange}
           />
           <label htmlFor={inputId} className={CHOOSE_FILE_INPUT_LABEL_CLASS}>

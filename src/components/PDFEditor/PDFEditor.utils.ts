@@ -1,7 +1,5 @@
 import {
-  COULD_NOT_ANALYZE,
   COULD_NOT_EXTRACT,
-  COULD_NOT_OPEN,
   COULD_NOT_SAVE,
   EDIT_TITLE,
   OVERWRITE,
@@ -9,7 +7,6 @@ import {
   SAVE_A_COPY,
   SAVING,
 } from '#/components/PDFEditor/PDFEditor.constants';
-import { PdfLoadError } from '#/lib/pdf/document/document.errors';
 import type { PdfFileHandle } from '#/lib/pdf/fileAccess';
 import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
 
@@ -30,16 +27,6 @@ export function getSaveButtonCTA(
   }
 
   return SAVE_A_COPY;
-}
-
-export function getFileHandleError(cause: unknown) {
-  if (cause instanceof PdfLoadError) return cause.message;
-  return `${COULD_NOT_OPEN}: ${cause instanceof Error ? cause.message : String(cause)}`;
-}
-
-export function getAnalyseScoreError(cause: unknown) {
-  if (cause instanceof Error) return cause.message;
-  return COULD_NOT_ANALYZE;
 }
 
 export function getExtractError(cause: unknown) {
