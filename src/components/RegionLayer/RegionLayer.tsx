@@ -26,7 +26,7 @@ import {
   regionSelected,
   selectSelectedRegionId,
 } from '#/store/regions.slice';
-import { selectRegions } from '#/store/selectors';
+import { selectOverlay, selectRegions } from '#/store/selectors';
 import { selectIsEditingRegions } from '#/store/tool.slice';
 
 const EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
@@ -40,19 +40,14 @@ type Drag =
   | { kind: 'edge'; origin: Region; edge: Edge; region: Region };
 
 type RegionLayerProps = {
-  pageIndex: number;
   pageWidth: number;
-  pageHeight: number;
-  scale: number;
 };
 
-export function RegionLayer({
-  pageIndex,
-  pageWidth,
-  pageHeight,
-  scale,
-}: RegionLayerProps) {
+export function RegionLayer({ pageWidth: renderedWidth }: RegionLayerProps) {
   const dispatch = useAppDispatch();
+  const overlay = useAppSelector((state) =>
+    selectOverlay(state, renderedWidth),
+  );
   const regions = useAppSelector(selectRegions);
   const selectedId = useAppSelector(selectSelectedRegionId);
   const interactive = useAppSelector(selectIsEditingRegions);
@@ -62,8 +57,13 @@ export function RegionLayer({
 
   const toPdf = (clientX: number, clientY: number) => {
     const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
-    if (!box) return null;
-    return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
+    if (!box || !overlay) return null;
+    return toPdfPoint(
+      clientX - box.left,
+      clientY - box.top,
+      overlay.pageHeight,
+      overlay.scale,
+    );
   };
 
   function captureGesture(event: React.PointerEvent) {
@@ -75,6 +75,12 @@ export function RegionLayer({
     surfaceBox.current = null;
     setDrag(null);
   }
+
+  if (!overlay) {
+    return null;
+  }
+
+  const { pageIndex, pageWidth, pageHeight, scale } = overlay;
 
   const pageRegions = regions.filter(
     (region) => region.pageIndex === pageIndex,
