@@ -4,6 +4,7 @@ import {
   hasAnnotationValueMenu,
 } from '#/lib/pdf/annotations/annotations';
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
+import { staffBounds } from '#/lib/pdf/partExtraction';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
 import {
   selectAnnotations,
@@ -23,6 +24,7 @@ import {
   selectAnalysis,
   selectKeepMarkings,
   selectPartNames,
+  selectParts,
   selectRenames,
   selectSelectedOrdinals,
 } from '#/store/score.slice';
@@ -38,6 +40,7 @@ import {
  */
 
 const NO_REGIONS: Region[] = [];
+const NO_STAFF_HINTS: never[] = [];
 
 const selectDetectedRegions = createSelector(
   [selectAnalysis, selectSelectedOrdinals, selectPartNames],
@@ -79,15 +82,36 @@ export const selectSourcePage = createSelector(
 
 export const selectOverlay = createSelector(
   [
-    selectAnalysis,
     selectSourcePage,
     selectSelectedPage,
     (_state, pageWidth?: number) => pageWidth,
   ],
-  (analysis, sourcePage, selectedPage, pageWidth) =>
-    analysis && sourcePage && pageWidth && selectedPage
-      ? { analysis, sourcePage, scale: pageWidth / sourcePage.width }
+  (sourcePage, selectedPage, pageWidth) =>
+    sourcePage && selectedPage && pageWidth
+      ? {
+          pageIndex: selectedPage.sourceIndex,
+          pageWidth: sourcePage.width,
+          pageHeight: sourcePage.height,
+          scale: pageWidth / sourcePage.width,
+          systems: sourcePage.systems,
+        }
       : null,
+);
+
+export const selectStaffHints = createSelector(
+  [selectOverlay, selectParts],
+  (overlay, parts) =>
+    overlay?.systems.flatMap((system, systemIndex) =>
+      system.staves.map((_, ordinal) => {
+        const { top, bottom } = staffBounds(system, ordinal, overlay.systems);
+        return {
+          id: `${systemIndex}-${ordinal}`,
+          top: (overlay.pageHeight - top) * overlay.scale,
+          height: (top - bottom) * overlay.scale,
+          name: parts?.[ordinal]?.name,
+        };
+      }),
+    ) ?? NO_STAFF_HINTS,
 );
 
 export const selectAnnotationValueMenu = createSelector(

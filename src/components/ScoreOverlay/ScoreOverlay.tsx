@@ -9,7 +9,7 @@ import {
   STAFF_HINT_CLASS,
   STAFF_LABEL_CLASS,
 } from '#/components/ScoreOverlay/ScoreOverlay.styles';
-import type { ScorePointerRef } from '#/hooks/useScorePointer';
+import { useScorePointerRef } from '#/hooks/useScorePointer';
 import {
   ANNOTATION_COLORS,
   type AnnotationKind,
@@ -18,8 +18,6 @@ import {
   normalizeAnnotationText,
 } from '#/lib/pdf/annotations/annotations';
 import { toPdfPoint, toScreenPoint } from '#/lib/pdf/pageCoordinates';
-import { type Part, staffBounds } from '#/lib/pdf/partExtraction';
-import type { System } from '#/lib/pdf/staffDetection';
 import {
   annotationMoved,
   annotationPlaced,
@@ -30,6 +28,7 @@ import {
   selectSelectedAnnotationId,
 } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
+import { selectOverlay, selectStaffHints } from '#/store/selectors';
 import {
   selectAnnotationColor,
   selectAnnotationFontSize,
@@ -37,15 +36,6 @@ import {
   selectIsEditingRegions,
   selectPlacing,
 } from '#/store/tool.slice';
-
-type ScoreOverlayProps = {
-  pageIndex: number;
-  pageHeight: number;
-  scale: number;
-  systems: readonly System[];
-  parts: readonly Part[];
-  pointerRef: ScorePointerRef;
-};
 
 type Drag = { id: string; x: number; y: number };
 
@@ -60,14 +50,19 @@ const PLACEHOLDER: Record<AnnotationKind, string> = {
 
 const DRAG_THRESHOLD = 3;
 
-export function ScoreOverlay({
-  pageIndex,
-  pageHeight,
-  scale,
-  systems,
-  parts,
-  pointerRef,
-}: ScoreOverlayProps) {
+type DragDimensions = {
+  id: string;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+};
+
+type ScoreOverlayProps = {
+  pageWidth: number;
+};
+
+export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   const dispatch = useAppDispatch();
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
@@ -82,24 +77,28 @@ export function ScoreOverlay({
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const [cursor, setCursor] = useState<Cursor | null>(null);
-  const pendingDrag = useRef<{
-    id: string;
-    startX: number;
-    startY: number;
-    x: number;
-    y: number;
-  } | null>(null);
+  const pendingDrag = useRef<DragDimensions | null>(null);
+  const pointerRef = useScorePointerRef();
+  const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
+  const staffHints = useAppSelector((state) =>
+    selectStaffHints(state, pageWidth),
+  );
 
   const carrying = placing && value ? { kind: placing, text: value } : null;
 
   const pageAnnotations = annotations.filter(
-    (annotation) => annotation.pageIndex === pageIndex,
+    (annotation) => annotation.pageIndex === overlay?.pageIndex,
   );
 
   function toPdf(clientX: number, clientY: number) {
     const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
-    if (!box) return null;
-    return toPdfPoint(clientX - box.left, clientY - box.top, pageHeight, scale);
+    if (!box || !overlay) return null;
+    return toPdfPoint(
+      clientX - box.left,
+      clientY - box.top,
+      overlay.pageHeight,
+      overlay.scale,
+    );
   }
 
   function commitDraft(id: string, kind: AnnotationKind) {
@@ -123,6 +122,10 @@ export function ScoreOverlay({
     setDrag(null);
   }
 
+  if (!overlay) {
+    return null;
+  }
+
   return (
     <div
       ref={surface}
@@ -131,7 +134,11 @@ export function ScoreOverlay({
         // Update shared pointer tracking for paste position
         const point = toPdf(event.clientX, event.clientY);
         if (point) {
-          pointerRef.current = { pageIndex, x: point.x, y: point.y };
+          pointerRef.current = {
+            pageIndex: overlay.pageIndex,
+            x: point.x,
+            y: point.y,
+          };
         }
 
         // Promote pending drag if threshold exceeded
@@ -196,7 +203,7 @@ export function ScoreOverlay({
 
         const placed = dispatch(
           annotationPlaced({
-            pageIndex,
+            pageIndex: overlay.pageIndex,
             x: point.x,
             y: point.y,
             kind: placing,
@@ -220,33 +227,26 @@ export function ScoreOverlay({
         setCursor(null);
       }}
     >
-      {systems.map((system) =>
-        system.staves.map((staff, ordinal) => {
-          const bounds = staffBounds(system, ordinal, systems);
-          const part = parts[ordinal];
-
-          return (
-            <div
-              key={`${staff.top}-${staff.left}`}
-              aria-hidden
-              className={STAFF_HINT_CLASS}
-              style={{
-                left: 0,
-                top: (pageHeight - bounds.top) * scale,
-                width: '100%',
-                height: (bounds.top - bounds.bottom) * scale,
-              }}
-            >
-              {part && <span className={STAFF_LABEL_CLASS}>{part.name}</span>}
-            </div>
-          );
-        }),
-      )}
+      {staffHints.map(({ id, top, height, name }) => (
+        <div
+          key={id}
+          aria-hidden
+          className={STAFF_HINT_CLASS}
+          style={{
+            left: 0,
+            top,
+            width: '100%',
+            height,
+          }}
+        >
+          {name && <span className={STAFF_LABEL_CLASS}>{name}</span>}
+        </div>
+      ))}
 
       {pageAnnotations.map((annotation) => {
         const anchor = drag?.id === annotation.id ? drag : annotation;
-        const screen = toScreenPoint(anchor, pageHeight, scale);
-        const markFontSize = Math.max(3, annotation.size * scale);
+        const screen = toScreenPoint(anchor, overlay.pageHeight, overlay.scale);
+        const markFontSize = Math.max(3, annotation.size * overlay.scale);
         const circled = annotation.kind === 'string';
         const isSelected = annotation.id === selectedId;
         const ink = (
@@ -329,7 +329,7 @@ export function ScoreOverlay({
             ...cursorMarkInk(
               carrying.kind,
               color,
-              scale,
+              overlay.scale,
               fontSize ?? DEFAULT_SIZE[carrying.kind],
             ),
           }}
