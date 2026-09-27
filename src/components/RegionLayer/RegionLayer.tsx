@@ -1,12 +1,8 @@
-import { useRef, useState } from 'react';
+import { type PointerEvent, useRef, useState } from 'react';
+import { Region } from '#/components/RegionLayer/Region';
 import {
-  getEdgeHandleStyles,
-  getRegionStyles,
   getSurfaceStyles,
-  MOVE_HANDLE_CLASS,
   PREVIEW_CLASS,
-  REGION_LABEL_CLASS,
-  REMOVE_BUTTON_CLASS,
 } from '#/components/RegionLayer/RegionLayer.styles';
 import { rectToScreen, toPdfPoint } from '#/lib/pdf/pageCoordinates';
 import {
@@ -14,7 +10,7 @@ import {
   type Edge,
   isUsableRect,
   moveRegion,
-  type Region,
+  type Region as RegionData,
   rectFromPoints,
   resizeRegion,
 } from '#/lib/pdf/regions';
@@ -22,59 +18,34 @@ import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import {
   regionAdded,
   regionChanged,
-  regionRemoved,
   regionSelected,
-  selectSelectedRegionId,
 } from '#/store/regions.slice';
 import { selectOverlay, selectRegions } from '#/store/selectors';
 import { selectIsEditingRegions } from '#/store/tool.slice';
-
-const EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
-const HANDLE = 9;
 
 type Point = { x: number; y: number };
 
 type Drag =
   | { kind: 'new'; start: Point; current: Point }
-  | { kind: 'move'; origin: Region; start: Point; region: Region }
-  | { kind: 'edge'; origin: Region; edge: Edge; region: Region };
+  | { kind: 'move'; origin: RegionData; start: Point; region: RegionData }
+  | { kind: 'edge'; origin: RegionData; edge: Edge; region: RegionData };
+
+export type RegionGesture = { kind: 'move' } | { kind: 'edge'; edge: Edge };
 
 type RegionLayerProps = {
-  pageWidth: number;
+  renderedWidth: number;
 };
 
-export function RegionLayer({ pageWidth: renderedWidth }: RegionLayerProps) {
+export function RegionLayer({ renderedWidth }: RegionLayerProps) {
   const dispatch = useAppDispatch();
   const overlay = useAppSelector((state) =>
     selectOverlay(state, renderedWidth),
   );
   const regions = useAppSelector(selectRegions);
-  const selectedId = useAppSelector(selectSelectedRegionId);
   const interactive = useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
   const surfaceBox = useRef<DOMRect | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
-
-  const toPdf = (clientX: number, clientY: number) => {
-    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
-    if (!box || !overlay) return null;
-    return toPdfPoint(
-      clientX - box.left,
-      clientY - box.top,
-      overlay.pageHeight,
-      overlay.scale,
-    );
-  };
-
-  function captureGesture(event: React.PointerEvent) {
-    surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
-    surface.current?.setPointerCapture(event.pointerId);
-  }
-
-  function endGesture() {
-    surfaceBox.current = null;
-    setDrag(null);
-  }
 
   if (!overlay) {
     return null;
@@ -86,17 +57,56 @@ export function RegionLayer({ pageWidth: renderedWidth }: RegionLayerProps) {
     (region) => region.pageIndex === pageIndex,
   );
 
-  function shown(region: Region): Region {
+  const preview =
+    drag?.kind === 'new'
+      ? clampRect(
+          rectFromPoints(drag.start, drag.current),
+          pageWidth,
+          pageHeight,
+        )
+      : null;
+
+  function toPdf(clientX: number, clientY: number) {
+    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
+
+    if (!box || !overlay) {
+      return null;
+    }
+
+    return toPdfPoint(
+      clientX - box.left,
+      clientY - box.top,
+      overlay.pageHeight,
+      overlay.scale,
+    );
+  }
+
+  function captureGesture(event: React.PointerEvent) {
+    surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
+    surface.current?.setPointerCapture(event.pointerId);
+  }
+
+  function clearDrag() {
+    surfaceBox.current = null;
+    setDrag(null);
+  }
+
+  function getRegion(region: RegionData): RegionData {
     return drag && drag.kind !== 'new' && drag.region.id === region.id
       ? drag.region
       : region;
   }
 
-  function handleMove(event: React.PointerEvent) {
-    if (!drag) return;
+  function dragRegion(event: React.PointerEvent) {
+    if (!drag) {
+      return;
+    }
 
     const point = toPdf(event.clientX, event.clientY);
-    if (!point) return;
+
+    if (!point) {
+      return;
+    }
 
     if (drag.kind === 'new') {
       setDrag({ ...drag, current: point });
@@ -132,7 +142,7 @@ export function RegionLayer({ pageWidth: renderedWidth }: RegionLayerProps) {
     });
   }
 
-  function handleUp() {
+  function updateRegionChange() {
     if (drag?.kind === 'new') {
       const rect = clampRect(
         rectFromPoints(drag.start, drag.current),
@@ -147,111 +157,64 @@ export function RegionLayer({ pageWidth: renderedWidth }: RegionLayerProps) {
     } else if (drag && drag.region !== drag.origin) {
       dispatch(regionChanged({ visible: regions, region: drag.region }));
     }
-    endGesture();
+    clearDrag();
   }
 
-  const preview =
-    drag?.kind === 'new'
-      ? clampRect(
-          rectFromPoints(drag.start, drag.current),
-          pageWidth,
-          pageHeight,
-        )
-      : null;
+  function startRegionDrag(
+    event: PointerEvent<HTMLButtonElement>,
+    region: RegionData,
+    gesture: RegionGesture,
+  ) {
+    captureGesture(event);
+
+    if (gesture.kind === 'edge') {
+      setDrag({ kind: 'edge', origin: region, edge: gesture.edge, region });
+      return;
+    }
+
+    const point = toPdf(event.clientX, event.clientY);
+
+    if (!point) {
+      return;
+    }
+
+    setDrag({ kind: 'move', origin: region, start: point, region });
+  }
+
+  function captureSelectedRegion(event: PointerEvent<HTMLDivElement>) {
+    if (!interactive || event.target !== event.currentTarget) {
+      return;
+    }
+
+    captureGesture(event);
+
+    const point = toPdf(event.clientX, event.clientY);
+
+    if (!point) {
+      return;
+    }
+
+    dispatch(regionSelected(null));
+    setDrag({ kind: 'new', start: point, current: point });
+  }
 
   return (
     <div
       ref={surface}
       className={getSurfaceStyles(interactive, Boolean(drag))}
-      onPointerDown={(event) => {
-        if (!interactive || event.target !== event.currentTarget) return;
-        captureGesture(event);
-        const point = toPdf(event.clientX, event.clientY);
-        if (!point) return;
-        dispatch(regionSelected(null));
-        setDrag({ kind: 'new', start: point, current: point });
-      }}
-      onPointerMove={handleMove}
-      onPointerUp={handleUp}
-      onPointerCancel={endGesture}
+      onPointerDown={captureSelectedRegion}
+      onPointerMove={dragRegion}
+      onPointerUp={updateRegionChange}
+      onPointerCancel={clearDrag}
     >
-      {pageRegions.map((stored) => {
-        const region = shown(stored);
-        const box = rectToScreen(region.rect, pageHeight, scale);
-        const isSelected = region.id === selectedId;
-
-        return (
-          <div
-            key={region.id}
-            className={getRegionStyles(isSelected)}
-            style={box}
-          >
-            <button
-              type="button"
-              aria-label={`Select region ${region.label}`}
-              disabled={!interactive}
-              onPointerDown={(event) => {
-                if (!interactive) return;
-                event.stopPropagation();
-                captureGesture(event);
-                const point = toPdf(event.clientX, event.clientY);
-                if (!point) return;
-                dispatch(regionSelected(region.id));
-                setDrag({
-                  kind: 'move',
-                  origin: region,
-                  start: point,
-                  region,
-                });
-              }}
-              className={MOVE_HANDLE_CLASS}
-            />
-
-            <span className={REGION_LABEL_CLASS}>{region.label}</span>
-
-            {isSelected && interactive && (
-              <button
-                type="button"
-                aria-label={`Remove region ${region.label}`}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() =>
-                  dispatch(regionRemoved({ visible: regions, id: region.id }))
-                }
-                className={REMOVE_BUTTON_CLASS}
-              >
-                ✕
-              </button>
-            )}
-
-            {interactive &&
-              EDGES.map((edge) => (
-                <button
-                  key={edge}
-                  type="button"
-                  aria-label={`Drag ${edge} edge of ${region.label}`}
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                    captureGesture(event);
-                    dispatch(regionSelected(region.id));
-                    setDrag({
-                      kind: 'edge',
-                      origin: region,
-                      edge,
-                      region,
-                    });
-                  }}
-                  className={getEdgeHandleStyles(edge)}
-                  style={{
-                    top: edge === 'top' ? -HANDLE / 2 : undefined,
-                    bottom: edge === 'bottom' ? -HANDLE / 2 : undefined,
-                    left: edge === 'left' ? -HANDLE / 2 : undefined,
-                    right: edge === 'right' ? -HANDLE / 2 : undefined,
-                  }}
-                />
-              ))}
-          </div>
-        );
-      })}
+      {pageRegions.map((stored) => (
+        <Region
+          key={stored.id}
+          region={getRegion(stored)}
+          renderedWidth={renderedWidth}
+          onDragStart={startRegionDrag}
+        />
+      ))}
 
       {preview && (
         <div
