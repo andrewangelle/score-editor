@@ -92,7 +92,7 @@ export function PDFViewerContent({ bytes }: PdfViewerProps) {
             />
 
             <ScoreOverlay pageWidth={pageWidth} />
-            <RegionLayer pageWidth={pageWidth} />
+            <RegionLayer renderedWidth={pageWidth} />
           </div>
         )}
       </div>

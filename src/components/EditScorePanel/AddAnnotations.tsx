@@ -68,9 +68,6 @@ export function AddAnnotations() {
         </PlaceButton>
       </div>
 
-      <ColorPicker />
-      <UpdateFontSize />
-
       {placing && hasAnnotationValueMenu(placing) && (
         <p className="mt-2 text-slate-500 text-xs">{ANNOTATION_VALUE_HINT}</p>
       )}
@@ -78,6 +75,9 @@ export function AddAnnotations() {
       {placing === 'position' && (
         <p className="mt-2 text-slate-500 text-xs">{POSITION_HINT}</p>
       )}
+
+      <ColorPicker />
+      <UpdateFontSize />
 
       <p className="mt-3 text-slate-500 text-xs">
         {getAnnotationCountMessage(annotationCount)}
