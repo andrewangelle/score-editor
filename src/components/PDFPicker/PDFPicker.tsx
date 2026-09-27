@@ -1,13 +1,13 @@
-import { PDFDropzone } from '#/components/PDFDropzone/PDFDropzone';
+import { PDFDropzone } from '#/components/PDFPicker/PDFDropzone/PDFDropzone';
 import {
   EDITOR_DESCRIPTION,
   READING_PDF,
   SCORE_EDITOR,
-} from '#/components/PDFEditor/PDFEditor.constants';
+} from '#/components/PDFPicker/PDFPicker.constants';
 import {
   INTRO_CONTAINER_CLASS,
   INTRO_ERROR_CLASS,
-} from '#/components/PDFEditor/PDFEditor.styles';
+} from '#/components/PDFPicker/PDFPicker.styles';
 import { selectDocumentError, selectIsBusy } from '#/store/document.slice';
 import { useAppSelector } from '#/store/hooks';
 

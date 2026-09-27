@@ -1,8 +1,3 @@
-export const INTRO_CONTAINER_CLASS = 'mx-auto max-w-2xl px-6 py-16';
-
-export const INTRO_ERROR_CLASS =
-  'mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700';
-
 export const HEADER_CLASS =
   'flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3';
 
