@@ -10,17 +10,17 @@ import {
   CHOOSE_FILE_DISCLAIMER,
   DROP_INSTRUCTION_DESCRIPTION,
   DROP_INSTRUCTION_HEADING,
-} from '#/components/PDFDropzone/PDFDropzone.constants';
+} from '#/components/PDFPicker/PDFDropzone/PDFDropzone.constants';
 import {
   CHOOSE_FILE_BUTTON_CLASS,
   CHOOSE_FILE_INPUT_LABEL_CLASS,
   getDragContainerStyles,
-} from '#/components/PDFDropzone/PDFDropzone.styles';
+} from '#/components/PDFPicker/PDFDropzone/PDFDropzone.styles';
 import {
   getAnalyseScoreError,
   getFileHandleError,
   getFileOpenErrorMessage,
-} from '#/components/PDFDropzone/PDFDropzone.utils';
+} from '#/components/PDFPicker/PDFDropzone/PDFDropzone.utils';
 import { readPdfFile } from '#/lib/pdf/document/document';
 import { holdDocumentBytes } from '#/lib/pdf/document/document.bytes';
 import {

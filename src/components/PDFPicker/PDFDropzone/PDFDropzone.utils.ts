@@ -1,7 +1,7 @@
 import {
   COULD_NOT_ANALYZE,
   COULD_NOT_OPEN,
-} from '#/components/PDFDropzone/PDFDropzone.constants';
+} from '#/components/PDFPicker/PDFDropzone/PDFDropzone.constants';
 import { PdfLoadError } from '#/lib/pdf/document/document.errors';
 
 export function getFileOpenErrorMessage(cause: unknown) {
