@@ -9,10 +9,10 @@ import {
 } from 'pdf-lib';
 import {
   detectMarkings,
-  type Marking,
   notationFonts,
   textMarkings,
 } from '#/lib/pdf/markings/markings';
+import type { Marking } from '#/lib/pdf/markings/markings.types';
 import { extractRegions } from '#/lib/pdf/partExtraction';
 import {
   DEFAULT_LAYOUT,

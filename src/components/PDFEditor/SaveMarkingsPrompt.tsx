@@ -5,11 +5,11 @@ import {
 } from '#/components/PDFEditor/PDFEditor.utils';
 import { SaveCopyPrompt } from '#/components/PDFEditor/SaveCopyPrompt';
 import { documentBytes } from '#/lib/pdf/document/document.bytes';
-import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
 import {
   extractMarkings,
   markingsExportFileName,
 } from '#/lib/pdf/markings/markings.extract';
+import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.types';
 import {
   documentErrorReported,
   documentStatusReported,

@@ -1,32 +1,19 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { numericValue } from '#/lib/pdf/markings/markings';
 import {
-  type Marking,
-  type MarkingKind,
-  numericValue,
-} from '#/lib/pdf/markings/markings';
+  CORROBORATION_REACH,
+  EXPORT_SUFFIX,
+} from '#/lib/pdf/markings/markings.constants';
+import type {
+  Anchor,
+  BarPosition,
+  Marking,
+  MarkingsExportKind,
+  MarkingsExportOptions,
+  MarkingsExportResult,
+  MarkingsRow,
+} from '#/lib/pdf/markings/markings.types';
 import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
-
-export type MarkingsRow = {
-  measure: number | null;
-  measureMarking: Marking | null;
-  eventMarkings: Marking[];
-};
-
-/** What a markings export maps: the time signatures, or the tempo marks. */
-export type MarkingsExportKind = Extract<
-  MarkingKind,
-  'time-signature' | 'tempo'
->;
-
-export type MarkingsExportResult = {
-  rows: MarkingsRow[];
-  measuresInferred: boolean;
-};
-
-/** A bar's place in the document: which system, and which bar across it. */
-type BarPosition = { system: number; bar: number };
-
-type Anchor = BarPosition & { value: number; marking: Marking };
 
 /**
  * Places every event in a bar by counting the barlines to its left, then numbers
@@ -207,12 +194,6 @@ export function collectMarkingsRows(
   return { rows, measuresInferred };
 }
 
-export type MarkingsExportOptions = {
-  pageSize?: { width: number; height: number };
-  margin?: number;
-  rowGap?: number;
-};
-
 export async function extractMarkings(
   sourceBytes: Uint8Array,
   analysis: ScoreAnalysis,
@@ -387,9 +368,6 @@ export async function extractMarkings(
   return output.save();
 }
 
-/** How many neighbouring bars either side may vouch for a printed number. */
-const CORROBORATION_REACH = 3;
-
 /**
  * The printed numbers the barline count agrees with. A number is read off the
  * margin between systems, so it can land on the wrong one, and stray digits pass
@@ -495,11 +473,6 @@ function filterCourtesyTimeSigs(
 
   return courtesy.size > 0 ? events.filter((e) => !courtesy.has(e)) : events;
 }
-
-const EXPORT_SUFFIX: Record<MarkingsExportKind, string> = {
-  'time-signature': 'time-signature-map',
-  tempo: 'tempo-map',
-};
 
 export function markingsExportFileName(
   name: string,
