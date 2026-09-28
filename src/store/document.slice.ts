@@ -12,7 +12,7 @@ import {
   removePage,
 } from '#/lib/pdf/document/document.edits';
 import type { EditorState } from '#/lib/pdf/editorState';
-import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
+import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.types';
 
 /**
  * Work recovered from the file that was just opened.

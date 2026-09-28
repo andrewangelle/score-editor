@@ -2,6 +2,21 @@
  * Utils for detecting and extracting measure numbers and tempo marks from a score.
  */
 
+import {
+  AGREEMENT,
+  BARE_NUMBER,
+  DEFAULT_MARKINGS,
+  METRONOME_MARK,
+  SMUFL_TS_BASE,
+  TIME_SIG_DIGIT,
+} from '#/lib/pdf/markings/markings.constants';
+import type {
+  Candidate,
+  Marking,
+  MarkingKind,
+  MarkingOptions,
+  TimeSigPair,
+} from '#/lib/pdf/markings/markings.types.ts';
 import type {
   PageStaves,
   PageTextItem,
@@ -10,51 +25,6 @@ import type {
   System,
 } from '#/lib/pdf/staffDetection';
 import { staffHeight } from '#/lib/pdf/staffDetection';
-
-export type MarkingKind =
-  | 'measure'
-  | 'tempo'
-  | 'time-signature'
-  | 'rehearsal'
-  | 'direction';
-
-export type Marking = {
-  id: string;
-  kind: MarkingKind;
-  text: string;
-  pageIndex: number;
-  systemIndex: number;
-  rect: Rect;
-};
-
-export type MarkingOptions = {
-  /** How far beyond a staff's outermost line a marking may sit, in staff heights. */
-  reach: number;
-  /** How far outside the system's horizontal span a marking may sit. */
-  sideReach: number;
-  padding: number;
-};
-
-export type Candidate = {
-  pageIndex: number;
-  systemIndex: number;
-  staffIndex: number;
-  side: 'above' | 'below' | 'on';
-  text: string;
-  rect: Rect;
-  offset: number;
-  rightGap: number;
-  size: number;
-  value: number | null;
-  /** Enclosed by a stroked outline, as a rehearsal mark is by its box. */
-  framed: boolean;
-};
-
-export const DEFAULT_MARKINGS: MarkingOptions = {
-  reach: 2.5,
-  sideReach: 1.5,
-  padding: 1.5,
-};
 
 /**
  * Joins text items that sit on one baseline into runs. A tempo mark reaches the
@@ -414,15 +384,6 @@ export function resolveMarkings(
   return pages;
 }
 
-/** A bare number, with or without the brackets some engravers box them in. */
-const BARE_NUMBER = /^[([{]?\s*(\d{1,4})\s*[)\]}]?$/;
-
-const TIME_SIG_DIGIT = /^\d{1,2}$/;
-
-// SMuFL U+E080–U+E089 encode the time-signature digits 0–9 as private-use
-// glyphs. pdf.js surfaces them as their raw code points, not as ASCII.
-const SMUFL_TS_BASE = 0xe080;
-
 function timeSigDigitValue(str: string): number | null {
   const trimmed = str.trim();
 
@@ -436,13 +397,6 @@ function timeSigDigitValue(str: string): number | null {
 
   return null;
 }
-
-type TimeSigPair = {
-  numerator: PageTextItem;
-  denominator: PageTextItem;
-  rect: Rect;
-  text: string;
-};
 
 function pairTimeSigs(
   items: readonly PageTextItem[],
@@ -521,13 +475,6 @@ function pairTimeSigs(
 
   return pairs;
 }
-
-/**
- * A beat and its rate: "q = 108", "Andante = 96", "♩ = c. 60-72". The note glyph
- * often reaches the text layer as nothing at all, so only the "=" and the number
- * after it are looked for.
- */
-const METRONOME_MARK = /=\s*(?:c(?:irc)?a?\.?\s*)?\d/i;
 
 export function isMetronomeMark(text: string): boolean {
   return METRONOME_MARK.test(text);
@@ -795,9 +742,6 @@ function longestNonDecreasing(ordered: readonly Candidate[]): Candidate[] {
   }
   return chain.reverse();
 }
-
-/** How much of a group has to agree before it is read as a numbering. */
-const AGREEMENT = 0.8;
 
 /**
  * The measure numbers in one placement group, if that is what it holds.

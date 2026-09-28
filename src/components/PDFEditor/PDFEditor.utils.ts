@@ -8,7 +8,7 @@ import {
   SAVING,
 } from '#/components/PDFEditor/PDFEditor.constants';
 import type { PdfFileHandle } from '#/lib/pdf/fileAccess';
-import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.extract';
+import type { MarkingsExportKind } from '#/lib/pdf/markings/markings.types';
 
 export function getSaveButtonTitle(fileHandle: PdfFileHandle | null) {
   return fileHandle ? `${OVERWRITE} ${fileHandle.name}` : EDIT_TITLE;
