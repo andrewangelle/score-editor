@@ -9,8 +9,9 @@ export function StaffHints({ pageWidth }: { pageWidth: number }) {
   const staffHints = useAppSelector((state) =>
     selectStaffHints(state, pageWidth),
   );
-  return staffHints.map(({ id, top, height, name }) => (
+  return staffHints.map(({ id, top, height, name }, index) => (
     <div
+      data-testid={`StaffHint-${index}`}
       key={id}
       aria-hidden
       className={STAFF_HINT_CLASS}

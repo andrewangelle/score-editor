@@ -58,7 +58,11 @@ export function Region({ region, renderedWidth, onDragStart }: RegionProps) {
   }
 
   return (
-    <div className={getRegionStyles(isSelected)} style={box}>
+    <div
+      data-testid="Region"
+      className={getRegionStyles(isSelected)}
+      style={box}
+    >
       <button
         type="button"
         aria-label={`Select region ${region.label}`}

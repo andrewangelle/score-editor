@@ -68,6 +68,7 @@ export function PDFPageStrip() {
               >
                 ↑
               </StripButton>
+
               <StripButton
                 label={`Move page ${index + 1} down`}
                 disabled={index === pages.length - 1}
@@ -77,6 +78,7 @@ export function PDFPageStrip() {
               >
                 ↓
               </StripButton>
+
               <StripButton
                 label={`Delete page ${index + 1}`}
                 disabled={pages.length === 1}
