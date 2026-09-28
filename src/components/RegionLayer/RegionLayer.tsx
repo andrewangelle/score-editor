@@ -200,6 +200,7 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
 
   return (
     <div
+      data-testid="RegionLayer"
       ref={surface}
       className={getSurfaceStyles(interactive, Boolean(drag))}
       onPointerDown={captureSelectedRegion}
@@ -218,6 +219,7 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
 
       {preview && (
         <div
+          data-testid="RegionPreview"
           aria-hidden
           className={PREVIEW_CLASS}
           style={rectToScreen(preview, pageHeight, scale)}

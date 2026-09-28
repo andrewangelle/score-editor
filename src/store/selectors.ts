@@ -150,9 +150,22 @@ export const selectAnnotationFontSizeValue = createSelector(
     selectPlacing,
   ],
   (selectedAnnotationId, selectedAnnotationSize, fontSize, placing) => {
-    if (!selectedAnnotationId) return fontSize ?? '';
+    if (!selectedAnnotationId) {
+      return fontSize ?? '';
+    }
     const kindDefault = placing ? DEFAULT_SIZE[placing] : null;
     const userHasTyped = fontSize !== null && fontSize !== kindDefault;
     return userHasTyped ? fontSize : (selectedAnnotationSize ?? '');
+  },
+);
+
+export const selectAnnotationCarrying = createSelector(
+  [selectPlacing, selectAnnotationValue],
+  (placing, value) => {
+    if (placing && value) {
+      return { kind: placing, text: value };
+    }
+
+    return null;
   },
 );

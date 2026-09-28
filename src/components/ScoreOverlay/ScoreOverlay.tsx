@@ -1,10 +1,6 @@
 import { type PointerEvent, useRef, useState } from 'react';
 import { Annotations } from '#/components/ScoreOverlay/Annotations';
-import {
-  cursorMarkInk,
-  getCursorMarkStyles,
-  getSurfaceStyles,
-} from '#/components/ScoreOverlay/ScoreOverlay.styles';
+import { getSurfaceStyles } from '#/components/ScoreOverlay/ScoreOverlay.styles';
 import { StaffHints } from '#/components/ScoreOverlay/StaffHints';
 import { useScorePointerRef } from '#/hooks/useScorePointer';
 import { DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
@@ -17,18 +13,18 @@ import {
   selectSelectedAnnotationId,
 } from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import { selectOverlay } from '#/store/selectors';
+import { selectAnnotationCarrying, selectOverlay } from '#/store/selectors';
 import {
   selectAnnotationColor,
   selectAnnotationFontSize,
-  selectAnnotationValue,
   selectIsEditingRegions,
   selectPlacing,
 } from '#/store/tool.slice';
+import { AnnotationCursorPreview } from './AnnotationCursorPreview';
 
 export type Drag = { id: string; x: number; y: number };
 
-type Cursor = { clientX: number; clientY: number };
+export type Cursor = { clientX: number; clientY: number };
 
 const DRAG_THRESHOLD = 3;
 
@@ -49,7 +45,6 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
   const color = useAppSelector(selectAnnotationColor);
-  const value = useAppSelector(selectAnnotationValue);
   const fontSize = useAppSelector(selectAnnotationFontSize);
   const selectedId = useAppSelector(selectSelectedAnnotationId);
   const interactive = !useAppSelector(selectIsEditingRegions);
@@ -62,8 +57,7 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   const pendingDrag = useRef<DragDimensions | null>(null);
   const pointerRef = useScorePointerRef();
   const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
-
-  const carrying = placing && value ? { kind: placing, text: value } : null;
+  const carrying = useAppSelector(selectAnnotationCarrying);
 
   function toPdf(clientX: number, clientY: number) {
     const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
@@ -218,6 +212,7 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
 
   return (
     <div
+      data-testid="ScoreOverlay"
       ref={surface}
       className={getSurfaceStyles(interactive, Boolean(placing))}
       onPointerMove={dragAnnotation}
@@ -237,24 +232,7 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
         onAnnotationPointerDown={startAnnotationPointer}
       />
 
-      {carrying && cursor && (
-        <div
-          aria-hidden
-          className={getCursorMarkStyles(carrying.kind === 'string')}
-          style={{
-            left: cursor.clientX,
-            top: cursor.clientY,
-            ...cursorMarkInk(
-              carrying.kind,
-              color,
-              overlay.scale,
-              fontSize ?? DEFAULT_SIZE[carrying.kind],
-            ),
-          }}
-        >
-          {carrying.text}
-        </div>
-      )}
+      <AnnotationCursorPreview cursor={cursor} pageWidth={pageWidth} />
     </div>
   );
 }

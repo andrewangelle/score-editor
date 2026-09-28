@@ -7,9 +7,6 @@ import { DEFAULT_COLOR, DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
 import { annotationSelected } from '#/store/annotations.slice';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 
-/**
- * Which tool the page surface is currently under.
- */
 export type Tool = AnnotationKind | 'regions';
 
 type ToolState = {
