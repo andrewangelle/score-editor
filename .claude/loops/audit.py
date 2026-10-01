@@ -27,7 +27,10 @@ import hashlib
 import re
 import sys
 
-from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+from claude_agent_sdk import (
+    query, ClaudeAgentOptions, ResultMessage,
+    AssistantMessage, ToolUseBlock,
+)
 
 # ---- Config (edit these) ----------------------------------------------------
 AUDIT_MODEL = "opus"     # Claude Code model alias; strong enough to verify claims
@@ -109,15 +112,23 @@ async def run(prompt, model, effort, allowed, mode, disallowed=None):
         max_turns=TURN_CAP,
         setting_sources=["project"] if LOAD_PROJECT_CONTEXT else [],
     )
+    turn = 0
     async for msg in query(prompt=prompt, options=options):
-        if isinstance(msg, ResultMessage):
+        if isinstance(msg, AssistantMessage):
+            for block in msg.content:
+                if isinstance(block, ToolUseBlock):
+                    turn += 1
+                    inp = block.input
+                    detail = (inp.get("file_path") or inp.get("pattern")
+                              or inp.get("command") or "")
+                    print(f"  [{turn}/{TURN_CAP}] {block.name} {detail}", flush=True)
+        elif isinstance(msg, ResultMessage):
             subtype = msg.subtype
             if msg.total_cost_usd is not None:
                 cost = msg.total_cost_usd
             if msg.subtype == "success" and msg.result:
                 text = msg.result
     return text, subtype, cost
-
 
 async def main(plan, scope_paths, test_cmd, max_iters):
     scope = "\n".join(f"  - {p}" for p in scope_paths) or "  - (whole repo)"
@@ -188,7 +199,7 @@ async def main(plan, scope_paths, test_cmd, max_iters):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("plan", help="path to the plan file, e.g. docs/plan.md")
+    argparser.add_argument("plan", help="path to the plan file, e.g. .claude/plans/plan.md")
     argparser.add_argument("--paths", nargs="*", default=[],
                     help="repo paths the audit is allowed to read (scopes the reads)")
     argparser.add_argument("--run-tests", metavar="CMD", default="",
