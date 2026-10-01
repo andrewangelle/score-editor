@@ -211,8 +211,8 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
       {pageRegions.map((stored) => (
         <Region
           key={stored.id}
-          region={getRegion(stored)}
           renderedWidth={renderedWidth}
+          region={getRegion(stored)}
           onDragStart={startRegionDrag}
         />
       ))}
