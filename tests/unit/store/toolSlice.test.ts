@@ -84,6 +84,7 @@ describe('choosing the ink', () => {
       color: 'green',
       value: null,
       fontSize: DEFAULT_SIZE.note,
+      activePageId: null,
     });
   });
 });

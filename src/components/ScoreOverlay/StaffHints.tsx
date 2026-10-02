@@ -1,3 +1,4 @@
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import {
   STAFF_HINT_CLASS,
   STAFF_LABEL_CLASS,
@@ -5,9 +6,10 @@ import {
 import { useAppSelector } from '#/store/hooks';
 import { selectStaffHints } from '#/store/selectors';
 
-export function StaffHints({ pageWidth }: { pageWidth: number }) {
+export function StaffHints() {
+  const { sourceIndex, pageWidth } = usePageContext();
   const staffHints = useAppSelector((state) =>
-    selectStaffHints(state, pageWidth),
+    selectStaffHints(state, sourceIndex, pageWidth),
   );
   return staffHints.map(({ id, top, height, name }, index) => (
     <div

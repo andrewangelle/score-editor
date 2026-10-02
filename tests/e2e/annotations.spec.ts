@@ -239,7 +239,7 @@ test.describe('Annotation clipboard and undo/redo', () => {
 
     // Move the pointer over the score surface so the paste hook knows
     // which page and PDF coordinates to use.
-    const canvas = page.locator('.isolate .react-pdf__Page__canvas');
+    const canvas = await appPage.selectedCanvas();
     const box = await canvas.boundingBox();
     if (!box) throw new Error('Canvas not visible');
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);

@@ -14,6 +14,12 @@ type ToolState = {
   color: AnnotationColor;
   value: string | null;
   fontSize: number | null;
+  /**
+   * The page with an edit or drag in progress, by page id. The viewer keeps it
+   * mounted while it is scrolled out of view, which would otherwise throw the
+   * edit away with the component holding it.
+   */
+  activePageId: string | null;
 };
 
 const initialState: ToolState = {
@@ -21,6 +27,7 @@ const initialState: ToolState = {
   color: DEFAULT_COLOR,
   value: null,
   fontSize: null,
+  activePageId: null,
 };
 
 export const toolSlice = createSlice({
@@ -51,6 +58,15 @@ export const toolSlice = createSlice({
 
     annotationFontSizeReset(state) {
       state.fontSize = null;
+    },
+
+    activePageSet(state, action: PayloadAction<string>) {
+      state.activePageId = action.payload;
+    },
+
+    /** Only clears the page named, so a stale clear cannot unpin a newer one. */
+    activePageCleared(state, action: PayloadAction<string>) {
+      if (state.activePageId === action.payload) state.activePageId = null;
     },
   },
   extraReducers(builder) {
@@ -98,6 +114,10 @@ export const toolSlice = createSlice({
     selectAnnotationFontSize(state) {
       return state.fontSize;
     },
+
+    selectActivePageId(state) {
+      return state.activePageId;
+    },
   },
 });
 
@@ -107,6 +127,8 @@ export const {
   annotationValuePicked,
   annotationFontSizePicked,
   annotationFontSizeReset,
+  activePageSet,
+  activePageCleared,
 } = toolSlice.actions;
 
 export const {
@@ -115,4 +137,5 @@ export const {
   selectAnnotationColor,
   selectAnnotationValue,
   selectAnnotationFontSize,
+  selectActivePageId,
 } = toolSlice.selectors;

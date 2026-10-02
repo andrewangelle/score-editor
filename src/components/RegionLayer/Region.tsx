@@ -1,4 +1,5 @@
 import type { PointerEvent } from 'react';
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import type { RegionGesture } from '#/components/RegionLayer/RegionLayer';
 import { EDGES, HANDLE } from '#/components/RegionLayer/RegionLayer.constants';
 import {
@@ -21,7 +22,6 @@ import { selectIsEditingRegions } from '#/store/tool.slice';
 
 type RegionProps = {
   region: RegionData;
-  renderedWidth: number;
   onDragStart: (
     event: PointerEvent<HTMLButtonElement>,
     region: RegionData,
@@ -29,10 +29,11 @@ type RegionProps = {
   ) => void;
 };
 
-export function Region({ region, renderedWidth, onDragStart }: RegionProps) {
+export function Region({ region, onDragStart }: RegionProps) {
   const dispatch = useAppDispatch();
+  const { sourceIndex, pageWidth } = usePageContext();
   const overlay = useAppSelector((state) =>
-    selectOverlay(state, renderedWidth),
+    selectOverlay(state, sourceIndex, pageWidth),
   );
   const regions = useAppSelector(selectRegions);
   const selectedId = useAppSelector(selectSelectedRegionId);

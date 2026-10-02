@@ -1,7 +1,9 @@
 import { type PointerEvent, useRef, useState } from 'react';
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import { Annotations } from '#/components/ScoreOverlay/Annotations';
 import { getSurfaceStyles } from '#/components/ScoreOverlay/ScoreOverlay.styles';
 import { StaffHints } from '#/components/ScoreOverlay/StaffHints';
+import { usePinPage } from '#/hooks/usePinPage';
 import { useScorePointerRef } from '#/hooks/useScorePointer';
 import { DEFAULT_SIZE } from '#/lib/pdf/annotations/annotations';
 import { toPdfPoint } from '#/lib/pdf/pageCoordinates';
@@ -36,12 +38,9 @@ export type DragDimensions = {
   y: number;
 };
 
-type ScoreOverlayProps = {
-  pageWidth: number;
-};
-
-export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
+export function ScoreOverlay() {
   const dispatch = useAppDispatch();
+  const { sourceIndex, pageWidth } = usePageContext();
   const annotations = useAppSelector(selectAnnotations);
   const placing = useAppSelector(selectPlacing);
   const color = useAppSelector(selectAnnotationColor);
@@ -49,18 +48,22 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   const selectedId = useAppSelector(selectSelectedAnnotationId);
   const interactive = !useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
-  const surfaceBox = useRef<DOMRect | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const pendingDrag = useRef<DragDimensions | null>(null);
   const pointerRef = useScorePointerRef();
-  const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
+  const overlay = useAppSelector((state) =>
+    selectOverlay(state, sourceIndex, pageWidth),
+  );
   const carrying = useAppSelector(selectAnnotationCarrying);
 
+  usePinPage(editing !== null || drag !== null);
+
   function toPdf(clientX: number, clientY: number) {
-    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
+    // Read fresh every time: a wheel scroll mid-drag moves the surface.
+    const box = surface.current?.getBoundingClientRect();
     if (!box || !overlay) return null;
     return toPdfPoint(
       clientX - box.left,
@@ -110,11 +113,9 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
     // A pending drag that never exceeded the threshold is a tap → select.
     if (pendingDrag.current) {
       const tappedId = pendingDrag.current.id;
+      // A tap never promotes to a drag, so endDrag() never runs to clear this.
+      // Left set, the next pointer move would drag a mark already let go of.
       pendingDrag.current = null;
-      // A tap never promotes to a drag, so endDrag() never runs to clear this
-      // If left stale, it would poison every later toPdf() call with
-      // the bounding rect captured at tap time.
-      surfaceBox.current = null;
       dispatch(annotationSelected(selectedId === tappedId ? null : tappedId));
       return;
     }
@@ -165,7 +166,6 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   function startAnnotationPointer(annotation: Drag) {
     return (event: PointerEvent<HTMLButtonElement>) => {
       event.stopPropagation();
-      surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
       pendingDrag.current = {
         id: annotation.id,
         startX: event.clientX,
@@ -177,8 +177,6 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   }
 
   function endDrag() {
-    surfaceBox.current = null;
-
     if (!drag) {
       return;
     }
@@ -200,7 +198,6 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
   }
 
   function cancelPointerEvent(_: PointerEvent<HTMLDivElement>) {
-    surfaceBox.current = null;
     pendingDrag.current = null;
     setDrag(null);
     setCursor(null);
@@ -220,10 +217,9 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
       onPointerUp={placeAnnotation}
       onPointerCancel={cancelPointerEvent}
     >
-      <StaffHints pageWidth={pageWidth} />
+      <StaffHints />
 
       <Annotations
-        pageWidth={pageWidth}
         drag={drag}
         draft={draft}
         setDraft={setDraft}
@@ -232,7 +228,7 @@ export function ScoreOverlay({ pageWidth }: ScoreOverlayProps) {
         onAnnotationPointerDown={startAnnotationPointer}
       />
 
-      <AnnotationCursorPreview cursor={cursor} pageWidth={pageWidth} />
+      <AnnotationCursorPreview cursor={cursor} />
     </div>
   );
 }

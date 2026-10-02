@@ -1,3 +1,4 @@
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import type { Cursor } from '#/components/ScoreOverlay/ScoreOverlay';
 import {
   cursorMarkInk,
@@ -13,16 +14,17 @@ import {
 
 type AnnotationCursorPreviewProps = {
   cursor: Cursor | null;
-  pageWidth: number;
 };
 
 export function AnnotationCursorPreview({
   cursor,
-  pageWidth,
 }: AnnotationCursorPreviewProps) {
+  const { sourceIndex, pageWidth } = usePageContext();
   const color = useAppSelector(selectAnnotationColor);
   const carrying = useAppSelector(selectAnnotationCarrying);
-  const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
+  const overlay = useAppSelector((state) =>
+    selectOverlay(state, sourceIndex, pageWidth),
+  );
   const fontSize = useAppSelector(selectAnnotationFontSize);
 
   if (carrying && cursor && overlay) {
