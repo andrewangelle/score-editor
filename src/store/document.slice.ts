@@ -32,6 +32,13 @@ export const documentRestored = createAction<{
 }>('document/restored');
 
 /**
+ * Whether the selection followed the viewer's scroll or was asked for. The
+ * viewer scrolls to a page only for the second: scrolling to the page the
+ * reader just scrolled to would fight them.
+ */
+export type SelectionSource = 'scroll' | 'user';
+
+/**
  * The document being edited: which pages it has, in what order, and how far the
  * user has strayed from the upload.
  *
@@ -49,6 +56,7 @@ type DocumentState = {
   /** Previous page lists, most recent last. */
   history: PageEdit[][];
   selectedPageId: string | null;
+  selectionSource: SelectionSource;
   /**
    * Bumped on every committed page change, undo and reset included, so a message
    * about the document ("Saved score.pdf") can say which version it was true
@@ -83,6 +91,7 @@ const initialState: DocumentState = {
   original: [],
   history: [],
   selectedPageId: null,
+  selectionSource: 'user',
   revision: 0,
   savedRevision: null,
   fileHoldsDocument: true,
@@ -112,12 +121,35 @@ function commit(
   state.revision += 1;
 }
 
-/** Keeps the selection on a page that still exists after a list change. */
-function keepSelectionValid(state: DocumentState, preferredIndex = 0) {
-  if (state.pages.some((page) => page.id === state.selectedPageId)) return;
+function selectedIndex(state: DocumentState) {
+  return state.pages.findIndex((page) => page.id === state.selectedPageId);
+}
 
-  const index = Math.min(preferredIndex, state.pages.length - 1);
-  state.selectedPageId = state.pages[index]?.id ?? null;
+/**
+ * Keeps the selection on a page that still exists after a list change, and has
+ * the viewer follow it if the change replaced it or moved it. A change that
+ * leaves it where it was leaves the reader where they were.
+ */
+function keepSelectionValid(
+  state: DocumentState,
+  previous: { id: string | null; index: number },
+  preferredIndex = 0,
+) {
+  if (selectedIndex(state) === -1) {
+    const index = Math.min(preferredIndex, state.pages.length - 1);
+    state.selectedPageId = state.pages[index]?.id ?? null;
+  }
+
+  if (
+    state.selectedPageId !== previous.id ||
+    selectedIndex(state) !== previous.index
+  ) {
+    state.selectionSource = 'user';
+  }
+}
+
+function selection(state: DocumentState) {
+  return { id: state.selectedPageId, index: selectedIndex(state) };
 }
 
 export const documentSlice = createSlice({
@@ -138,6 +170,7 @@ export const documentSlice = createSlice({
       state.original = [...action.payload.pages];
       state.history = [];
       state.selectedPageId = action.payload.pages[0]?.id ?? null;
+      state.selectionSource = 'user';
       state.savedRevision = null;
       state.fileHoldsDocument = true;
       // Revisions carry on across documents, so the last one's message would match.
@@ -211,13 +244,24 @@ export const documentSlice = createSlice({
       state.markingsExport.open = false;
     },
 
-    pageSelected(state, action: PayloadAction<string>) {
-      state.selectedPageId = action.payload;
+    pageSelected: {
+      reducer(
+        state,
+        action: PayloadAction<string, string, { source: SelectionSource }>,
+      ) {
+        state.selectedPageId = action.payload;
+        state.selectionSource = action.meta.source;
+      },
+      prepare(id: string, options?: { source: SelectionSource }) {
+        return { payload: id, meta: { source: options?.source ?? 'user' } };
+      },
     },
 
     pageMoved(state, action: PayloadAction<{ id: string; direction: -1 | 1 }>) {
       const { id, direction } = action.payload;
+      const previous = selection(state);
       commit(state, (pages) => movePage(pages, id, direction));
+      keepSelectionValid(state, previous);
     },
 
     pageDeleted(state, action: PayloadAction<string>) {
@@ -226,29 +270,32 @@ export const documentSlice = createSlice({
       );
       if (removedAt === -1) return;
 
+      const previous = selection(state);
       commit(state, (pages) => removePage(pages, action.payload));
       // Whatever slid into the deleted page's place is the next selection.
-      keepSelectionValid(state, removedAt);
+      keepSelectionValid(state, previous, removedAt);
     },
 
     documentReset(state) {
       const snapshot = current(state);
       if (isUnchanged(snapshot.pages, snapshot.original)) return;
 
+      const previous = selection(state);
       state.history.push(snapshot.pages);
       state.pages = [...snapshot.original];
       state.revision += 1;
-      keepSelectionValid(state);
+      keepSelectionValid(state, previous);
     },
 
     undone(state) {
       const previous = current(state).history.at(-1);
       if (!previous) return;
 
+      const selected = selection(state);
       state.history.pop();
       state.pages = previous;
       state.revision += 1;
-      keepSelectionValid(state);
+      keepSelectionValid(state, selected);
     },
   },
   selectors: {
@@ -257,6 +304,7 @@ export const documentSlice = createSlice({
     selectPages: (state) => state.pages,
     selectPageCount: (state) => state.pages.length,
     selectSelectedPageId: (state) => state.selectedPageId,
+    selectSelectionSource: (state) => state.selectionSource,
     selectCanUndo: (state) => state.history.length > 0,
     selectIsDirty: (state) => !isUnchanged(state.pages, state.original),
     /**
@@ -308,6 +356,7 @@ export const {
   selectPages,
   selectPageCount,
   selectSelectedPageId,
+  selectSelectionSource,
   selectCanUndo,
   selectIsDirty,
   selectHasUnsavedChanges,

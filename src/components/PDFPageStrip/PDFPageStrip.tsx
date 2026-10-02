@@ -13,6 +13,7 @@ import {
   pageSelected,
   selectPages,
   selectSelectedPageId,
+  selectSelectionSource,
 } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 
@@ -22,16 +23,18 @@ export function PDFPageStrip() {
   const dispatch = useAppDispatch();
   const pages = useAppSelector(selectPages);
   const selectedId = useAppSelector(selectSelectedPageId);
+  const selectionSource = useAppSelector(selectSelectionSource);
   const selectedItem = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     if (!selectedId) return;
 
+    // Smooth scrolls stacked on a moving main view look broken.
     selectedItem.current?.scrollIntoView({
       block: 'nearest',
-      behavior: 'smooth',
+      behavior: selectionSource === 'scroll' ? 'auto' : 'smooth',
     });
-  }, [selectedId]);
+  }, [selectedId, selectionSource]);
 
   return (
     <ol className={PAGE_LIST_CLASS}>

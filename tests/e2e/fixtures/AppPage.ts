@@ -40,8 +40,60 @@ export class AppPage {
     await fileInput.setInputFiles(filePath);
   }
 
+  /** A page of the main view, by its position in the page list. */
+  viewerPage(index: number) {
+    return this.page.locator(`[data-page-index="${index}"]`);
+  }
+
+  viewerCanvas(index: number) {
+    return this.viewerPage(index).locator('.react-pdf__Page__canvas');
+  }
+
+  stage() {
+    return this.page.getByTestId('ViewerStage');
+  }
+
+  /** Scrolls the main view so a page's top sits one page gap below the top. */
+  async scrollToPage(index: number) {
+    await this.stage().evaluate((stage, index) => {
+      const frame = stage.querySelector<HTMLElement>('[data-page-index]');
+      if (!frame) throw new Error('No page mounted');
+      const gap = 16;
+      stage.scrollTop = index * (frame.offsetHeight + gap);
+    }, index);
+  }
+
+  /** How far a page's top sits below the top of the main view, in pixels. */
+  async pageOffsetInStage(index: number) {
+    const [page, stage] = await Promise.all([
+      this.viewerPage(index).boundingBox(),
+      this.stage().boundingBox(),
+    ]);
+    if (!page || !stage) throw new Error('Page or stage not visible');
+    return page.y - stage.y;
+  }
+
+  currentThumbnail() {
+    return this.page
+      .getByRole('navigation', { name: 'Pages' })
+      .locator('button[aria-current="true"]');
+  }
+
+  /** The index of the page the strip marks as current. */
+  async selectedPageIndex() {
+    const label = await this.currentThumbnail().innerText();
+    const match = label.match(/Page (\d+)/);
+    if (!match) throw new Error(`No page number in "${label}"`);
+    return Number(match[1]) - 1;
+  }
+
+  /** The canvas of the selected page, which is the one in view. */
+  async selectedCanvas() {
+    return this.viewerCanvas(await this.selectedPageIndex());
+  }
+
   async waitForCanvas() {
-    const mainCanvas = this.page.locator('.isolate .react-pdf__Page__canvas');
+    const mainCanvas = await this.selectedCanvas();
     await expect(mainCanvas).toBeVisible();
 
     // Poll until the canvas content stops changing, which means pdfjs has
@@ -226,7 +278,7 @@ export class AppPage {
   }
 
   async clickOnPage(xRatio: number, yRatio: number) {
-    const canvas = this.page.locator('.isolate .react-pdf__Page__canvas');
+    const canvas = await this.selectedCanvas();
     const box = await canvas.boundingBox();
     if (!box) throw new Error('Canvas not visible');
     await this.page.mouse.click(

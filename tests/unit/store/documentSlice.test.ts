@@ -60,7 +60,11 @@ describe('page edits', () => {
 
     expect(ids(state)).toEqual(['b', 'a', 'c']);
     expect(state.history).toHaveLength(1);
-    expect(ids({ pages: state.history[0] } as any)).toEqual(['a', 'b', 'c']);
+    expect(
+      ids({ pages: state.history[0] } as ReturnType<
+        typeof documentSlice.reducer
+      >),
+    ).toEqual(['a', 'b', 'c']);
   });
 
   it('keeps a move that changes nothing off the undo stack', () => {
@@ -82,6 +86,57 @@ describe('page edits', () => {
 
     expect(ids(state)).toEqual(['a', 'b', 'c']);
     expect(state.history).toEqual([]);
+  });
+});
+
+describe('selection source', () => {
+  const fromScroll = (id: string) => pageSelected(id, { source: 'scroll' });
+
+  it('starts as asked for, so the viewer opens on the first page', () => {
+    expect(OPEN.selectionSource).toBe('user');
+  });
+
+  it('records whether the scroll or the user chose the page', () => {
+    const scrolled = run(fromScroll('b'));
+    expect(scrolled.selectedPageId).toBe('b');
+    expect(scrolled.selectionSource).toBe('scroll');
+
+    const clicked = run(fromScroll('b'), pageSelected('c'));
+    expect(clicked.selectionSource).toBe('user');
+  });
+
+  it('flips back to user when the same page is chosen again', () => {
+    // Clicking the thumbnail of the page already in view returns to its top.
+    expect(run(fromScroll('b'), pageSelected('b')).selectionSource).toBe(
+      'user',
+    );
+  });
+
+  it('is user after a delete re-points the selection', () => {
+    expect(run(fromScroll('b'), pageDeleted('b')).selectionSource).toBe('user');
+  });
+
+  it('is user after a list change moves the selected page', () => {
+    expect(
+      run(fromScroll('c'), pageMoved({ id: 'c', direction: -1 }))
+        .selectionSource,
+    ).toBe('user');
+    expect(run(fromScroll('c'), pageDeleted('a')).selectionSource).toBe('user');
+    expect(
+      run(fromScroll('a'), pageMoved({ id: 'a', direction: 1 }), undone())
+        .selectionSource,
+    ).toBe('user');
+  });
+
+  it('stays scroll when a list change leaves the selected page in place', () => {
+    // Snapping the reader back to their page's top would be a jump for nothing.
+    expect(
+      run(fromScroll('a'), pageMoved({ id: 'b', direction: 1 }))
+        .selectionSource,
+    ).toBe('scroll');
+    expect(run(fromScroll('a'), pageDeleted('c')).selectionSource).toBe(
+      'scroll',
+    );
   });
 });
 

@@ -1,9 +1,11 @@
 import { type PointerEvent, useRef, useState } from 'react';
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import { Region } from '#/components/RegionLayer/Region';
 import {
   getSurfaceStyles,
   PREVIEW_CLASS,
 } from '#/components/RegionLayer/RegionLayer.styles';
+import { usePinPage } from '#/hooks/usePinPage';
 import { rectToScreen, toPdfPoint } from '#/lib/pdf/pageCoordinates';
 import {
   clampRect,
@@ -32,20 +34,18 @@ type Drag =
 
 export type RegionGesture = { kind: 'move' } | { kind: 'edge'; edge: Edge };
 
-type RegionLayerProps = {
-  renderedWidth: number;
-};
-
-export function RegionLayer({ renderedWidth }: RegionLayerProps) {
+export function RegionLayer() {
   const dispatch = useAppDispatch();
+  const { sourceIndex, pageWidth: renderedWidth } = usePageContext();
   const overlay = useAppSelector((state) =>
-    selectOverlay(state, renderedWidth),
+    selectOverlay(state, sourceIndex, renderedWidth),
   );
   const regions = useAppSelector(selectRegions);
   const interactive = useAppSelector(selectIsEditingRegions);
   const surface = useRef<HTMLDivElement>(null);
-  const surfaceBox = useRef<DOMRect | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+
+  usePinPage(drag !== null);
 
   if (!overlay) {
     return null;
@@ -67,7 +67,8 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
       : null;
 
   function toPdf(clientX: number, clientY: number) {
-    const box = surfaceBox.current ?? surface.current?.getBoundingClientRect();
+    // Read fresh every time: a wheel scroll mid-drag moves the surface.
+    const box = surface.current?.getBoundingClientRect();
 
     if (!box || !overlay) {
       return null;
@@ -82,12 +83,10 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
   }
 
   function captureGesture(event: React.PointerEvent) {
-    surfaceBox.current = surface.current?.getBoundingClientRect() ?? null;
     surface.current?.setPointerCapture(event.pointerId);
   }
 
   function clearDrag() {
-    surfaceBox.current = null;
     setDrag(null);
   }
 
@@ -211,7 +210,6 @@ export function RegionLayer({ renderedWidth }: RegionLayerProps) {
       {pageRegions.map((stored) => (
         <Region
           key={stored.id}
-          renderedWidth={renderedWidth}
           region={getRegion(stored)}
           onDragStart={startRegionDrag}
         />

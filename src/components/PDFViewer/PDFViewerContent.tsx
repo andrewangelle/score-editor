@@ -1,29 +1,24 @@
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useMemo, useState } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { PDFPageStrip } from '#/components/PDFPageStrip/PDFPageStrip';
+import { PageList } from '#/components/PDFViewer/PageList';
 import {
   RENDER_ERROR,
   RENDERING,
 } from '#/components/PDFViewer/PDFViewer.constants';
 import {
   DOCUMENT_CLASS,
-  PAGE_FRAME_CLASS,
   PAGE_NAV_CLASS,
   STAGE_CLASS,
   VIEWER_ERROR_CLASS,
   VIEWER_MESSAGE_CLASS,
 } from '#/components/PDFViewer/PDFViewer.styles';
-import { RegionLayer } from '#/components/RegionLayer/RegionLayer';
-import { ScoreOverlay } from '#/components/ScoreOverlay/ScoreOverlay';
+import { usePageSizes } from '#/hooks/usePageSizes';
 import { usePageWidth } from '#/hooks/usePageWidth';
-import { useScrollEdgePaging } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging';
-import type { TurnDirection } from '#/hooks/useScrollEdgePaging/useScrollEdgePaging.utils';
 import { WORKER_SRC } from '#/lib/pdf/pdfjsClient';
-import { pageSelected, selectPages } from '#/store/document.slice';
-import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import { selectSelectedPage } from '#/store/selectors';
 
 pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
 
@@ -32,28 +27,14 @@ type PdfViewerProps = {
 };
 
 export function PDFViewerContent({ bytes }: PdfViewerProps) {
-  const dispatch = useAppDispatch();
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const pageWidth = usePageWidth(stage);
+  const sizes = usePageSizes(pdf);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const pages = useAppSelector(selectPages);
   const file = useMemo(() => ({ data: bytes.slice() }), [bytes]);
-  const selectedPage = useAppSelector(selectSelectedPage);
-
-  function turnPage(direction: TurnDirection) {
-    const index = pages.findIndex((page) => page.id === selectedPage?.id);
-    const next = pages[index + direction];
-    if (index === -1 || !next) return false;
-
-    dispatch(pageSelected(next.id));
-    return true;
-  }
-
-  useScrollEdgePaging({
-    container: stage,
-    pageKey: selectedPage?.id ?? null,
-    onTurn: turnPage,
-  });
+  const isLaidOut = pdf !== null && sizes.length === pdf.numPages;
+  const isReady = stage && pageWidth && isLaidOut;
 
   if (loadError) {
     return (
@@ -66,6 +47,7 @@ export function PDFViewerContent({ bytes }: PdfViewerProps) {
   return (
     <Document
       file={file}
+      onLoadSuccess={setPdf}
       onLoadError={(error) => setLoadError(error.message)}
       loading={<p className={VIEWER_MESSAGE_CLASS}>{RENDERING}</p>}
       error={
@@ -79,22 +61,12 @@ export function PDFViewerContent({ bytes }: PdfViewerProps) {
         <PDFPageStrip />
       </nav>
 
-      <div ref={setStage} className={STAGE_CLASS}>
-        {selectedPage && pageWidth && (
-          <div className={PAGE_FRAME_CLASS}>
-            <Page
-              key={selectedPage.id}
-              pageNumber={selectedPage.sourceIndex + 1}
-              width={pageWidth}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              className="isolate"
-            />
-
-            <ScoreOverlay pageWidth={pageWidth} />
-            <RegionLayer renderedWidth={pageWidth} />
-          </div>
+      <div ref={setStage} data-testid="ViewerStage" className={STAGE_CLASS}>
+        {isReady && (
+          <PageList stage={stage} sizes={sizes} pageWidth={pageWidth} />
         )}
+
+        {!isReady && <p className={VIEWER_MESSAGE_CLASS}>{RENDERING}</p>}
       </div>
     </Document>
   );

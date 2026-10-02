@@ -1,4 +1,5 @@
 import type { Dispatch, PointerEvent, SetStateAction } from 'react';
+import { usePageContext } from '#/components/PDFViewer/PageContext';
 import type { Drag } from '#/components/ScoreOverlay/ScoreOverlay';
 import {
   ANNOTATION_EDIT_HINT,
@@ -34,7 +35,6 @@ const PLACEHOLDER: Record<AnnotationKind, string> = {
 
 type AnnotationsProps = {
   editing: string | null;
-  pageWidth: number;
   drag: Drag | null;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
@@ -47,16 +47,18 @@ type AnnotationsProps = {
 export function Annotations({
   editing,
   drag,
-  pageWidth,
   draft,
   setDraft,
   setEditing,
   onAnnotationPointerDown,
 }: AnnotationsProps) {
   const dispatch = useAppDispatch();
+  const { sourceIndex, pageWidth } = usePageContext();
   const annotations = useAppSelector(selectAnnotations);
   const selectedId = useAppSelector(selectSelectedAnnotationId);
-  const overlay = useAppSelector((state) => selectOverlay(state, pageWidth));
+  const overlay = useAppSelector((state) =>
+    selectOverlay(state, sourceIndex, pageWidth),
+  );
 
   const pageAnnotations = annotations.filter(
     (annotation) => annotation.pageIndex === overlay?.pageIndex,

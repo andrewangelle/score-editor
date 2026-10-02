@@ -75,21 +75,27 @@ export const selectSelectedPage = createSelector(
     pages.find((page) => page.id === selectedId) ?? pages[0],
 );
 
-export const selectSourcePage = createSelector(
-  [selectAnalysis, selectSelectedPage],
-  (analysis, selectedPage) => analysis?.pages[selectedPage?.sourceIndex ?? -1],
+export const selectSourcePageAt = createSelector(
+  [selectAnalysis, (_state, sourceIndex: number) => sourceIndex],
+  (analysis, sourceIndex) => analysis?.pages[sourceIndex],
 );
 
+/**
+ * Several pages are mounted at once, each calling this with its own
+ * `sourceIndex`. RTK 2's default `weakMapMemoize` caches per argument tuple, so
+ * they do not evict each other — `lruMemoize` here would recompute every page on
+ * every render.
+ */
 export const selectOverlay = createSelector(
   [
-    selectSourcePage,
-    selectSelectedPage,
-    (_state, pageWidth?: number) => pageWidth,
+    selectSourcePageAt,
+    (_state, sourceIndex: number) => sourceIndex,
+    (_state, _sourceIndex: number, pageWidth: number) => pageWidth,
   ],
-  (sourcePage, selectedPage, pageWidth) =>
-    sourcePage && selectedPage && pageWidth
+  (sourcePage, sourceIndex, pageWidth) =>
+    sourcePage && pageWidth
       ? {
-          pageIndex: selectedPage.sourceIndex,
+          pageIndex: sourceIndex,
           pageWidth: sourcePage.width,
           pageHeight: sourcePage.height,
           scale: pageWidth / sourcePage.width,
