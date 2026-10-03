@@ -1,5 +1,10 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "tests/e2e/tsconfig.json"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "tests/e2e/tsconfig.json",
+    ".claude/loops/audit/*"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",

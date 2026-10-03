@@ -23,6 +23,7 @@
       "!.netlify",
       "!.tanstack/*",
       "!.claude",
+      ".claude/loops/audit/**",
       "!**/*.pdf"
     ]
   },
