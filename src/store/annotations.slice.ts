@@ -93,6 +93,11 @@ function applyInverse(state: AnnotationsState, entry: AnnotationUndoEntry) {
       if (annotation) annotation.size = entry.from;
       break;
     }
+    case 'recolor': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.color = entry.from;
+      break;
+    }
   }
 }
 
@@ -122,6 +127,11 @@ function applyForward(state: AnnotationsState, entry: AnnotationUndoEntry) {
     case 'resize': {
       const annotation = state.items.find((a) => a.id === entry.id);
       if (annotation) annotation.size = entry.to;
+      break;
+    }
+    case 'recolor': {
+      const annotation = state.items.find((a) => a.id === entry.id);
+      if (annotation) annotation.color = entry.to;
       break;
     }
   }
@@ -219,6 +229,25 @@ export const annotationsSlice = createSlice({
           to: action.payload.size,
         });
         annotation.size = action.payload.size;
+        state.revision += 1;
+      }
+    },
+
+    annotationRecolored(
+      state,
+      action: PayloadAction<{ id: string; color: AnnotationColor }>,
+    ) {
+      const annotation = state.items.find(
+        (candidate) => candidate.id === action.payload.id,
+      );
+      if (annotation && annotation.color !== action.payload.color) {
+        pushUndo(state, {
+          type: 'recolor',
+          id: annotation.id,
+          from: annotation.color,
+          to: action.payload.color,
+        });
+        annotation.color = action.payload.color;
         state.revision += 1;
       }
     },
@@ -339,6 +368,7 @@ export const {
   annotationRetitled,
   annotationMoved,
   annotationResized,
+  annotationRecolored,
   annotationRemoved,
   annotationUndone,
   annotationRedone,

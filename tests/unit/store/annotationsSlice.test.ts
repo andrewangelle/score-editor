@@ -8,6 +8,7 @@ import {
   annotationMoved,
   annotationPasted,
   annotationPlaced,
+  annotationRecolored,
   annotationRedone,
   annotationRemoved,
   annotationRetitled,
@@ -145,6 +146,34 @@ describe('editing', () => {
     const state = reduce(placed, annotationMoved({ id: 'gone', x: 0, y: 0 }));
 
     expect(state.items).toEqual(placed.items);
+  });
+
+  it('recolors an existing note, undoably', () => {
+    const placed = run(place(), place());
+    const id = placed.items[1].id;
+    const recolored = reduce(placed, annotationRecolored({ id, color: 'red' }));
+
+    expect(recolored.items.map((note) => note.color)).toEqual([
+      DEFAULT_COLOR,
+      'red',
+    ]);
+    expect(recolored.revision).toBe(placed.revision + 1);
+
+    const undone = reduce(recolored, annotationUndone());
+    expect(undone.items[1].color).toBe(DEFAULT_COLOR);
+
+    const redone = reduce(undone, annotationRedone());
+    expect(redone.items[1].color).toBe('red');
+  });
+
+  it('records nothing when the color is unchanged', () => {
+    const placed = run(place());
+    const state = reduce(
+      placed,
+      annotationRecolored({ id: placed.items[0].id, color: DEFAULT_COLOR }),
+    );
+
+    expect(state).toBe(placed);
   });
 
   it('removes by id', () => {

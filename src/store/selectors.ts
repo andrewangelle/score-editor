@@ -139,6 +139,14 @@ export const selectSelectedAnnotationSize = createSelector(
   },
 );
 
+export const selectSelectedAnnotationColor = createSelector(
+  [selectAnnotations, selectSelectedAnnotationId],
+  (items, id) => {
+    if (!id) return null;
+    return items.find((a) => a.id === id)?.color ?? null;
+  },
+);
+
 export const selectHasUnsavedChanges = createSelector(
   [
     selectHasUnsavedDocument,

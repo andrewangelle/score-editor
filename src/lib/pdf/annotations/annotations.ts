@@ -27,7 +27,13 @@ export type AnnotationUndoEntry =
       to: { x: number; y: number };
     }
   | { type: 'retitle'; id: string; from: string; to: string }
-  | { type: 'resize'; id: string; from: number; to: number };
+  | { type: 'resize'; id: string; from: number; to: number }
+  | {
+      type: 'recolor';
+      id: string;
+      from: AnnotationColor;
+      to: AnnotationColor;
+    };
 
 export type AnnotationClipboard = Pick<
   ScoreAnnotation,

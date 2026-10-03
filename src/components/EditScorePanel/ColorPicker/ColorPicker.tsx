@@ -7,8 +7,14 @@ import { SUBSECTION_CLASS } from '#/components/EditScorePanel/EditScorePanel.sty
 import {
   ANNOTATION_COLOR_ORDER,
   ANNOTATION_COLORS,
+  type AnnotationColor,
 } from '#/lib/pdf/annotations/annotations';
+import {
+  annotationRecolored,
+  selectSelectedAnnotationId,
+} from '#/store/annotations.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
+import { selectSelectedAnnotationColor } from '#/store/selectors';
 import {
   annotationColorPicked,
   selectAnnotationColor,
@@ -16,7 +22,17 @@ import {
 
 export function ColorPicker() {
   const dispatch = useAppDispatch();
-  const annotationColor = useAppSelector(selectAnnotationColor);
+  const toolColor = useAppSelector(selectAnnotationColor);
+  const selectedAnnotationId = useAppSelector(selectSelectedAnnotationId);
+  const selectedAnnotationColor = useAppSelector(selectSelectedAnnotationColor);
+  const annotationColor = selectedAnnotationColor ?? toolColor;
+
+  function pickColor(color: AnnotationColor) {
+    dispatch(annotationColorPicked(color));
+    if (selectedAnnotationId) {
+      dispatch(annotationRecolored({ id: selectedAnnotationId, color }));
+    }
+  }
 
   return (
     <div data-testid="ColorPicker">
@@ -36,7 +52,7 @@ export function ColorPicker() {
                 name="annotation-color"
                 value={color}
                 checked={selected}
-                onChange={() => dispatch(annotationColorPicked(color))}
+                onChange={() => pickColor(color)}
                 className="peer sr-only cursor-pointer"
               />
               <span

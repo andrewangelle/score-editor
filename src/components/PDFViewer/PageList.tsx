@@ -101,22 +101,22 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
 
   useEffect(
     () => () => {
-      if (syncFrame.current === null) return;
+      if (syncFrame.current === null) {
+        return;
+      }
+
       cancelAnimationFrame(syncFrame.current);
       syncFrame.current = null;
     },
     [],
   );
 
-  // Sizes are exact, so nothing is ever measured from the DOM; the cache only
-  // needs dropping when the inputs to `estimateSize` change.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measures on these changes
   useLayoutEffect(() => {
-    virtualizer.measure();
+    if (virtualizer || pageWidth || pages || sizes) {
+      virtualizer.measure();
+    }
   }, [virtualizer, pageWidth, pages, sizes]);
 
-  // A different page can take the selected one's index, as on delete.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedPageId is the trigger
   useLayoutEffect(() => {
     if (selectionSource === 'scroll' || selectedIndex === -1) {
       return;
@@ -128,11 +128,15 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     }
 
     landedAt.current = target[0];
-    virtualizer.scrollToIndex(selectedIndex, { align: 'start' });
+
+    if (selectedPageId) {
+      virtualizer.scrollToIndex(selectedIndex, { align: 'start' });
+    }
   }, [virtualizer, selectedPageId, selectedIndex, selectionSource]);
 
   return (
     <div
+      data-testid="PageList"
       className={PAGE_LIST_CLASS}
       style={{ height: virtualizer.getTotalSize() }}
     >
