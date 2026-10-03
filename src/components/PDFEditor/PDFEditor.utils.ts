@@ -31,10 +31,6 @@ export function getSaveButtonCTA(
   return SAVE_A_COPY;
 }
 
-/**
- * Once every page is in, the document-wide pass is still running; saying so
- * keeps the panel from looking stuck at "80 of 80".
- */
 export function getLoadingStavesMessage(
   progress: { analysed: number; total: number } | null,
 ) {

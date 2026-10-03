@@ -18,8 +18,6 @@ export function EditRegions() {
   const dispatch = useAppDispatch();
   const isManual = useAppSelector(selectIsManual);
   const editingRegions = useAppSelector(selectIsEditingRegions);
-  // Detected regions only exist once analysis completes, and the first edit
-  // snapshots them: editing earlier would replace every one with nothing.
   const complete = useAppSelector(selectAnalysisComplete);
 
   return (
