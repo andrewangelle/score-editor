@@ -4,7 +4,6 @@ import {
 } from '#/components/EditScorePanel/EditScorePanel.constants';
 import type { Part } from '#/lib/pdf/partExtraction';
 
-/** Sections are counted over the whole document, so they wait for it. */
 export function getDetectedPartsMessage(
   parts: Part[],
   instruments: number,
