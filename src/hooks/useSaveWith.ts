@@ -32,7 +32,9 @@ export function useSaveWith() {
   return async function saveWith(
     write: (edited: Uint8Array) => Promise<string> | string,
   ) {
-    if (!bytes) return;
+    if (!bytes) {
+      return;
+    }
 
     dispatch(documentWorkStarted());
     try {

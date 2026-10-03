@@ -19,7 +19,9 @@ export function useExtractToFile() {
   const fileHandle = documentFileHandle(documentId);
 
   return function handleExtractToFile() {
-    if (!fileHandle) return;
+    if (!fileHandle) {
+      return;
+    }
 
     return extractWith(async (extracted) => {
       await writePdfFile(fileHandle, extracted);

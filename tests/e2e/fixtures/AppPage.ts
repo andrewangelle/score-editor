@@ -57,7 +57,9 @@ export class AppPage {
   async scrollToPage(index: number) {
     await this.stage().evaluate((stage, index) => {
       const frame = stage.querySelector<HTMLElement>('[data-page-index]');
-      if (!frame) throw new Error('No page mounted');
+      if (!frame) {
+        throw new Error('No page mounted');
+      }
       const gap = 16;
       stage.scrollTop = index * (frame.offsetHeight + gap);
     }, index);
@@ -69,7 +71,9 @@ export class AppPage {
       this.viewerPage(index).boundingBox(),
       this.stage().boundingBox(),
     ]);
-    if (!page || !stage) throw new Error('Page or stage not visible');
+    if (!page || !stage) {
+      throw new Error('Page or stage not visible');
+    }
     return page.y - stage.y;
   }
 
@@ -83,7 +87,9 @@ export class AppPage {
   async selectedPageIndex() {
     const label = await this.currentThumbnail().innerText();
     const match = label.match(/Page (\d+)/);
-    if (!match) throw new Error(`No page number in "${label}"`);
+    if (!match) {
+      throw new Error(`No page number in "${label}"`);
+    }
     return Number(match[1]) - 1;
   }
 
@@ -280,7 +286,9 @@ export class AppPage {
   async clickOnPage(xRatio: number, yRatio: number) {
     const canvas = await this.selectedCanvas();
     const box = await canvas.boundingBox();
-    if (!box) throw new Error('Canvas not visible');
+    if (!box) {
+      throw new Error('Canvas not visible');
+    }
     await this.page.mouse.click(
       box.x + box.width * xRatio,
       box.y + box.height * yRatio,

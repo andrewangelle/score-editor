@@ -19,7 +19,8 @@ The win is time to the first overlay, which falls from "the whole document" to
 - Analysing only visible pages and never the rest. Markings, part names, the
   irregular-systems warning, detected regions and extraction all read the whole
   document (see "What cannot be lazy" below), so every page still gets analysed.
-- Unlocking the edit panel before analysis completes (Follow-up A).
+- Unlocking the edit panel before analysis completes (Follow-up A, since
+  implemented).
 - Persisting analysis across sessions (Follow-up B).
 - Moving detection off the main thread (Follow-up C).
 - Any change to detection itself: `staffDetection.ts`, `markings.ts` and their
@@ -398,9 +399,8 @@ phase.
   comes from `analysis`). Acceptable for v1; Follow-up A resolves names early.
 - **Failure arrives late.** A page over `MAX_PAGE_OPERATORS` used to fail before
   anything showed. Now it can fail after the overlay has appeared on other
-  pages, and the overlay disappears. **Decision for the author:** keep
-  "fail the whole document" (this plan), or skip that page and warn (Follow-up
-  E).
+  pages, and the overlay disappears. **Decided (2026-10-03):** a page with too
+  many drawing layers fails the whole document. Follow-up E is not planned.
 - **Main-thread time is unchanged.** `detectPageStaves` still runs on the main
   thread, one page per macrotask. The `delay(0)` yield keeps scrolling
   responsive between pages, but not during a heavy page.
@@ -417,16 +417,60 @@ phase.
 
 ### Follow-up A: unlock per-page tools before completion
 
-- Resolve parts once a **contiguous prefix** of pages is cached and contains a
-  system with staves. That prefix is usually page 0, sometimes after a title
-  page. Have `nextPage` favour the prefix until then.
-- Move the `pendingOrdinals` reconciliation into a new `scorePartsDetected`.
-- Show `EditScorePanel` early with annotation tools enabled. Disable region
-  editing, extract and the markings export until complete, with a "Finishing
-  analysis" hint.
-- Make `regions.slice.ts:54` `editable()` safe regardless: either refuse edits
-  until complete, or merge in detected regions for pages that arrive later.
-  Without this, an early region edit drops regions from unanalysed pages.
+**Status: implemented (2026-10-03).** The base plan made the overlay
+progressive but left `PDFEditor.tsx` gating the whole panel on `analysis`, so
+"Looking for staves... N of M" still blocked annotating until the last page.
+
+**Key observation.** `finishAnalysis` takes its parts from the *first system
+with staves in source order*. Once a contiguous run of pages from page 0
+contains such a system, no later page can change that answer, so the part list
+(and its guessed names) can be resolved then, identically to the final pass.
+
+1. **`resolveParts(doc, pages)`** in `scoreAnalysis.ts`: the part-list half of
+   `finishAnalysis` (first system with staves, `guessPartNames`, `ordinalName`).
+   Returns `null` when `pages` hold no staves. `finishAnalysis` calls it and
+   throws "No staves were found" on `null`, so its output is unchanged.
+2. **Queue order.** `nextPage(cached, priority, total, prefixFirst)`: when
+   `prefixFirst`, the lowest uncached page comes straight after the visible
+   pages and before the nearest-neighbour walk. The runner passes it while parts
+   are unresolved, so a reader restored deep into a score still gets their page
+   first, and parts follow quickly.
+3. **Runner.** After each page, while parts are unresolved, extend the
+   contiguous prefix and call `resolveParts` (injected through `extra`, like the
+   rest). On a result, dispatch `scorePartsDetected`. Everything else is
+   unchanged; `finishAnalysis` still runs once every page is in.
+4. **Slice.** `score.parts: Part[] | null` is now where parts live;
+   `selectParts` and friends read it, so staff-hint names also arrive early.
+   - `scorePartsDetected` sets `parts`, checks every part and reconciles a
+     restored `pendingOrdinals` (moved out of `scoreAnalysed`).
+   - `scoreAnalysed` does the same only if parts were not already detected;
+     otherwise it leaves the selection alone, so parts the user toggled during
+     analysis stay toggled. Callers that dispatch `scoreAnalysed` directly
+     behave as before.
+   - `scoreAnalysisFailed` clears `parts`; the panel gives way to the note, as
+     decided for late failures.
+   - `selectPartsDetected` (`parts !== null`) and `selectAnalysisComplete`
+     (`analysis !== null`).
+5. **UI.**
+   - `PDFEditor.tsx` mounts `EditScorePanel` on `selectPartsDetected`.
+   - While incomplete, `EditScorePanel` shows `FinishingAnalysis` ("Finishing
+     analysis... 12 of 80 pages") and:
+     - `DetectedParts`: part list, renames, selection and the markings checkbox
+       work. The sections count reads "finding sections", markings read
+       "Reading markings..." and both extract buttons are disabled.
+     - `EditRegions`: "Edit regions" and "Reset" are disabled.
+     - `ScoreMetadata`: the export buttons are disabled.
+     - `AddAnnotations`: fully live.
+6. **Region edits.** `editable()` is made safe by gating the only way into
+   region editing, the "Edit regions" button, rather than the reducers:
+   `selectDetectedRegions` is empty until completion, so an edit before then
+   would snapshot an empty list over every detected region. Region editing
+   has no keyboard shortcut and the tool resets on open, so the button is the
+   whole surface. The slice stays analysis-agnostic, which keeps
+   `regionsSlice.test.ts` honest.
+7. **e2e.** `AppPage.waitForAnalysis` waits for "N staves · N sections
+   detected", which still only appears on completion, so existing specs keep
+   their meaning.
 
 ### Follow-up B: persistent cache
 
@@ -447,7 +491,10 @@ so a heavy page can't drop frames. Post back the stripped page plus `ink` and
 Run analysis against react-pdf's `PDFDocumentProxy` and pipeline
 `getOperatorList` for page *n+1* while page *n* is being detected.
 
-### Follow-up E: per-page failure
+### Follow-up E: per-page failure (declined)
+
+Declined on 2026-10-03: such a page fails the whole document instead. Kept here
+for the record.
 
 Treat a page over `MAX_PAGE_OPERATORS` as "no staves on this page" and report it
 next to the irregular systems, instead of failing the document.

@@ -430,7 +430,9 @@ function liftedClips(doc: PDFDocument): number[] {
     const xobjects = held.node
       .Resources()
       ?.lookupMaybe(PDFName.of('XObject'), PDFDict);
-    if (!xobjects) continue;
+    if (!xobjects) {
+      continue;
+    }
 
     for (const key of xobjects.keys()) {
       const ref = String(xobjects.get(key));
@@ -440,7 +442,9 @@ function liftedClips(doc: PDFDocument): number[] {
           ? entry
           : ((entry as { dict?: PDFDict })?.dict ?? null);
       const bbox = form?.lookupMaybe(PDFName.of('BBox'), PDFArray);
-      if (!bbox) continue;
+      if (!bbox) {
+        continue;
+      }
       const at = (i: number) => (bbox.lookup(i) as PDFNumber).asNumber();
       seen.set(ref, at(3) - at(1));
     }

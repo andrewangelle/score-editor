@@ -45,7 +45,9 @@ function annotationsUnchanged(
   a: readonly ScoreAnnotation[],
   b: readonly ScoreAnnotation[],
 ): boolean {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length) {
+    return false;
+  }
   return a.every(
     (item, i) =>
       item.id === b[i].id &&
@@ -61,7 +63,9 @@ function annotationsUnchanged(
 
 function pushUndo(state: AnnotationsState, entry: AnnotationUndoEntry) {
   state.undoStack.push(entry);
-  if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+  if (state.undoStack.length > MAX_UNDO) {
+    state.undoStack.shift();
+  }
   state.redoStack = [];
 }
 
@@ -85,17 +89,23 @@ function applyInverse(state: AnnotationsState, entry: AnnotationUndoEntry) {
     }
     case 'retitle': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.text = entry.from;
+      if (annotation) {
+        annotation.text = entry.from;
+      }
       break;
     }
     case 'resize': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.size = entry.from;
+      if (annotation) {
+        annotation.size = entry.from;
+      }
       break;
     }
     case 'recolor': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.color = entry.from;
+      if (annotation) {
+        annotation.color = entry.from;
+      }
       break;
     }
   }
@@ -121,17 +131,23 @@ function applyForward(state: AnnotationsState, entry: AnnotationUndoEntry) {
     }
     case 'retitle': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.text = entry.to;
+      if (annotation) {
+        annotation.text = entry.to;
+      }
       break;
     }
     case 'resize': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.size = entry.to;
+      if (annotation) {
+        annotation.size = entry.to;
+      }
       break;
     }
     case 'recolor': {
       const annotation = state.items.find((a) => a.id === entry.id);
-      if (annotation) annotation.color = entry.to;
+      if (annotation) {
+        annotation.color = entry.to;
+      }
       break;
     }
   }
@@ -263,13 +279,17 @@ export const annotationsSlice = createSlice({
         });
       }
       state.items = removeAnnotation(state.items, action.payload);
-      if (state.selectedId === action.payload) state.selectedId = null;
+      if (state.selectedId === action.payload) {
+        state.selectedId = null;
+      }
       state.revision += 1;
     },
 
     annotationUndone(state) {
       const entry = state.undoStack.pop();
-      if (!entry) return;
+      if (!entry) {
+        return;
+      }
       applyInverse(state, entry);
       state.redoStack.push(entry);
       state.revision += 1;
@@ -277,10 +297,14 @@ export const annotationsSlice = createSlice({
 
     annotationRedone(state) {
       const entry = state.redoStack.pop();
-      if (!entry) return;
+      if (!entry) {
+        return;
+      }
       applyForward(state, entry);
       state.undoStack.push(entry);
-      if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+      if (state.undoStack.length > MAX_UNDO) {
+        state.undoStack.shift();
+      }
       state.revision += 1;
     },
 

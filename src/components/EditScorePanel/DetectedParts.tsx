@@ -6,6 +6,7 @@ import {
   KEEP_MEASURE,
   MANUAL_INFO,
   PARTS,
+  READING_MARKINGS,
   REPLACE,
   SELECT_ALL,
   TEMPO_MARKS,
@@ -50,6 +51,7 @@ import {
   partRenamed,
   partToggled,
   selectAllPartsSelected,
+  selectAnalysisComplete,
   selectIrregularSystems,
   selectKeepMarkings,
   selectMarkingCounts,
@@ -76,6 +78,7 @@ export function DetectedParts() {
   const selectedParts = useAppSelector(selectSelectedParts);
   const extractWith = useExtractWith();
   const isBusy = useAppSelector(selectIsBusy);
+  const complete = useAppSelector(selectAnalysisComplete);
   const documentId = useAppSelector(selectDocumentId);
   const fileHandle = documentFileHandle(documentId);
   const handleExtractToFile = useExtractToFile();
@@ -113,7 +116,7 @@ export function DetectedParts() {
       }
     >
       <p className="mt-0.5 text-slate-500 text-xs">
-        {getDetectedPartsMessage(parts, instruments)}
+        {getDetectedPartsMessage(parts, instruments, complete)}
       </p>
 
       {isManual && <p className={MANUAL_INFO_CLASS}>{MANUAL_INFO}</p>}
@@ -158,7 +161,7 @@ export function DetectedParts() {
         <span>
           {KEEP_MEASURE} &amp; {TEMPO_MARKS}
           <span className="block text-slate-500">
-            {getDetectionDescription(markings)}
+            {complete ? getDetectionDescription(markings) : READING_MARKINGS}
           </span>
         </span>
       </label>
@@ -166,7 +169,7 @@ export function DetectedParts() {
       <button
         type="button"
         onClick={handleExtract}
-        disabled={isBusy || regionCount === 0}
+        disabled={!complete || isBusy || regionCount === 0}
         className={EXTRACT_BUTTON_CLASS}
       >
         {getBusyMessage(isBusy, regionCount)}
@@ -208,7 +211,7 @@ export function DetectedParts() {
             <button
               type="button"
               onClick={() => setConfirmingReplace(true)}
-              disabled={isBusy || regionCount === 0}
+              disabled={!complete || isBusy || regionCount === 0}
               className={REPLACE_BUTTON_CLASS}
             >
               {getExtractIntoMessage(replaceTarget.name)}

@@ -11,12 +11,16 @@ import { RESET_REGIONS_BUTTON_CLASS } from '#/components/EditScorePanel/EditScor
 import { PlaceButton } from '#/components/EditScorePanel/PlaceButton/PlaceButton';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
 import { regionsReset, selectIsManual } from '#/store/regions.slice';
+import { selectAnalysisComplete } from '#/store/score.slice';
 import { selectIsEditingRegions, toolToggled } from '#/store/tool.slice';
 
 export function EditRegions() {
   const dispatch = useAppDispatch();
   const isManual = useAppSelector(selectIsManual);
   const editingRegions = useAppSelector(selectIsEditingRegions);
+  // Detected regions only exist once analysis completes, and the first edit
+  // snapshots them: editing earlier would replace every one with nothing.
+  const complete = useAppSelector(selectAnalysisComplete);
 
   return (
     <CollapsibleSection
@@ -29,6 +33,7 @@ export function EditRegions() {
       <div className="mt-3 flex">
         <PlaceButton
           active={editingRegions}
+          disabled={!complete}
           onClick={() => dispatch(toolToggled('regions'))}
         >
           {editingRegions ? DONE_EDITING : EDIT_REGIONS}
@@ -42,7 +47,7 @@ export function EditRegions() {
       <button
         type="button"
         onClick={() => dispatch(regionsReset())}
-        disabled={!isManual}
+        disabled={!complete || !isManual}
         className={RESET_REGIONS_BUTTON_CLASS}
       >
         {RESET_REGIONS}

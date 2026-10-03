@@ -64,7 +64,9 @@ export function ScoreOverlay() {
   function toPdf(clientX: number, clientY: number) {
     // Read fresh every time: a wheel scroll mid-drag moves the surface.
     const box = surface.current?.getBoundingClientRect();
-    if (!box || !overlay) return null;
+    if (!box || !overlay) {
+      return null;
+    }
     return toPdfPoint(
       clientX - box.left,
       clientY - box.top,
@@ -100,7 +102,9 @@ export function ScoreOverlay() {
     }
 
     if (drag) {
-      if (point) setDrag({ id: drag.id, x: point.x, y: point.y });
+      if (point) {
+        setDrag({ id: drag.id, x: point.x, y: point.y });
+      }
       return;
     }
 
@@ -124,11 +128,15 @@ export function ScoreOverlay() {
       endDrag();
       return;
     }
-    if (event.target !== event.currentTarget) return;
+    if (event.target !== event.currentTarget) {
+      return;
+    }
 
     if (!placing) {
       // A tap on bare page surface, with no tool active, clears selection.
-      if (selectedId) dispatch(annotationSelected(null));
+      if (selectedId) {
+        dispatch(annotationSelected(null));
+      }
       return;
     }
 

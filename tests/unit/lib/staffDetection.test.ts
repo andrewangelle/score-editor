@@ -28,7 +28,9 @@ function embeddedFormBoxes(doc: PDFDocument) {
   for (const page of doc.getPages()) {
     const resources = page.node.Resources();
     const xobjects = resources?.lookupMaybe(PDFName.of('XObject'), PDFDict);
-    if (!xobjects) continue;
+    if (!xobjects) {
+      continue;
+    }
 
     for (const key of xobjects.keys()) {
       // A form XObject is a stream; its BBox lives on the stream's dictionary.
@@ -38,7 +40,9 @@ function embeddedFormBoxes(doc: PDFDocument) {
           ? entry
           : ((entry as { dict?: PDFDict })?.dict ?? null);
       const bbox = form?.lookupMaybe(PDFName.of('BBox'), PDFArray);
-      if (!bbox) continue;
+      if (!bbox) {
+        continue;
+      }
       const n = (i: number) => (bbox.lookup(i) as PDFNumber).asNumber();
       boxes.push({ left: n(0), bottom: n(1), right: n(2), top: n(3) });
     }
@@ -182,7 +186,9 @@ describe('band planning', () => {
     expect(bands).toHaveLength(
       FIXTURE_DEFAULTS.pageCount * FIXTURE_DEFAULTS.systemsPerPage,
     );
-    for (const band of bands) expect(band.ordinals).toEqual([2, 3]);
+    for (const band of bands) {
+      expect(band.ordinals).toEqual([2, 3]);
+    }
   });
 
   it('emits separate bands for non-adjacent parts', () => {

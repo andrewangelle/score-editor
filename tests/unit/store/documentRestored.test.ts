@@ -1,7 +1,7 @@
+import type { ScoreAnalysis } from '#/lib/pdf/analysis/analysis.score';
 import { createAnnotation } from '#/lib/pdf/annotations/annotations';
 import type { EditorState } from '#/lib/pdf/editorState';
 import type { Region } from '#/lib/pdf/regions';
-import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
 import { makeStore } from '#/store';
 import { documentOpened, documentRestored } from '#/store/document.slice';
 import { scoreAnalysed, scoreAnalysisFailed } from '#/store/score.slice';

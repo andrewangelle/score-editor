@@ -8,18 +8,23 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { PAGE_GAP } from '#/components/PDFViewer/PDFViewer.constants';
 import { PAGE_LIST_CLASS } from '#/components/PDFViewer/PDFViewer.styles';
 import {
+  analysisPriority,
   renderedHeight,
+  sameIndices,
+  toSourceIndices,
   withPinned,
 } from '#/components/PDFViewer/PDFViewer.utils';
 import { ViewerPage } from '#/components/PDFViewer/ViewerPage';
 import type { PageSize } from '#/hooks/usePageSizes';
 import {
   pageSelected,
+  selectDocumentId,
   selectPages,
   selectSelectedPageId,
   selectSelectionSource,
 } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
+import { analysisPrioritised, selectAnalysis } from '#/store/score.slice';
 import { selectActivePageId } from '#/store/tool.slice';
 
 type PageListProps = {
@@ -38,6 +43,8 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
   const selectedPageId = useAppSelector(selectSelectedPageId);
   const selectionSource = useAppSelector(selectSelectionSource);
   const activePageId = useAppSelector(selectActivePageId);
+  const documentId = useAppSelector(selectDocumentId);
+  const analysisDone = useAppSelector(selectAnalysis) !== null;
   const selectedIndex = pages.findIndex((page) => page.id === selectedPageId);
   const pinnedIndex = pages.findIndex((page) => page.id === activePageId);
   // Where a scroll asked for by the selection landed. Scroll events at that
@@ -45,7 +52,21 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
   const landedAt = useRef<number | null>(null);
   const syncFrame = useRef<number | null>(null);
   // Read a frame after the scroll, by which time this render's values may be stale.
-  const latest = useRef({ pages, selectedPageId });
+  const latest = useRef({
+    pages,
+    selectedPageId,
+    selectedIndex,
+    pinnedIndex,
+    analysisDone,
+    documentId,
+  });
+  // Tagged with its document: the store's priority resets on open, but this
+  // list stays mounted across documents, so an identical first list for the
+  // next one must not read as already sent.
+  const sentPriority = useRef<{
+    documentId: string | null;
+    priority: number[];
+  } | null>(null);
 
   const getItemKey = useCallback((index: number) => pages[index].id, [pages]);
 
@@ -65,7 +86,9 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     const offset = instance.scrollOffset ?? 0;
 
     if (landedAt.current !== null) {
-      if (Math.abs(offset - landedAt.current) < 1) return;
+      if (Math.abs(offset - landedAt.current) < 1) {
+        return;
+      }
       landedAt.current = null;
     }
 
@@ -75,6 +98,35 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     if (page && page.id !== selectedPageId) {
       dispatch(pageSelected(page.id, { source: 'scroll' }));
     }
+  }
+
+  /** Sends analysis the mounted pages, the ones whose overlays are waiting. */
+  function prioritiseMounted(instance: Virtualizer<HTMLDivElement, Element>) {
+    const { pages, selectedIndex, pinnedIndex, analysisDone, documentId } =
+      latest.current;
+    if (analysisDone) {
+      return;
+    }
+
+    const range = instance.range ?? {
+      startIndex: Math.max(selectedIndex, 0),
+      endIndex: Math.max(selectedIndex, 0),
+    };
+    const items = instance.getVirtualItems().map((item) => item.index);
+    const priority = toSourceIndices(
+      analysisPriority(range, items, pinnedIndex),
+      pages,
+    );
+
+    const sent = sentPriority.current;
+    if (
+      sent?.documentId === documentId &&
+      sameIndices(sent.priority, priority)
+    ) {
+      return;
+    }
+    sentPriority.current = { documentId, priority };
+    dispatch(analysisPrioritised(priority));
   }
 
   const virtualizer = useVirtualizer({
@@ -89,14 +141,22 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     scrollPaddingStart: PAGE_GAP,
     overscan: 2,
     onChange(instance) {
-      syncFrame.current ??= requestAnimationFrame(() =>
-        selectPageInView(instance),
-      );
+      syncFrame.current ??= requestAnimationFrame(() => {
+        selectPageInView(instance);
+        prioritiseMounted(instance);
+      });
     },
   });
 
   useEffect(() => {
-    latest.current = { pages, selectedPageId };
+    latest.current = {
+      pages,
+      selectedPageId,
+      selectedIndex,
+      pinnedIndex,
+      analysisDone,
+      documentId,
+    };
   });
 
   useEffect(

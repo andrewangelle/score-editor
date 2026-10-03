@@ -68,7 +68,9 @@ function findEmbeddedFile(
       }
 
       const spec = doc.context.lookupMaybe(names.get(index + 1), PDFDict);
-      if (spec) return spec;
+      if (spec) {
+        return spec;
+      }
     }
   }
 
@@ -78,7 +80,9 @@ function findEmbeddedFile(
     for (let index = 0; index < children.size(); index += 1) {
       const child = doc.context.lookupMaybe(children.get(index), PDFDict);
       const found = child && findEmbeddedFile(doc, child, name);
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
   }
 
@@ -90,14 +94,18 @@ export function readEditorState(doc: PDFDocument): EditorState | null {
     const names = doc.context.lookupMaybe(doc.catalog.get(NAMES), PDFDict);
     const embedded =
       names && doc.context.lookupMaybe(names.get(EMBEDDED_FILES), PDFDict);
-    if (!embedded) return null;
+    if (!embedded) {
+      return null;
+    }
 
     const spec = findEmbeddedFile(doc, embedded, EDITOR_STATE_FILE);
     const streams = spec && doc.context.lookupMaybe(spec.get(EF), PDFDict);
     const stream =
       streams && doc.context.lookupMaybe(streams.get(F), PDFStream);
 
-    if (!(stream instanceof PDFRawStream)) return null;
+    if (!(stream instanceof PDFRawStream)) {
+      return null;
+    }
 
     const json = new TextDecoder().decode(decodePDFRawStream(stream).decode());
     return validate(JSON.parse(json));
@@ -108,7 +116,9 @@ export function readEditorState(doc: PDFDocument): EditorState | null {
 }
 
 function isRegion(value: unknown): value is Region {
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
   const region = value as Partial<Region>;
   const rect = region.rect as Partial<Region['rect']> | undefined;
 
@@ -146,11 +156,12 @@ function validate(parsed: unknown): EditorState | null {
   let selectedOrdinals: number[] = [];
   let partNames: Array<{ ordinal: number; name: string }> = [];
 
-  if (isArray(state.selectedOrdinals))
+  if (isArray(state.selectedOrdinals)) {
     selectedOrdinals = state.selectedOrdinals.filter(
       (ordinal): ordinal is number =>
         typeof ordinal === 'number' && isInteger(ordinal),
     );
+  }
 
   if (isArray(state.partNames)) {
     partNames = state.partNames.filter(

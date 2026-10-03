@@ -241,7 +241,9 @@ test.describe('Annotation clipboard and undo/redo', () => {
     // which page and PDF coordinates to use.
     const canvas = await appPage.selectedCanvas();
     const box = await canvas.boundingBox();
-    if (!box) throw new Error('Canvas not visible');
+    if (!box) {
+      throw new Error('Canvas not visible');
+    }
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
 
     // Paste
@@ -274,7 +276,9 @@ test.describe('Annotation clipboard and undo/redo', () => {
 
     const canvas = await appPage.selectedCanvas();
     const box = await canvas.boundingBox();
-    if (!box) throw new Error('Canvas not visible');
+    if (!box) {
+      throw new Error('Canvas not visible');
+    }
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
 
     await page.keyboard.press(`${mod}+v`);
@@ -296,7 +300,7 @@ test.describe('Annotation clipboard and undo/redo', () => {
     const selected = page.locator('button[title*="Cmd/Ctrl+C to copy"]');
     await expect(selected).toHaveClass(/ring-2/);
 
-    await page.getByTitle('Red').click();
+    await page.getByTitle('Red', { exact: true }).click();
 
     await expect(selected).toHaveCSS('color', 'rgb(179, 26, 26)');
     await expect(page.getByRole('radio', { name: 'Red' })).toBeChecked();

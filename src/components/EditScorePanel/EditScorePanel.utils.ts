@@ -1,7 +1,27 @@
+import {
+  FINDING_SECTIONS,
+  FINISHING_ANALYSIS,
+} from '#/components/EditScorePanel/EditScorePanel.constants';
 import type { Part } from '#/lib/pdf/partExtraction';
 
-export function getDetectedPartsMessage(parts: Part[], instruments: number) {
-  return `${parts.length} staves · ${instruments} sections detected`;
+/** Sections are counted over the whole document, so they wait for it. */
+export function getDetectedPartsMessage(
+  parts: Part[],
+  instruments: number,
+  complete: boolean,
+) {
+  return complete
+    ? `${parts.length} staves · ${instruments} sections detected`
+    : `${parts.length} staves · ${FINDING_SECTIONS}`;
+}
+
+export function getFinishingAnalysisMessage(
+  progress: { analysed: number; total: number } | null,
+) {
+  if (!progress || progress.analysed >= progress.total) {
+    return FINISHING_ANALYSIS;
+  }
+  return `${FINISHING_ANALYSIS} ${progress.analysed} of ${progress.total} pages`;
 }
 
 export function getDetectionDescription(markings: {

@@ -21,13 +21,17 @@ const defaultOptions: SilenceConsoleOptions = {
 };
 
 function matches(matcher: Pattern, args: unknown[]): boolean {
-  if (typeof matcher === 'function') return matcher(...args);
+  if (typeof matcher === 'function') {
+    return matcher(...args);
+  }
 
   const text = args
     .map((a) => (typeof a === 'string' ? a : String(a)))
     .join(' ');
 
-  if (typeof matcher === 'string') return text.includes(matcher);
+  if (typeof matcher === 'string') {
+    return text.includes(matcher);
+  }
   return matcher.test(text);
 }
 
@@ -56,7 +60,9 @@ export function silenceConsole(options = defaultOptions): void {
         .spyOn(console, method)
         .mockImplementation((...args: unknown[]) => {
           const silenced = options.patterns.some((p) => matches(p, args));
-          if (silenced) return;
+          if (silenced) {
+            return;
+          }
           if (options.strict) {
             throw new Error(`Unexpected console.${method}: ${args.join(' ')}`);
           }
@@ -106,10 +112,14 @@ export function silenceConsole(options = defaultOptions): void {
   };
 
   const restore = () => {
-    for (const spy of spies) spy.mockRestore();
+    for (const spy of spies) {
+      spy.mockRestore();
+    }
     spies.length = 0;
 
-    for (const streamRestore of streamRestores) streamRestore();
+    for (const streamRestore of streamRestores) {
+      streamRestore();
+    }
     streamRestores.length = 0;
   };
 
@@ -118,7 +128,9 @@ export function silenceConsole(options = defaultOptions): void {
   // `restoreMocks` and friends can strip the console spies between tests, so
   // reinstate them rather than assuming the first install survives the file.
   beforeEach(() => {
-    if (spies.length === 0) install();
+    if (spies.length === 0) {
+      install();
+    }
   });
 
   afterAll(restore);

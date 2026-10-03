@@ -9,7 +9,9 @@ export function usePinPage(active: boolean) {
   const { pageId } = usePageContext();
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      return;
+    }
 
     dispatch(activePageSet(pageId));
     return () => {

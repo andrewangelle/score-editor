@@ -50,3 +50,6 @@ export const RESET_REGIONS_BUTTON_CLASS =
 
 export const SUBSECTION_CLASS =
   'flex items-center gap-1.5 font-semibold text-slate-600 text-xs mt-5';
+
+export const FINISHING_ANALYSIS_CLASS =
+  'rounded bg-slate-100 p-2 text-slate-600 text-xs';
