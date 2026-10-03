@@ -255,6 +255,57 @@ test.describe('Annotation clipboard and undo/redo', () => {
     expect(await appPage.getAnnotationCount()).toBe(1);
   });
 
+  test('copy and paste a performance note', async ({ appPage, page }) => {
+    await page.getByRole('button', { name: 'Performance' }).click();
+    await appPage.clickOnPage(0.3, 0.3);
+    await page.getByPlaceholder('Performance note').fill('dolce');
+    await page.keyboard.press('Enter');
+
+    expect(await appPage.getAnnotationCount()).toBe(1);
+
+    await page.getByRole('button', { name: 'Performance' }).click();
+
+    await page.locator('button[title*="Tap to select"]').click();
+    const selected = page.locator('button[title*="Cmd/Ctrl+C to copy"]');
+    await expect(selected).toHaveClass(/ring-2/);
+
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${mod}+c`);
+
+    const canvas = await appPage.selectedCanvas();
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas not visible');
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+
+    await page.keyboard.press(`${mod}+v`);
+
+    expect(await appPage.getAnnotationCount()).toBe(2);
+    await expect(page.getByRole('button', { name: 'dolce' })).toHaveCount(2);
+  });
+
+  test('recolors a selected annotation', async ({ appPage, page }) => {
+    await page.getByRole('button', { name: 'Fingering' }).click();
+    await page.getByRole('button', { name: '3', exact: true }).click();
+    await appPage.clickOnPage(0.3, 0.3);
+    await page.getByRole('button', { name: 'Fingering' }).click();
+
+    const mark = page.locator('button[title*="Tap to select"]');
+    await expect(mark).toHaveCSS('color', 'rgb(20, 20, 26)');
+
+    await mark.click();
+    const selected = page.locator('button[title*="Cmd/Ctrl+C to copy"]');
+    await expect(selected).toHaveClass(/ring-2/);
+
+    await page.getByTitle('Red').click();
+
+    await expect(selected).toHaveCSS('color', 'rgb(179, 26, 26)');
+    await expect(page.getByRole('radio', { name: 'Red' })).toBeChecked();
+
+    if (test.info().project.name === 'visual') {
+      await expect(page).toHaveScreenshot('recolor-selected-annotation.png');
+    }
+  });
+
   test('undo mark button is disabled when nothing to undo', async ({
     page,
   }) => {

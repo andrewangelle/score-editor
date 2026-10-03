@@ -29,7 +29,7 @@ export const ViewerPage = memo(function ViewerPage({
   height,
 }: ViewerPageProps) {
   return (
-    <div className={PAGE_SLOT_CLASS} style={{ top }}>
+    <div data-testid="ViewerPage" className={PAGE_SLOT_CLASS} style={{ top }}>
       <section
         aria-label={`Page ${index + 1}`}
         data-page-index={index}
