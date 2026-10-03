@@ -53,7 +53,9 @@ async function roundTrip(annotations: readonly ScoreAnnotation[]) {
 function annots(doc: PDFDocument, pageIndex = 0): PDFDict[] {
   const page = doc.getPages()[pageIndex];
   const array = page.node.Annots();
-  if (!array) return [];
+  if (!array) {
+    return [];
+  }
 
   return array
     .asArray()

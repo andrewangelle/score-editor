@@ -307,7 +307,9 @@ export function dedupeMarkings(markings: readonly Marking[]): Marking[] {
   const seen = new Set<string>();
   return markings.filter((marking) => {
     const key = markingKey(marking);
-    if (seen.has(key)) return false;
+    if (seen.has(key)) {
+      return false;
+    }
     seen.add(key);
     return true;
   });
@@ -371,7 +373,9 @@ export function resolveMarkings(
   const pages: Marking[][] = Array.from({ length: pageCount }, () => []);
   for (const candidate of inReadingOrder([...kind.keys()])) {
     const page = pages[candidate.pageIndex];
-    if (!page) continue;
+    if (!page) {
+      continue;
+    }
     page.push({
       id: `marking-${candidate.pageIndex}-${candidate.systemIndex}-${page.length}`,
       kind: kind.get(candidate) ?? 'tempo',
@@ -387,12 +391,15 @@ export function resolveMarkings(
 function timeSigDigitValue(str: string): number | null {
   const trimmed = str.trim();
 
-  if (TIME_SIG_DIGIT.test(trimmed)) return Number(trimmed);
+  if (TIME_SIG_DIGIT.test(trimmed)) {
+    return Number(trimmed);
+  }
 
   if (trimmed.length === 1) {
     const cp = trimmed.codePointAt(0);
-    if (cp && cp >= SMUFL_TS_BASE && cp <= SMUFL_TS_BASE + 9)
+    if (cp && cp >= SMUFL_TS_BASE && cp <= SMUFL_TS_BASE + 9) {
       return cp - SMUFL_TS_BASE;
+    }
   }
 
   return null;
@@ -486,7 +493,9 @@ export function numericValue(text: string): number | null {
 }
 
 function median(values: number[]): number {
-  if (values.length === 0) return 0;
+  if (values.length === 0) {
+    return 0;
+  }
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0
@@ -755,7 +764,9 @@ function longestNonDecreasing(ordered: readonly Candidate[]): Candidate[] {
  * group has to agree, and the run that agrees is also the answer.
  */
 function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
-  if (group.length === 0 || arePageNumbers(group)) return [];
+  if (group.length === 0 || arePageNumbers(group)) {
+    return [];
+  }
 
   const chain = longestNonDecreasing(inReadingOrder(group));
   const values = chain.map((candidate) => candidate.value ?? 0);
@@ -802,7 +813,9 @@ function measureNumbersIn(group: readonly Candidate[]): Candidate[] {
  * identify as tempo marks survive.
  */
 function withoutLyrics(candidates: readonly Candidate[]): Candidate[] {
-  if (candidates.length === 0) return [];
+  if (candidates.length === 0) {
+    return [];
+  }
 
   // Syllable hyphens in various engraver conventions: "me - sa", "es- tá",
   // "- no", "ap-e", "ven-to". A hyphen next to a word boundary (space or
@@ -834,11 +847,15 @@ function withoutLyrics(candidates: readonly Candidate[]): Candidate[] {
   const lyricSystems = new Set<string>();
 
   for (const [key, list] of perSystem) {
-    if (list.length >= 4) lyricSystems.add(key);
+    if (list.length >= 4) {
+      lyricSystems.add(key);
+    }
   }
 
   return candidates.filter((candidate) => {
-    if (syllableHyphen.test(candidate.text)) return false;
+    if (syllableHyphen.test(candidate.text)) {
+      return false;
+    }
 
     const key = `${candidate.pageIndex}:${candidate.systemIndex}`;
     if (lyricSystems.has(key)) {
@@ -856,7 +873,9 @@ function withoutLyrics(candidates: readonly Candidate[]): Candidate[] {
  * after page where a tempo mark says something new each time.
  */
 function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
-  if (candidates.length === 0) return [];
+  if (candidates.length === 0) {
+    return [];
+  }
 
   const typical = median(candidates.map((candidate) => candidate.size));
 
@@ -875,8 +894,12 @@ function withoutFurniture(candidates: readonly Candidate[]): Candidate[] {
   }
 
   return candidates.filter((candidate) => {
-    if (typical > 0 && candidate.size > typical * 1.75) return false;
-    if ((repeats.get(place(candidate))?.size ?? 0) >= 3) return false;
+    if (typical > 0 && candidate.size > typical * 1.75) {
+      return false;
+    }
+    if ((repeats.get(place(candidate))?.size ?? 0) >= 3) {
+      return false;
+    }
 
     // A composer credit sits flush with the end of the system, where a marking —
     // which belongs to a bar, and so to a point along it — never is.

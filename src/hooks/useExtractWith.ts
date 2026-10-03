@@ -32,7 +32,9 @@ export function useExtractWith() {
   return async function extractWith(
     write: (extracted: Uint8Array) => Promise<string> | string,
   ) {
-    if (!bytes || !analysis) return;
+    if (!bytes || !analysis) {
+      return;
+    }
 
     dispatch(documentWorkStarted());
     try {

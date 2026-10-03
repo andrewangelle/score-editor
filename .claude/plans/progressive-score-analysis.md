@@ -398,9 +398,8 @@ phase.
   comes from `analysis`). Acceptable for v1; Follow-up A resolves names early.
 - **Failure arrives late.** A page over `MAX_PAGE_OPERATORS` used to fail before
   anything showed. Now it can fail after the overlay has appeared on other
-  pages, and the overlay disappears. **Decision for the author:** keep
-  "fail the whole document" (this plan), or skip that page and warn (Follow-up
-  E).
+  pages, and the overlay disappears. **Decided (2026-10-03):** a page with too
+  many drawing layers fails the whole document. Follow-up E is not planned.
 - **Main-thread time is unchanged.** `detectPageStaves` still runs on the main
   thread, one page per macrotask. The `delay(0)` yield keeps scrolling
   responsive between pages, but not during a heavy page.
@@ -447,7 +446,10 @@ so a heavy page can't drop frames. Post back the stripped page plus `ink` and
 Run analysis against react-pdf's `PDFDocumentProxy` and pipeline
 `getOperatorList` for page *n+1* while page *n* is being detected.
 
-### Follow-up E: per-page failure
+### Follow-up E: per-page failure (declined)
+
+Declined on 2026-10-03: such a page fails the whole document instead. Kept here
+for the record.
 
 Treat a page over `MAX_PAGE_OPERATORS` as "no staves on this page" and report it
 next to the irregular systems, instead of failing the document.

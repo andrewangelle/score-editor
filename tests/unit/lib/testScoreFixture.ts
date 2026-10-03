@@ -103,7 +103,9 @@ function drawSegments(
   thickness: number,
   batched: boolean,
 ): void {
-  if (segments.length === 0) return;
+  if (segments.length === 0) {
+    return;
+  }
 
   if (!batched) {
     for (const s of segments) {

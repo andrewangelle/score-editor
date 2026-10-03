@@ -24,7 +24,9 @@ test.describe('Continuous page scroll', () => {
 
     const stage = await appPage.stage().boundingBox();
     const first = await appPage.viewerPage(0).boundingBox();
-    if (!stage || !first) throw new Error('Viewer not visible');
+    if (!stage || !first) {
+      throw new Error('Viewer not visible');
+    }
 
     await page.mouse.move(
       stage.x + stage.width / 2,

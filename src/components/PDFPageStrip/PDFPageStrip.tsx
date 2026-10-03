@@ -27,7 +27,9 @@ export function PDFPageStrip() {
   const selectedItem = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      return;
+    }
 
     // Smooth scrolls stacked on a moving main view look broken.
     selectedItem.current?.scrollIntoView({

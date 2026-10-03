@@ -28,7 +28,9 @@ test.describe('Edited regions', () => {
     // Find the first region's bottom edge handle and drag it to resize
     const bottomHandle = page.getByLabel(/^Drag bottom edge of/).first();
     const handleBox = await bottomHandle.boundingBox();
-    if (!handleBox) throw new Error('Bottom edge handle not visible');
+    if (!handleBox) {
+      throw new Error('Bottom edge handle not visible');
+    }
 
     // Drag the bottom edge down by 80 pixels for a clearly visible resize
     await page.mouse.move(

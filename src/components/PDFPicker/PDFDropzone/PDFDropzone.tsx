@@ -17,7 +17,6 @@ import {
   getDragContainerStyles,
 } from '#/components/PDFPicker/PDFDropzone/PDFDropzone.styles';
 import {
-  getAnalyseScoreError,
   getFileHandleError,
   getFileOpenErrorMessage,
 } from '#/components/PDFPicker/PDFDropzone/PDFDropzone.utils';
@@ -29,7 +28,6 @@ import {
   pickPdfFile,
   supportsInPlaceSave,
 } from '#/lib/pdf/fileAccess';
-import { analyzeScore } from '#/lib/pdf/scoreAnalysis';
 import {
   documentErrorReported,
   documentOpened,
@@ -39,7 +37,6 @@ import {
   selectIsBusy,
 } from '#/store/document.slice';
 import { useAppDispatch, useAppSelector } from '#/store/hooks';
-import { scoreAnalysed, scoreAnalysisFailed } from '#/store/score.slice';
 
 export function PDFDropzone() {
   const dispatch = useAppDispatch();
@@ -110,25 +107,6 @@ export function PDFDropzone() {
     event.target.value = '';
   }
 
-  /**
-   * Runs after the document is on screen: a best-effort enrichment, so a score
-   * that cannot be parsed leaves the plain page editor usable.
-   */
-  async function analyseScore(id: string, source: Uint8Array) {
-    try {
-      dispatch(
-        scoreAnalysed({ documentId: id, analysis: await analyzeScore(source) }),
-      );
-    } catch (cause) {
-      dispatch(
-        scoreAnalysisFailed({
-          documentId: id,
-          message: getAnalyseScoreError(cause),
-        }),
-      );
-    }
-  }
-
   function reportError(message: string) {
     dispatch(documentErrorReported(message));
   }
@@ -139,7 +117,8 @@ export function PDFDropzone() {
       const loaded = await readPdfFile(file);
       const id = crypto.randomUUID();
 
-      // Hand off the bytes before announcing the document
+      // Hand off the bytes before announcing the document: the open starts
+      // analysis, which reads them.
       holdDocumentBytes(id, loaded.bytes, handle);
       dispatch(documentOpened({ id, name: loaded.name, pages: loaded.pages }));
 
@@ -152,7 +131,6 @@ export function PDFDropzone() {
           }),
         );
       }
-      void analyseScore(id, loaded.bytes);
     } catch (cause) {
       reportError(getFileHandleError(cause));
     } finally {

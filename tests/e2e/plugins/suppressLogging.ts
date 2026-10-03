@@ -30,7 +30,9 @@ function isSuppressed(msg: string): boolean {
 
 function filterLoggerMethod(logger: Logger, level: 'info' | 'warn' | 'error') {
   return (msg: string, options?: Parameters<Logger['info']>[1]) => {
-    if (isSuppressed(msg)) return;
+    if (isSuppressed(msg)) {
+      return;
+    }
     logger[level](msg, options);
   };
 }
@@ -59,17 +61,23 @@ export function suppressKnownConsoleNoise() {
   }
 
   console.error = (...args: unknown[]) => {
-    if (shouldSuppress(args)) return;
+    if (shouldSuppress(args)) {
+      return;
+    }
     originalError.apply(console, args);
   };
 
   console.log = (...args: unknown[]) => {
-    if (shouldSuppress(args)) return;
+    if (shouldSuppress(args)) {
+      return;
+    }
     originalLog.apply(console, args);
   };
 
   console.warn = (...args: unknown[]) => {
-    if (shouldSuppress(args)) return;
+    if (shouldSuppress(args)) {
+      return;
+    }
     originalWarn.apply(console, args);
   };
 }

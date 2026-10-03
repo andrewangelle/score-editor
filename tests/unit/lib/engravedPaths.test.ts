@@ -47,9 +47,13 @@ async function pathBoxes(
 
   const boxes: { width: number; height: number }[] = [];
   for (let i = 0; i < ops.fnArray.length; i++) {
-    if (ops.fnArray[i] !== pdfjs.OPS.constructPath) continue;
+    if (ops.fnArray[i] !== pdfjs.OPS.constructPath) {
+      continue;
+    }
     const box = ops.argsArray[i]?.[2] as ArrayLike<number> | undefined;
-    if (!box || box.length < 4) continue;
+    if (!box || box.length < 4) {
+      continue;
+    }
     boxes.push({ width: box[2] - box[0], height: box[3] - box[1] });
   }
   await doc.destroy();

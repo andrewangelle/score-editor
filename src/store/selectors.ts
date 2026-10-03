@@ -6,6 +6,7 @@ import {
 import { EDITOR_STATE_VERSION } from '#/lib/pdf/editorState';
 import { staffBounds } from '#/lib/pdf/partExtraction';
 import { type Region, regionsFromParts } from '#/lib/pdf/regions';
+import type { ScorePage } from '#/lib/pdf/scoreAnalysis';
 import {
   selectAnnotations,
   selectHasUnsavedAnnotations,
@@ -21,6 +22,7 @@ import {
   selectManualRegions,
 } from '#/store/regions.slice';
 import {
+  selectAnalysedPages,
   selectAnalysis,
   selectKeepMarkings,
   selectPartNames,
@@ -76,8 +78,8 @@ export const selectSelectedPage = createSelector(
 );
 
 export const selectSourcePageAt = createSelector(
-  [selectAnalysis, (_state, sourceIndex: number) => sourceIndex],
-  (analysis, sourceIndex) => analysis?.pages[sourceIndex],
+  [selectAnalysedPages, (_state, sourceIndex: number) => sourceIndex],
+  (pages, sourceIndex): ScorePage | undefined => pages[sourceIndex],
 );
 
 /**
@@ -134,7 +136,9 @@ export const selectAnnotationValueMenu = createSelector(
 export const selectSelectedAnnotationSize = createSelector(
   [selectAnnotations, selectSelectedAnnotationId],
   (items, id) => {
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
     return items.find((a) => a.id === id)?.size ?? null;
   },
 );
@@ -142,7 +146,9 @@ export const selectSelectedAnnotationSize = createSelector(
 export const selectSelectedAnnotationColor = createSelector(
   [selectAnnotations, selectSelectedAnnotationId],
   (items, id) => {
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
     return items.find((a) => a.id === id)?.color ?? null;
   },
 );

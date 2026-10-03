@@ -114,7 +114,9 @@ function commit(
 ) {
   const previous = current(state).pages;
   const next = change(previous);
-  if (next === previous) return;
+  if (next === previous) {
+    return;
+  }
 
   state.history.push(previous);
   state.pages = next;
@@ -268,7 +270,9 @@ export const documentSlice = createSlice({
       const removedAt = state.pages.findIndex(
         (page) => page.id === action.payload,
       );
-      if (removedAt === -1) return;
+      if (removedAt === -1) {
+        return;
+      }
 
       const previous = selection(state);
       commit(state, (pages) => removePage(pages, action.payload));
@@ -278,7 +282,9 @@ export const documentSlice = createSlice({
 
     documentReset(state) {
       const snapshot = current(state);
-      if (isUnchanged(snapshot.pages, snapshot.original)) return;
+      if (isUnchanged(snapshot.pages, snapshot.original)) {
+        return;
+      }
 
       const previous = selection(state);
       state.history.push(snapshot.pages);
@@ -289,7 +295,9 @@ export const documentSlice = createSlice({
 
     undone(state) {
       const previous = current(state).history.at(-1);
-      if (!previous) return;
+      if (!previous) {
+        return;
+      }
 
       const selected = selection(state);
       state.history.pop();

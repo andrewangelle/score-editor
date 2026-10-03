@@ -64,7 +64,9 @@ export function collectMarkingsRows(
 
   /** Bars from one position to a later one. */
   function barsBetween(from: BarPosition, to: BarPosition): number {
-    if (from.system === to.system) return to.bar - from.bar;
+    if (from.system === to.system) {
+      return to.bar - from.bar;
+    }
     let bars = barCount(from.system) - from.bar;
     for (let index = from.system + 1; index < to.system; index++) {
       bars += barCount(index);
@@ -419,7 +421,9 @@ function lastWhere<T>(
   predicate: (item: T) => boolean,
 ): T | undefined {
   for (let i = items.length - 1; i >= 0; i--) {
-    if (predicate(items[i])) return items[i];
+    if (predicate(items[i])) {
+      return items[i];
+    }
   }
   return undefined;
 }
@@ -435,19 +439,27 @@ function filterCourtesyTimeSigs(
   pages: readonly ScorePage[],
 ): Marking[] {
   const timeSigs = events.filter((e) => e.kind === 'time-signature');
-  if (timeSigs.length === 0) return events;
+  if (timeSigs.length === 0) {
+    return events;
+  }
 
   const courtesy = new Set<Marking>();
 
   for (const ts of timeSigs) {
     const system = pages[ts.pageIndex]?.systems[ts.systemIndex];
-    if (!system) continue;
+    if (!system) {
+      continue;
+    }
 
     const systemWidth = system.right - system.left;
-    if (systemWidth <= 0) continue;
+    if (systemWidth <= 0) {
+      continue;
+    }
 
     const posInSystem = (ts.rect.left - system.left) / systemWidth;
-    if (posInSystem < 0.8) continue;
+    if (posInSystem < 0.8) {
+      continue;
+    }
 
     // Identify the next system in reading order.
     const page = pages[ts.pageIndex];

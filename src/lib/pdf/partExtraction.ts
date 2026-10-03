@@ -90,7 +90,9 @@ export function layoutBands(
     cursor -= options.bandGap;
   }
 
-  if (current.length > 0) pages.push(current);
+  if (current.length > 0) {
+    pages.push(current);
+  }
   return pages;
 }
 
@@ -167,7 +169,9 @@ export async function extractRegions(
       const embed = embedded.get(
         clipKey(placed.region.pageIndex, placed.region.rect),
       );
-      if (!embed) continue;
+      if (!embed) {
+        continue;
+      }
 
       const scale = Math.min(1, printableWidth / embed.width);
       const width = embed.width * scale;
@@ -193,7 +197,9 @@ export async function extractRegions(
           const stamp = embedded.get(
             clipKey(placed.region.pageIndex, marking.rect),
           );
-          if (!stamp) continue;
+          if (!stamp) {
+            continue;
+          }
 
           const stampWidth = stamp.width * scale;
           const offset = (marking.rect.left - placed.region.rect.left) * scale;

@@ -1,4 +1,15 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, createListenerMiddleware } from '@reduxjs/toolkit';
+import { documentBytes } from '#/lib/pdf/document/document.bytes';
+import {
+  analyzePage,
+  finishAnalysis,
+  openScoreDocument,
+} from '#/lib/pdf/scoreAnalysis';
+import {
+  type AnalysisExtra,
+  type AnalysisStartListening,
+  registerAnalysisListeners,
+} from '#/store/analysis.listeners';
 import { annotationsSlice } from '#/store/annotations.slice';
 import { documentSlice } from '#/store/document.slice';
 import { regionsSlice } from '#/store/regions.slice';
@@ -12,12 +23,27 @@ import { toolSlice } from '#/store/tool.slice';
  * of milliseconds, which a region drag feels immediately.
  *
  * The checks stay on everywhere they can still catch something; `score.analysis`
- * is exempt because it is written once by `scoreAnalysed` and only ever read.
+ * and `score.pages` are exempt because each entry is written once and only ever
+ * read.
  */
-const ANALYSIS_PATH = ['score.analysis'];
+const ANALYSIS_PATH = ['score.analysis', 'score.pages'];
 
-export const makeStore = () =>
-  configureStore({
+/**
+ * The listener middleware is per store: `extra` is fixed when it is created, so
+ * a shared instance could not take test fakes, and stores would share listeners.
+ */
+export const makeStore = (extraOverrides: Partial<AnalysisExtra> = {}) => {
+  const listenerMiddleware = createListenerMiddleware({
+    extra: {
+      openScoreDocument,
+      analyzePage,
+      finishAnalysis,
+      documentBytes,
+      ...extraOverrides,
+    } satisfies AnalysisExtra,
+  });
+
+  const store = configureStore({
     reducer: {
       document: documentSlice.reducer,
       score: scoreSlice.reducer,
@@ -30,11 +56,17 @@ export const makeStore = () =>
         immutableCheck: { ignoredPaths: ANALYSIS_PATH },
         serializableCheck: {
           ignoredPaths: ANALYSIS_PATH,
-          // Carries the same tree as its payload.
-          ignoredActions: ['score/scoreAnalysed'],
+          // Carry the same tree as their payloads.
+          ignoredActions: ['score/scoreAnalysed', 'score/scorePageAnalysed'],
         },
-      }),
+      }).prepend(listenerMiddleware.middleware),
   });
+
+  registerAnalysisListeners(
+    listenerMiddleware.startListening as AnalysisStartListening,
+  );
+  return store;
+};
 
 export type AppStore = ReturnType<typeof makeStore>;
 export type RootState = ReturnType<AppStore['getState']>;

@@ -48,7 +48,9 @@ function overlappingPairs(regions: readonly Region[]): string[] {
     for (let j = i + 1; j < regions.length; j++) {
       const a = regions[i];
       const b = regions[j];
-      if (a.pageIndex !== b.pageIndex) continue;
+      if (a.pageIndex !== b.pageIndex) {
+        continue;
+      }
       if (a.rect.bottom < b.rect.top && b.rect.bottom < a.rect.top) {
         clashes.push(
           `${i}[${a.rect.bottom}..${a.rect.top}] over ${j}[${b.rect.bottom}..${b.rect.top}]`,

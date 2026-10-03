@@ -4,7 +4,7 @@ import {
   type PayloadAction,
 } from '@reduxjs/toolkit';
 import type { Part } from '#/lib/pdf/partExtraction';
-import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
+import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
 import {
   documentClosed,
   documentOpened,
@@ -25,6 +25,15 @@ type ScoreState = {
   /** A restored part selection waiting for the analysis it describes */
   pendingOrdinals: number[] | null;
   documentId: string | null;
+  /**
+   * What the overlay displays, by source index, as each page is detected. Not a
+   * record of what is finished: the runner keeps its own, because these pages
+   * have already lost the `ink` and `text` the document-wide pass needs.
+   */
+  pages: Record<number, ScorePage>;
+  pageCount: number | null;
+  /** Source indices the viewer wants analysed first. */
+  priority: number[];
 };
 
 const initialState: ScoreState = {
@@ -35,6 +44,9 @@ const initialState: ScoreState = {
   renames: {},
   pendingOrdinals: null,
   documentId: null,
+  pages: {},
+  pageCount: null,
+  priority: [],
 };
 
 const NO_PARTS: Part[] = [];
@@ -60,14 +72,44 @@ export const scoreSlice = createSlice({
   name: 'score',
   initialState,
   reducers: {
+    analysisStarted(
+      state,
+      action: PayloadAction<{ documentId: string; pageCount: number }>,
+    ) {
+      if (action.payload.documentId !== state.documentId) {
+        return;
+      }
+      state.pageCount = action.payload.pageCount;
+    },
+
+    scorePageAnalysed(
+      state,
+      action: PayloadAction<{ documentId: string; page: ScorePage }>,
+    ) {
+      const { documentId, page } = action.payload;
+      if (documentId !== state.documentId) {
+        return;
+      }
+      state.pages[page.pageIndex] ??= page;
+    },
+
+    analysisPrioritised(state, action: PayloadAction<number[]>) {
+      state.priority = action.payload;
+    },
+
     scoreAnalysed(
       state,
       action: PayloadAction<{ documentId: string; analysis: ScoreAnalysis }>,
     ) {
-      if (action.payload.documentId !== state.documentId) return;
+      if (action.payload.documentId !== state.documentId) {
+        return;
+      }
 
       state.analysis = action.payload.analysis;
       state.note = null;
+      for (const page of action.payload.analysis.pages) {
+        state.pages[page.pageIndex] ??= page;
+      }
 
       const detected = action.payload.analysis.parts.map(
         (part) => part.ordinal,
@@ -75,7 +117,9 @@ export const scoreSlice = createSlice({
       state.selectedOrdinals = detected;
 
       const pending = state.pendingOrdinals;
-      if (!pending) return;
+      if (!pending) {
+        return;
+      }
       state.pendingOrdinals = null;
 
       // Ex: a detection now finding eleven staves where it once found twelve
@@ -89,8 +133,11 @@ export const scoreSlice = createSlice({
       state,
       action: PayloadAction<{ documentId: string; message: string }>,
     ) {
-      if (action.payload.documentId !== state.documentId) return;
+      if (action.payload.documentId !== state.documentId) {
+        return;
+      }
       state.analysis = null;
+      state.pages = {};
       state.note = action.payload.message;
       state.selectedOrdinals = [];
       // There are no parts to apply it against, and none are coming.
@@ -135,7 +182,9 @@ export const scoreSlice = createSlice({
       .addCase(documentClosed, () => initialState)
       .addCase(documentRestored, (state, action) => {
         const restored = action.payload.state;
-        if (!restored) return;
+        if (!restored) {
+          return;
+        }
 
         state.keepMarkings = restored.keepMarkings;
         state.pendingOrdinals = restored.selectedOrdinals;
@@ -146,6 +195,16 @@ export const scoreSlice = createSlice({
   },
   selectors: {
     selectAnalysis: (state) => state.analysis,
+    selectAnalysedPages: (state) => state.pages,
+    selectAnalysisPriority: (state) => state.priority,
+    selectAnalysisProgress: createSelector(
+      [
+        (state: ScoreState) => state.pages,
+        (state: ScoreState) => state.pageCount,
+      ],
+      (pages, total) =>
+        total === null ? null : { analysed: Object.keys(pages).length, total },
+    ),
     selectAnalysisNote: (state) => state.note,
     selectSelectedOrdinals: (state) => state.selectedOrdinals,
     selectParts: selectRenamedParts,
@@ -198,6 +257,9 @@ export const scoreSlice = createSlice({
 });
 
 export const {
+  analysisStarted,
+  scorePageAnalysed,
+  analysisPrioritised,
   scoreAnalysed,
   scoreAnalysisFailed,
   partToggled,
@@ -208,6 +270,9 @@ export const {
 
 export const {
   selectAnalysis,
+  selectAnalysedPages,
+  selectAnalysisPriority,
+  selectAnalysisProgress,
   selectAnalysisNote,
   selectSelectedOrdinals,
   selectParts,
