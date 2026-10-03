@@ -49,13 +49,17 @@ export function stampAnnotation(
   font: PDFFont,
 ): void {
   const text = annotation.text.trim();
-  if (!text) return;
+  if (!text) {
+    return;
+  }
 
   const { x, y, size } = placement;
   const ink = annotationInk(annotation.color);
   page.drawText(text, { x, y, size, font, color: ink });
 
-  if (annotation.kind !== 'string') return;
+  if (annotation.kind !== 'string') {
+    return;
+  }
   const width = font.widthOfTextAtSize(text, size);
   const capHeight = size * CAP_HEIGHT;
 

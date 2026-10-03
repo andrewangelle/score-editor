@@ -34,7 +34,9 @@ export function useAnnotationKeyboard(pointerRef: ScorePointerRef) {
 
       // ensure Ctrl is clicked
       const mod = event.metaKey || event.ctrlKey;
-      if (!mod) return;
+      if (!mod) {
+        return;
+      }
 
       if (event.key === 'c' && selectedId) {
         event.preventDefault();

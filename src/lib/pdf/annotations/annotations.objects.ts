@@ -147,7 +147,9 @@ function annotationAppearance(
 ): Appearance | null {
   const key = appearanceKey(annotation);
   const built = cache.get(key);
-  if (built) return built;
+  if (built) {
+    return built;
+  }
 
   const { sink, operators, box } = appearanceSink(font);
   stampAnnotation(
@@ -158,7 +160,9 @@ function annotationAppearance(
   );
 
   const bounds = box();
-  if (!bounds) return null;
+  if (!bounds) {
+    return null;
+  }
 
   const stream = doc.context.flateStream(
     operators.map((operator) => operator.toString()).join('\n'),
@@ -191,7 +195,9 @@ export function writeAnnotationObjects(
 ): void {
   for (const annotation of annotations) {
     const appearance = annotationAppearance(doc, annotation, font, cache);
-    if (!appearance) continue;
+    if (!appearance) {
+      continue;
+    }
 
     const { ref, box } = appearance;
 
@@ -226,7 +232,9 @@ function ourAnnotations(
   page: PDFPage,
 ): { entry: PDFObject; dict: PDFDict }[] {
   const annots = page.node.Annots();
-  if (!annots) return [];
+  if (!annots) {
+    return [];
+  }
 
   const found: { entry: PDFObject; dict: PDFDict }[] = [];
 
@@ -266,7 +274,9 @@ function toAnnotation(
   if (!id || text === null || size === null || x === null || y === null) {
     return null;
   }
-  if (!KINDS.includes(kind as AnnotationKind)) return null;
+  if (!KINDS.includes(kind as AnnotationKind)) {
+    return null;
+  }
 
   return {
     id,
@@ -286,7 +296,9 @@ export function readAnnotationObjects(doc: PDFDocument): ScoreAnnotation[] {
   doc.getPages().forEach((page, pageIndex) => {
     for (const { dict } of ourAnnotations(doc, page)) {
       const annotation = toAnnotation(dict, pageIndex);
-      if (annotation) restored.push(annotation);
+      if (annotation) {
+        restored.push(annotation);
+      }
     }
   });
 
@@ -318,7 +330,9 @@ export function stripAnnotationObjects(doc: PDFDocument): boolean {
 
     for (const { dict } of ours) {
       const ref = doc.context.lookupMaybe(dict.get(AP), PDFDict)?.get(N);
-      if (ref) doc.context.delete(ref as PDFRef);
+      if (ref) {
+        doc.context.delete(ref as PDFRef);
+      }
     }
 
     stripped = true;

@@ -34,9 +34,15 @@ function regionsUnchanged(
   a: readonly Region[] | null,
   b: readonly Region[] | null,
 ): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return false;
-  if (a.length !== b.length) return false;
+  if (a === b) {
+    return true;
+  }
+  if (a === null || b === null) {
+    return false;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
   return a.every(
     (r, i) =>
       r.id === b[i].id &&
@@ -115,7 +121,9 @@ export const regionsSlice = createSlice({
         editable(state, action.payload.visible),
         action.payload.id,
       );
-      if (state.selectedId === action.payload.id) state.selectedId = null;
+      if (state.selectedId === action.payload.id) {
+        state.selectedId = null;
+      }
       state.revision += 1;
     },
 

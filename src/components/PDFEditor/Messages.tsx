@@ -1,16 +1,20 @@
-import {
-  LOADING_STAVES,
-  PARTS,
-} from '#/components/PDFEditor/PDFEditor.constants';
+import { PARTS } from '#/components/PDFEditor/PDFEditor.constants';
 import { PARTS_ASIDE_CLASS } from '#/components/PDFEditor/PDFEditor.styles';
+import { getLoadingStavesMessage } from '#/components/PDFEditor/PDFEditor.utils';
 import { useAppSelector } from '#/store/hooks';
-import { selectAnalysisNote } from '#/store/score.slice';
+import {
+  selectAnalysisNote,
+  selectAnalysisProgress,
+} from '#/store/score.slice';
 
 export function LoadingStaves() {
+  const progress = useAppSelector(selectAnalysisProgress);
   return (
     <aside className={PARTS_ASIDE_CLASS}>
       <h2 className="font-semibold text-slate-900 text-sm">{PARTS}</h2>
-      <p className="mt-2 text-slate-500 text-xs">{LOADING_STAVES}</p>
+      <p className="mt-2 text-slate-500 text-xs">
+        {getLoadingStavesMessage(progress)}
+      </p>
     </aside>
   );
 }

@@ -12,10 +12,10 @@ import {
   selectStatusMessage,
 } from '#/store/document.slice';
 import { useAppSelector } from '#/store/hooks';
-import { selectAnalysis, selectAnalysisNote } from '#/store/score.slice';
+import { selectAnalysisNote, selectPartsDetected } from '#/store/score.slice';
 
 export function PDFEditor() {
-  const analysis = useAppSelector(selectAnalysis);
+  const partsDetected = useAppSelector(selectPartsDetected);
   const analysisNote = useAppSelector(selectAnalysisNote);
   const statusMessage = useAppSelector(selectStatusMessage);
   const error = useAppSelector(selectDocumentError);
@@ -39,9 +39,9 @@ export function PDFEditor() {
         <PDFViewer />
 
         {/** Right side panel and editor */}
-        {analysis && !analysisNote && <EditScorePanel />}
-        {!analysis && analysisNote && <AnalysisNote />}
-        {!analysis && !analysisNote && <LoadingStaves />}
+        {partsDetected && !analysisNote && <EditScorePanel />}
+        {!partsDetected && analysisNote && <AnalysisNote />}
+        {!partsDetected && !analysisNote && <LoadingStaves />}
       </main>
     </div>
   );

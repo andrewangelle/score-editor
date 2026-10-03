@@ -1,9 +1,12 @@
+import type {
+  ScoreAnalysis,
+  ScorePage,
+} from '#/lib/pdf/analysis/analysis.score';
 import {
   collectMarkingsRows,
   markingsExportFileName,
 } from '#/lib/pdf/markings/markings.extract';
 import type { Marking } from '#/lib/pdf/markings/markings.types';
-import type { ScoreAnalysis, ScorePage } from '#/lib/pdf/scoreAnalysis';
 
 function marking(
   overrides: Partial<Marking> & { kind: Marking['kind'] },

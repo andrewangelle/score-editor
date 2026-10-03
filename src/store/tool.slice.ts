@@ -66,7 +66,9 @@ export const toolSlice = createSlice({
 
     /** Only clears the page named, so a stale clear cannot unpin a newer one. */
     activePageCleared(state, action: PayloadAction<string>) {
-      if (state.activePageId === action.payload) state.activePageId = null;
+      if (state.activePageId === action.payload) {
+        state.activePageId = null;
+      }
     },
   },
   extraReducers(builder) {

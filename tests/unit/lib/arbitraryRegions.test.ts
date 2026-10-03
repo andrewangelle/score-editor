@@ -61,7 +61,9 @@ function formBoxes(doc: PDFDocument) {
     const xobjects = page.node
       .Resources()
       ?.lookupMaybe(PDFName.of('XObject'), PDFDict);
-    if (!xobjects) continue;
+    if (!xobjects) {
+      continue;
+    }
 
     for (const key of xobjects.keys()) {
       const entry = xobjects.lookup(key);
@@ -70,7 +72,9 @@ function formBoxes(doc: PDFDocument) {
           ? entry
           : ((entry as { dict?: PDFDict })?.dict ?? null);
       const bbox = dict?.lookupMaybe(PDFName.of('BBox'), PDFArray);
-      if (!bbox) continue;
+      if (!bbox) {
+        continue;
+      }
       const n = (i: number) => (bbox.lookup(i) as PDFNumber).asNumber();
       boxes.push({ width: n(2) - n(0), height: n(3) - n(1) });
     }

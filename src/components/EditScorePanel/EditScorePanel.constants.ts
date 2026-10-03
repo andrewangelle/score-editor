@@ -12,9 +12,15 @@ export const EDIT_REGIONS_HINT =
   'Drag on empty space to add. Drag a rectangle to move it, or its edges to resize. Select one to delete it.';
 export const EXPORT_TEMPO_MAP = 'Export Tempo Map';
 export const EXPORT_TIME_SIGNATURE_MAP = 'Export Time Signature Map';
+export const FINDING_SECTIONS = 'finding sections';
+export const FINISHING_ANALYSIS = 'Finishing analysis...';
+export const FINISHING_ANALYSIS_HINT =
+  'Regions, extract and the markings export unlock once every page is read.';
 export const FINGERING = 'Fingering';
 export const FONT_SIZE_TEXT = 'Select font size:';
 export const KEEP_MEASURE = 'Keep measure numbers';
+export const READING_MARKINGS =
+  'Reading markings once every page is in. A score prints these for the system as a whole, so they are stamped above every part cut from it.';
 export const MANUAL_INFO =
   'Regions were edited by hand, so they no longer follow these checkboxes. Reset them below to go back to the detected staves.';
 export const PARTS = 'Parts';

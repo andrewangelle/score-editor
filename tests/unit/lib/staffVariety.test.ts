@@ -179,7 +179,9 @@ describe('decoys that a real engraving draws against its staves', () => {
     expect(staves).toHaveLength(2 * partNames.length);
 
     for (const staff of staves) {
-      if (staff.lineCount < 2) continue;
+      if (staff.lineCount < 2) {
+        continue;
+      }
       expect(staff.lineSpacing).toBeCloseTo(6, 1);
     }
   });
@@ -193,7 +195,9 @@ describe('decoys that a real engraving draws against its staves', () => {
         (candidate) =>
           `0:${pages[0].systems.indexOf(candidate)}` === band.groupKey,
       );
-      if (!system) throw new Error('band without a system');
+      if (!system) {
+        throw new Error('band without a system');
+      }
 
       // Inside the two guitars, clear of the percussion staff below them.
       expect(band.rect.top).toBeLessThan(system.staves[0].top + 40);

@@ -2,7 +2,9 @@ import {
   COULD_NOT_EXTRACT,
   COULD_NOT_SAVE,
   EDIT_TITLE,
+  LOADING_STAVES,
   OVERWRITE,
+  READING_MARKINGS,
   SAVE,
   SAVE_A_COPY,
   SAVING,
@@ -29,13 +31,33 @@ export function getSaveButtonCTA(
   return SAVE_A_COPY;
 }
 
+/**
+ * Once every page is in, the document-wide pass is still running; saying so
+ * keeps the panel from looking stuck at "80 of 80".
+ */
+export function getLoadingStavesMessage(
+  progress: { analysed: number; total: number } | null,
+) {
+  if (!progress) {
+    return LOADING_STAVES;
+  }
+  if (progress.analysed >= progress.total) {
+    return READING_MARKINGS;
+  }
+  return `${LOADING_STAVES} ${progress.analysed} of ${progress.total} pages`;
+}
+
 export function getExtractError(cause: unknown) {
-  if (cause instanceof Error) return cause.message;
+  if (cause instanceof Error) {
+    return cause.message;
+  }
   return COULD_NOT_EXTRACT;
 }
 
 export function getSaveError(cause: unknown) {
-  if (cause instanceof Error) return cause.message;
+  if (cause instanceof Error) {
+    return cause.message;
+  }
   return COULD_NOT_SAVE;
 }
 
@@ -46,7 +68,9 @@ export function getExportMarkingsLabel(kind: MarkingsExportKind) {
 }
 
 export function getExportMarkingsError(cause: unknown) {
-  if (cause instanceof Error) return cause.message;
+  if (cause instanceof Error) {
+    return cause.message;
+  }
   return 'Could not export markings';
 }
 

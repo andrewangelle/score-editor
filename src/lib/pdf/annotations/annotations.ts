@@ -103,8 +103,9 @@ export function hasAnnotationValueMenu(kind: AnnotationKind): boolean {
 }
 
 export function toRomanNumeral(value: number): string | null {
-  if (!Number.isInteger(value) || value < 1 || value > MAX_POSITION)
+  if (!Number.isInteger(value) || value < 1 || value > MAX_POSITION) {
     return null;
+  }
   return ROMAN_TENS[Math.floor(value / 10)] + ROMAN_UNITS[value % 10];
 }
 
@@ -121,7 +122,9 @@ export function normalizeAnnotationText(
       : (toRomanNumeral(arabic) ?? '');
   }
 
-  if (kind === 'string') return trimmed.replace(/\D/g, '').slice(0, 2);
+  if (kind === 'string') {
+    return trimmed.replace(/\D/g, '').slice(0, 2);
+  }
 
   return trimmed;
 }

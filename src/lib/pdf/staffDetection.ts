@@ -204,10 +204,18 @@ const DRAW_CURVE_TO = 2;
 const DRAW_CLOSE_PATH = 3;
 
 function grow(box: Box, x: number, y: number): void {
-  if (x < box.left) box.left = x;
-  if (x > box.right) box.right = x;
-  if (y < box.bottom) box.bottom = y;
-  if (y > box.top) box.top = y;
+  if (x < box.left) {
+    box.left = x;
+  }
+  if (x > box.right) {
+    box.right = x;
+  }
+  if (y < box.bottom) {
+    box.bottom = y;
+  }
+  if (y > box.top) {
+    box.top = y;
+  }
 }
 
 /**
@@ -221,8 +229,12 @@ export function subpathBoxes(buffer: ArrayLike<number>): Box[] | null {
     const op = buffer[i++];
 
     if (op === DRAW_MOVE_TO) {
-      if (i + 2 > buffer.length) return null;
-      if (current) boxes.push(current);
+      if (i + 2 > buffer.length) {
+        return null;
+      }
+      if (current) {
+        boxes.push(current);
+      }
       const x = buffer[i++];
       const y = buffer[i++];
       current = { left: x, right: x, bottom: y, top: y };
@@ -230,13 +242,17 @@ export function subpathBoxes(buffer: ArrayLike<number>): Box[] | null {
     }
 
     if (op === DRAW_LINE_TO) {
-      if (!current || i + 2 > buffer.length) return null;
+      if (!current || i + 2 > buffer.length) {
+        return null;
+      }
       grow(current, buffer[i++], buffer[i++]);
       continue;
     }
 
     if (op === DRAW_CURVE_TO) {
-      if (!current || i + 6 > buffer.length) return null;
+      if (!current || i + 6 > buffer.length) {
+        return null;
+      }
       for (let point = 0; point < 3; point++) {
         grow(current, buffer[i++], buffer[i++]);
       }
@@ -244,18 +260,24 @@ export function subpathBoxes(buffer: ArrayLike<number>): Box[] | null {
     }
 
     // closePath returns to the subpath's start, which is already in the box.
-    if (op === DRAW_CLOSE_PATH) continue;
+    if (op === DRAW_CLOSE_PATH) {
+      continue;
+    }
 
     return null;
   }
 
-  if (current) boxes.push(current);
+  if (current) {
+    boxes.push(current);
+  }
   return boxes;
 }
 
 function pathBuffer(arg: unknown): ArrayLike<number> | null {
   const data = arg as ArrayLike<unknown> | undefined;
-  if (!data || typeof data !== 'object' || data.length === 0) return null;
+  if (!data || typeof data !== 'object' || data.length === 0) {
+    return null;
+  }
 
   const first = data[0] as ArrayLike<number> | undefined;
 
@@ -305,7 +327,9 @@ function intersect(a: Box, b: Box): Box | null {
 
 function toMatrix(value: unknown): Matrix | null {
   const m = value as ArrayLike<number> | undefined;
-  if (!m || typeof m !== 'object' || m.length < 6) return null;
+  if (!m || typeof m !== 'object' || m.length < 6) {
+    return null;
+  }
   const out = [m[0], m[1], m[2], m[3], m[4], m[5]];
   return out.every((n) => typeof n === 'number' && Number.isFinite(n))
     ? (out as Matrix)
@@ -352,9 +376,13 @@ export function collectGeometry(
 
   const push = (box: Box, stroked: boolean): void => {
     const visible = clip ? intersect(box, clip) : box;
-    if (!visible) return;
+    if (!visible) {
+      return;
+    }
     boxes.push(visible);
-    if (stroked) frames.push(visible);
+    if (stroked) {
+      frames.push(visible);
+    }
 
     if (!clip) {
       unclipped = true;
@@ -385,7 +413,9 @@ export function collectGeometry(
 
     if (fn === ops.transform) {
       const m = toMatrix(args);
-      if (m) ctm = multiply(ctm, m);
+      if (m) {
+        ctm = multiply(ctm, m);
+      }
       continue;
     }
 
@@ -396,7 +426,9 @@ export function collectGeometry(
       stack.push({ ctm, clip });
 
       const matrix = toMatrix(args?.[0]);
-      if (matrix) ctm = multiply(ctm, matrix);
+      if (matrix) {
+        ctm = multiply(ctm, matrix);
+      }
 
       const bbox = args?.[1] as ArrayLike<number> | undefined;
       if (bbox && bbox.length >= 4) {
@@ -423,9 +455,13 @@ export function collectGeometry(
       clip = previous?.clip ?? null;
       continue;
     }
-    if (fn !== ops.constructPath) continue;
+    if (fn !== ops.constructPath) {
+      continue;
+    }
 
-    if (clip && clip.left > clip.right) continue;
+    if (clip && clip.left > clip.right) {
+      continue;
+    }
 
     // pdf.js hands us [drawOp, [pathBuffer], [minX, minY, maxX, maxY]].
     const stroked = strokes.has(args?.[0] as number);
@@ -433,14 +469,18 @@ export function collectGeometry(
     const subpaths = buffer ? subpathBoxes(buffer) : null;
 
     if (subpaths) {
-      for (const box of subpaths) push(transformBox(ctm, box), stroked);
+      for (const box of subpaths) {
+        push(transformBox(ctm, box), stroked);
+      }
       continue;
     }
 
     // No readable path: fall back to the aggregate box pdf.js computed, which
     // only ever resolves paths that are a single subpath on their own.
     const minMax = args?.[2] as ArrayLike<number> | undefined;
-    if (!minMax || minMax.length < 4) continue;
+    if (!minMax || minMax.length < 4) {
+      continue;
+    }
 
     push(
       transformBox(ctm, {
@@ -467,8 +507,12 @@ export function rulesFromBoxes(
 ): Rule[] {
   const rules: Rule[] = [];
   for (const box of boxes) {
-    if (box.top - box.bottom > options.maxRuleThickness) continue;
-    if (box.right - box.left <= 0) continue;
+    if (box.top - box.bottom > options.maxRuleThickness) {
+      continue;
+    }
+    if (box.right - box.left <= 0) {
+      continue;
+    }
     rules.push({
       y: (box.top + box.bottom) / 2,
       left: box.left,
@@ -489,8 +533,12 @@ export function verticalsFromBoxes(
   for (const box of boxes) {
     const width = box.right - box.left;
     const height = box.top - box.bottom;
-    if (width > options.maxRuleThickness) continue;
-    if (height <= width) continue;
+    if (width > options.maxRuleThickness) {
+      continue;
+    }
+    if (height <= width) {
+      continue;
+    }
     verticals.push({
       x: (box.left + box.right) / 2,
       bottom: box.bottom,
@@ -510,7 +558,9 @@ export function collectRules(
 
 /** Total length covered by a set of possibly overlapping spans. */
 function unionLength(spans: [number, number][]): number {
-  if (spans.length === 0) return 0;
+  if (spans.length === 0) {
+    return 0;
+  }
   const sorted = [...spans].sort((a, b) => a[0] - b[0]);
   let total = 0;
   let [start, end] = sorted[0];
@@ -535,7 +585,9 @@ export function consolidateRules(
   rules: Rule[],
   options: DetectionOptions = DEFAULT_DETECTION,
 ): Rule[] {
-  if (rules.length === 0) return [];
+  if (rules.length === 0) {
+    return [];
+  }
 
   const sorted = [...rules].sort((a, b) => b.y - a.y);
   const groups: { y: number; longest: number; spans: [number, number][] }[] =
@@ -582,7 +634,9 @@ export function groupIntoStaves(
   rules: Rule[],
   options: DetectionOptions = DEFAULT_DETECTION,
 ): Staff[] {
-  if (rules.length === 0) return [];
+  if (rules.length === 0) {
+    return [];
+  }
 
   const gaps: number[] = [];
   for (let i = 0; i < rules.length - 1; i++) {
@@ -603,7 +657,9 @@ export function groupIntoStaves(
   };
 
   const staffLinesOnly = (segment: Rule[]): Rule[] => {
-    if (segment.length < 2) return segment;
+    if (segment.length < 2) {
+      return segment;
+    }
 
     const agreeing = segment.map(
       (reference) =>
@@ -627,8 +683,11 @@ export function groupIntoStaves(
 
   const grouped: Rule[][] = [[rules[0]]];
   for (let i = 1; i < rules.length; i++) {
-    if (breakAt > 0 && gaps[i - 1] > breakAt) grouped.push([rules[i]]);
-    else grouped[grouped.length - 1].push(rules[i]);
+    if (breakAt > 0 && gaps[i - 1] > breakAt) {
+      grouped.push([rules[i]]);
+    } else {
+      grouped[grouped.length - 1].push(rules[i]);
+    }
   }
 
   const segments = grouped.map(staffLinesOnly);
@@ -637,7 +696,9 @@ export function groupIntoStaves(
   );
 
   const alignsWithStaves = (segment: Rule[]): boolean => {
-    if (full.length === 0) return true; // A page of nothing but short staves.
+    if (full.length === 0) {
+      return true; // A page of nothing but short staves.
+    }
 
     const middle = (segment[0].y + segment[segment.length - 1].y) / 2;
     const at = (run: Rule[]) => (run[0].y + run[run.length - 1].y) / 2;
@@ -680,7 +741,9 @@ export function groupIntoStaves(
       const uniform = spacings.every(
         (g) => Math.abs(g - mean) <= mean * options.spacingTolerance,
       );
-      if (!uniform) continue;
+      if (!uniform) {
+        continue;
+      }
     }
 
     const top = segment[0].y;
@@ -740,7 +803,9 @@ function chainOutwards(
     let grew = false;
 
     for (let i = 0; i < pool.length; i++) {
-      if (taken.has(i)) continue;
+      if (taken.has(i)) {
+        continue;
+      }
       const box = pool[i];
 
       const joins = run.some(
@@ -751,7 +816,9 @@ function chainOutwards(
             ? box.bottom <= held.top + reach
             : box.top >= held.bottom - reach),
       );
-      if (!joins) continue;
+      if (!joins) {
+        continue;
+      }
 
       taken.add(i);
       run.push(box);
@@ -761,7 +828,9 @@ function chainOutwards(
       grew = true;
     }
 
-    if (!grew) break;
+    if (!grew) {
+      break;
+    }
   }
 
   return frontier;
@@ -776,7 +845,9 @@ export function attachContentBounds(
   ink: readonly Box[],
   options: DetectionOptions = DEFAULT_DETECTION,
 ): Staff[] {
-  if (staves.length === 0) return [];
+  if (staves.length === 0) {
+    return [];
+  }
 
   const ordered = [...staves].sort((a, b) => b.top - a.top);
 
@@ -788,8 +859,12 @@ export function attachContentBounds(
   const claimable = ink.filter((box) => {
     let crossed = 0;
     for (const span of spans) {
-      if (box.bottom <= span.top && box.top >= span.bottom) crossed++;
-      if (crossed > 1) return false;
+      if (box.bottom <= span.top && box.top >= span.bottom) {
+        crossed++;
+      }
+      if (crossed > 1) {
+        return false;
+      }
     }
     return true;
   });
@@ -830,8 +905,12 @@ export function attachContentBounds(
       const limit = up ? edge + reach : edge - reach;
       let moved = edge;
       for (const box of near) {
-        if (box.top <= edge || box.bottom >= edge) continue;
-        if (up ? box.top > limit : box.bottom < limit) continue;
+        if (box.top <= edge || box.bottom >= edge) {
+          continue;
+        }
+        if (up ? box.top > limit : box.bottom < limit) {
+          continue;
+        }
         moved = up ? Math.max(moved, box.top) : Math.min(moved, box.bottom);
       }
       return moved;
@@ -875,7 +954,9 @@ export function groupIntoSystems(
   verticals?: readonly VerticalRule[],
   options: DetectionOptions = DEFAULT_DETECTION,
 ): System[] {
-  if (staves.length === 0) return [];
+  if (staves.length === 0) {
+    return [];
+  }
 
   const ordered = [...staves].sort((a, b) => b.top - a.top);
   const gaps: number[] = [];
@@ -892,8 +973,11 @@ export function groupIntoSystems(
       ? bridged(ordered[i - 1], ordered[i], verticals, options.maxRuleThickness)
       : gaps[i - 1] <= threshold;
 
-    if (together) groups[groups.length - 1].push(ordered[i]);
-    else groups.push([ordered[i]]);
+    if (together) {
+      groups[groups.length - 1].push(ordered[i]);
+    } else {
+      groups.push([ordered[i]]);
+    }
   }
 
   return groups.map((group) => ({
@@ -918,7 +1002,9 @@ export function findBarlines(
   verticals: readonly VerticalRule[],
 ): number[] {
   const spacing = Math.max(...system.staves.map((staff) => staff.lineSpacing));
-  if (!(spacing > 0)) return [];
+  if (!(spacing > 0)) {
+    return [];
+  }
 
   const slack = spacing * 0.5;
 
@@ -982,7 +1068,9 @@ export function findBarlines(
 
 function systemGapThreshold(gaps: number[], staves: Staff[]): number {
   const fallback = staffHeight(staves[0]) * 2;
-  if (gaps.length < 2) return fallback;
+  if (gaps.length < 2) {
+    return fallback;
+  }
 
   const sorted = [...gaps].sort((a, b) => a - b);
   let bestRatio = 1;
@@ -997,7 +1085,9 @@ function systemGapThreshold(gaps: number[], staves: Staff[]): number {
   }
 
   // A jump under 1.6x is normal variation inside one system, not a system break.
-  if (splitAt === -1 || bestRatio < 1.6) return fallback;
+  if (splitAt === -1 || bestRatio < 1.6) {
+    return fallback;
+  }
   return (sorted[splitAt] + sorted[splitAt + 1]) / 2;
 }
 
@@ -1011,7 +1101,9 @@ function isVisible(
   box: Box,
   clips: readonly Rect[] | null | undefined,
 ): boolean {
-  if (!clips || clips.length === 0) return true;
+  if (!clips || clips.length === 0) {
+    return true;
+  }
   return clips.some((clip) => intersect(box, clip) !== null);
 }
 
@@ -1060,11 +1152,19 @@ export async function readVisibleText(
 
   const read: PageTextItem[] = [];
   for (const item of items) {
-    if (typeof item?.str !== 'string' || !item.str.trim()) continue;
-    if (!Array.isArray(item.transform) || item.transform.length < 6) continue;
+    if (typeof item?.str !== 'string' || !item.str.trim()) {
+      continue;
+    }
+    if (!Array.isArray(item.transform) || item.transform.length < 6) {
+      continue;
+    }
     const rect = textItemBox(item);
-    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.bottom)) continue;
-    if (!isVisible(rect, clips)) continue;
+    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.bottom)) {
+      continue;
+    }
+    if (!isVisible(rect, clips)) {
+      continue;
+    }
     read.push({ str: item.str, rect, fontName: item.fontName ?? '' });
   }
   return read;
@@ -1098,7 +1198,9 @@ export async function guessPartNames(
     });
 
     const candidates = nearestLines(inBand, staff);
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) {
+      return null;
+    }
 
     return (
       candidates
@@ -1115,12 +1217,18 @@ export async function guessPartNames(
 }
 
 function nearestLines(items: TextItem[], staff: Staff): TextItem[] {
-  if (items.length === 0) return [];
+  if (items.length === 0) {
+    return [];
+  }
 
   const distance = (item: TextItem): number => {
     const y = item.transform[5];
-    if (y > staff.top) return y - staff.top;
-    if (y < staff.bottom) return staff.bottom - y;
+    if (y > staff.top) {
+      return y - staff.top;
+    }
+    if (y < staff.bottom) {
+      return staff.bottom - y;
+    }
     return 0;
   };
 

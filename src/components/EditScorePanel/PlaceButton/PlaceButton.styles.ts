@@ -1,6 +1,6 @@
 export function getPlaceButtonStyles(active: boolean) {
   let baseClass =
-    'flex-1 rounded-lg border px-2 py-1.5 text-xs transition-colors cursor-pointer';
+    'flex-1 rounded-lg border px-2 py-1.5 text-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
   if (active) {
     baseClass += ' border-blue-500 bg-blue-50 text-blue-700';

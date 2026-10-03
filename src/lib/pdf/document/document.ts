@@ -122,7 +122,9 @@ export async function buildEditedPdf(
   copied.forEach((page, index) => {
     output.addPage(page);
 
-    if (!font) return;
+    if (!font) {
+      return;
+    }
 
     const onPage = annotations.filter(
       (annotation) => annotation.pageIndex === pages[index].sourceIndex,

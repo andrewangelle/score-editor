@@ -1,12 +1,20 @@
-import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
+import type {
+  ScoreAnalysis,
+  ScorePage,
+} from '#/lib/pdf/analysis/analysis.score';
 import { documentClosed, documentOpened } from '#/store/document.slice';
 import {
   allPartsToggled,
+  analysisPrioritised,
+  analysisStarted,
   partRenamed,
   partToggled,
   scoreAnalysed,
   scoreAnalysisFailed,
+  scorePageAnalysed,
+  scorePartsDetected,
   scoreSlice,
+  selectAnalysisProgress,
   selectPartNames,
 } from '#/store/score.slice';
 
@@ -54,6 +62,55 @@ describe('scoreAnalysed', () => {
 
     expect(recovered.note).toBeNull();
     expect(recovered.analysis).toEqual(ANALYSIS);
+  });
+});
+
+describe('scorePartsDetected', () => {
+  const EARLY = scoreSlice.reducer(
+    OPENED,
+    scorePartsDetected({ documentId: DOC, parts: ANALYSIS.parts }),
+  );
+
+  it('checks every part before the analysis lands', () => {
+    expect(EARLY.analysis).toBeNull();
+    expect(EARLY.parts).toEqual(ANALYSIS.parts);
+    expect(EARLY.selectedOrdinals).toEqual([0, 1, 2]);
+  });
+
+  it('ignores parts for another document', () => {
+    const state = scoreSlice.reducer(
+      OPENED,
+      scorePartsDetected({ documentId: 'doc-2', parts: ANALYSIS.parts }),
+    );
+    expect(state.parts).toBeNull();
+  });
+
+  it('applies a restored selection', () => {
+    const state = scoreSlice.reducer(
+      { ...OPENED, pendingOrdinals: [2] },
+      scorePartsDetected({ documentId: DOC, parts: ANALYSIS.parts }),
+    );
+    expect(state.selectedOrdinals).toEqual([2]);
+    expect(state.pendingOrdinals).toBeNull();
+  });
+
+  it('leaves the selection alone when the analysis lands', () => {
+    const state = [
+      partToggled(1),
+      scoreAnalysed({ documentId: DOC, analysis: ANALYSIS }),
+    ].reduce(scoreSlice.reducer, EARLY);
+
+    expect(state.analysis).toEqual(ANALYSIS);
+    expect(state.selectedOrdinals).toEqual([0, 2]);
+  });
+
+  it('is cleared by a failure', () => {
+    const state = scoreSlice.reducer(
+      EARLY,
+      scoreAnalysisFailed({ documentId: DOC, message: 'too many layers' }),
+    );
+    expect(state.parts).toBeNull();
+    expect(state.selectedOrdinals).toEqual([]);
   });
 });
 
@@ -247,5 +304,112 @@ describe('selectors', () => {
 
     // A fresh array each call would retrigger every subscribed component.
     expect(selectParts({ score: empty })).toBe(selectParts({ score: empty }));
+  });
+});
+
+describe('the page cache', () => {
+  function page(pageIndex: number, width = 612): ScorePage {
+    return { pageIndex, width, height: 792, systems: [], markings: [] };
+  }
+
+  function from(...actions: Parameters<typeof scoreSlice.reducer>[1][]) {
+    return actions.reduce(scoreSlice.reducer, OPENED);
+  }
+
+  it('stores a page under its source index', () => {
+    const state = from(scorePageAnalysed({ documentId: DOC, page: page(3) }));
+
+    expect(state.pages[3]).toEqual(page(3));
+  });
+
+  it('ignores a page for another document', () => {
+    const state = from(
+      scorePageAnalysed({ documentId: 'doc-2', page: page(0) }),
+    );
+
+    expect(state.pages).toEqual({});
+  });
+
+  it('does not replace a page that is already cached', () => {
+    const state = from(
+      scorePageAnalysed({ documentId: DOC, page: page(0) }),
+      scorePageAnalysed({ documentId: DOC, page: page(0, 999) }),
+    );
+
+    expect(state.pages[0].width).toBe(612);
+  });
+
+  it('is filled in by scoreAnalysed only where pages are missing', () => {
+    const cached = page(0, 500);
+    const analysis = { ...ANALYSIS, pages: [page(0), page(1)] };
+    const state = from(
+      scorePageAnalysed({ documentId: DOC, page: cached }),
+      scoreAnalysed({ documentId: DOC, analysis }),
+    );
+
+    expect(state.pages[0]).toBe(cached);
+    expect(state.pages[1]).toEqual(page(1));
+  });
+
+  it('is cleared by a failure', () => {
+    const state = from(
+      scorePageAnalysed({ documentId: DOC, page: page(0) }),
+      scoreAnalysisFailed({ documentId: DOC, message: 'too many layers' }),
+    );
+
+    expect(state.pages).toEqual({});
+  });
+
+  it('is reset by opening and closing a document', () => {
+    const filled = from(
+      analysisStarted({ documentId: DOC, pageCount: 4 }),
+      scorePageAnalysed({ documentId: DOC, page: page(0) }),
+      analysisPrioritised([2, 3]),
+    );
+
+    for (const state of [
+      scoreSlice.reducer(filled, documentClosed()),
+      scoreSlice.reducer(
+        filled,
+        documentOpened({ id: 'doc-2', name: 'other.pdf', pages: [] }),
+      ),
+    ]) {
+      expect(state.pages).toEqual({});
+      expect(state.pageCount).toBeNull();
+      expect(state.priority).toEqual([]);
+    }
+  });
+});
+
+describe('selectAnalysisProgress', () => {
+  it('is null until analysis has started', () => {
+    expect(selectAnalysisProgress({ score: OPENED })).toBeNull();
+  });
+
+  it('counts the cached pages against the total', () => {
+    const state = [
+      analysisStarted({ documentId: DOC, pageCount: 3 }),
+      scorePageAnalysed({
+        documentId: DOC,
+        page: { pageIndex: 2, width: 1, height: 1, systems: [], markings: [] },
+      }),
+    ].reduce(scoreSlice.reducer, OPENED);
+
+    expect(selectAnalysisProgress({ score: state })).toEqual({
+      analysed: 1,
+      total: 3,
+    });
+  });
+
+  it('returns the same object while nothing it reads changes', () => {
+    const started = scoreSlice.reducer(
+      OPENED,
+      analysisStarted({ documentId: DOC, pageCount: 3 }),
+    );
+    const prioritised = scoreSlice.reducer(started, analysisPrioritised([1]));
+
+    expect(selectAnalysisProgress({ score: prioritised })).toBe(
+      selectAnalysisProgress({ score: started }),
+    );
   });
 });

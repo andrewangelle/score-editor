@@ -40,7 +40,9 @@ export async function pickPdfFile(): Promise<{
   handle: PdfFileHandle;
 } | null> {
   const picker = (window as FilePickerWindow).showOpenFilePicker;
-  if (!picker) return null;
+  if (!picker) {
+    return null;
+  }
 
   try {
     const [handle] = await picker.call(window, {
@@ -50,7 +52,9 @@ export async function pickPdfFile(): Promise<{
     return handle ? { file: await handle.getFile(), handle } : null;
   } catch (cause) {
     /** The user closing the picker is a decision, not a failure. */
-    if (isAbort(cause)) return null;
+    if (isAbort(cause)) {
+      return null;
+    }
     throw cause;
   }
 }
@@ -60,7 +64,9 @@ export async function droppedFileHandle(
 ): Promise<PdfFileHandle | null> {
   const getHandle = (item as FileSystemDataTransferItem | null | undefined)
     ?.getAsFileSystemHandle;
-  if (!getHandle) return null;
+  if (!getHandle) {
+    return null;
+  }
 
   try {
     const handle = await getHandle.call(item);
@@ -77,7 +83,9 @@ async function ensureWritePermission(handle: PdfFileHandle): Promise<boolean> {
   if (await handle.queryPermission?.(descriptor).then((s) => s === 'granted')) {
     return true;
   }
-  if (!handle.requestPermission) return true;
+  if (!handle.requestPermission) {
+    return true;
+  }
 
   return (await handle.requestPermission(descriptor)) === 'granted';
 }

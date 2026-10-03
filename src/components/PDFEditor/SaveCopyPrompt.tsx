@@ -36,15 +36,21 @@ export function SaveCopyPrompt({
   useEffect(() => {
     if (open !== wasOpen) {
       setWasOpen(open);
-      if (open) setTyped(suggestion);
+      if (open) {
+        setTyped(suggestion);
+      }
     }
   }, [open, wasOpen, suggestion]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
     const input = inputRef.current;
-    if (!input) return;
+    if (!input) {
+      return;
+    }
 
     input.focus();
     input.setSelectionRange(0, input.value.replace(/\.pdf$/i, '').length);
@@ -59,7 +65,9 @@ export function SaveCopyPrompt({
             onSave(typed);
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Escape') onCancel();
+            if (event.key === 'Escape') {
+              onCancel();
+            }
           }}
           className={SAVE_COPY_FORM_CLASS}
         >

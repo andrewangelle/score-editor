@@ -208,8 +208,11 @@ function contiguousRuns(ordinals: number[]): number[][] {
   const runs: number[][] = [];
   for (const ordinal of [...ordinals].sort((a, b) => a - b)) {
     const last = runs.at(-1);
-    if (last && ordinal === last[last.length - 1] + 1) last.push(ordinal);
-    else runs.push([ordinal]);
+    if (last && ordinal === last[last.length - 1] + 1) {
+      last.push(ordinal);
+    } else {
+      runs.push([ordinal]);
+    }
   }
   return runs;
 }
@@ -242,7 +245,9 @@ export function markingRows(region: Region): MarkingRow[] {
   const markings = [...(region.markings ?? [])].sort(
     (a, b) => a.rect.bottom - b.rect.bottom,
   );
-  if (markings.length === 0) return [];
+  if (markings.length === 0) {
+    return [];
+  }
 
   const rows: Marking[][] = [];
   for (const marking of markings) {
@@ -275,7 +280,9 @@ export function markingStackHeight(
   region: Region,
   options: LayoutOptions = DEFAULT_LAYOUT,
 ): number {
-  if (!options.keepMarkings) return 0;
+  if (!options.keepMarkings) {
+    return 0;
+  }
   return markingRows(region).reduce(
     (total, row) => total + row.height + options.markingGap,
     0,
@@ -313,7 +320,9 @@ export function regionsFromParts(
       const present = selectedOrdinals.filter(
         (ordinal) => ordinal < system.staves.length,
       );
-      if (present.length === 0) return;
+      if (present.length === 0) {
+        return;
+      }
 
       for (const run of contiguousRuns([...present])) {
         const top = staffBounds(system, run[0], page.systems, options).top;

@@ -1,6 +1,10 @@
-import type { ScoreAnalysis } from '#/lib/pdf/scoreAnalysis';
+import type { ScoreAnalysis } from '#/lib/pdf/analysis/analysis.score';
 import { documentOpened } from '#/store/document.slice';
-import { scoreAnalysed, scoreSlice } from '#/store/score.slice';
+import {
+  scoreAnalysed,
+  scorePageAnalysed,
+  scoreSlice,
+} from '#/store/score.slice';
 import { selectOverlay, selectStaffHints } from '#/store/selectors';
 
 const ANALYSIS: ScoreAnalysis = {
@@ -47,5 +51,30 @@ describe('page-addressed selectors', () => {
     const hints = selectStaffHints(STATE, 0, 600);
     selectStaffHints(STATE, 1, 600);
     expect(selectStaffHints(STATE, 0, 600)).toBe(hints);
+  });
+
+  // Analysis caches pages one at a time; each arrival must not re-render the
+  // pages already on screen.
+  it('keeps a page stable when a different page is cached', () => {
+    const first = selectOverlay(STATE, 0, 612);
+    const next = {
+      score: scoreSlice.reducer(
+        STATE.score,
+        scorePageAnalysed({
+          documentId: 'doc-1',
+          page: {
+            pageIndex: 5,
+            width: 612,
+            height: 792,
+            systems: [],
+            markings: [],
+          },
+        }),
+      ),
+    };
+
+    expect(next.score.pages).not.toBe(STATE.score?.pages);
+    expect(selectOverlay(next, 0, 612)).toBe(first);
+    expect(selectOverlay(next, 5, 612)).not.toBeNull();
   });
 });

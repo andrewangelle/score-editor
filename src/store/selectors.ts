@@ -1,4 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
+import type { ScorePage } from '#/lib/pdf/analysis/analysis.score';
 import {
   DEFAULT_SIZE,
   hasAnnotationValueMenu,
@@ -21,6 +22,7 @@ import {
   selectManualRegions,
 } from '#/store/regions.slice';
 import {
+  selectAnalysedPages,
   selectAnalysis,
   selectKeepMarkings,
   selectPartNames,
@@ -76,8 +78,8 @@ export const selectSelectedPage = createSelector(
 );
 
 export const selectSourcePageAt = createSelector(
-  [selectAnalysis, (_state, sourceIndex: number) => sourceIndex],
-  (analysis, sourceIndex) => analysis?.pages[sourceIndex],
+  [selectAnalysedPages, (_state, sourceIndex: number) => sourceIndex],
+  (pages, sourceIndex): ScorePage | undefined => pages[sourceIndex],
 );
 
 /**
@@ -134,7 +136,9 @@ export const selectAnnotationValueMenu = createSelector(
 export const selectSelectedAnnotationSize = createSelector(
   [selectAnnotations, selectSelectedAnnotationId],
   (items, id) => {
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
     return items.find((a) => a.id === id)?.size ?? null;
   },
 );
@@ -142,7 +146,9 @@ export const selectSelectedAnnotationSize = createSelector(
 export const selectSelectedAnnotationColor = createSelector(
   [selectAnnotations, selectSelectedAnnotationId],
   (items, id) => {
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
     return items.find((a) => a.id === id)?.color ?? null;
   },
 );
