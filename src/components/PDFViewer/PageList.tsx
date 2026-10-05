@@ -29,15 +29,20 @@ import { selectActivePageId } from '#/store/tool.slice';
 
 type PageListProps = {
   stage: HTMLDivElement;
-  /** Indexed by source index. */
-  sizes: PageSize[];
+  sizes: PageSize[]; // Indexed by source index.
   pageWidth: number;
+};
+
+type SentPriority = {
+  documentId: string | null;
+  priority: number[];
 };
 
 export function PageList({ stage, sizes, pageWidth }: PageListProps) {
   // The virtualizer is one mutable instance for the component's lifetime, so
   // the compiler would memoize everything read from it and never update.
   'use no memo';
+
   const dispatch = useAppDispatch();
   const pages = useAppSelector(selectPages);
   const selectedPageId = useAppSelector(selectSelectedPageId);
@@ -47,10 +52,12 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
   const analysisDone = useAppSelector(selectAnalysis) !== null;
   const selectedIndex = pages.findIndex((page) => page.id === selectedPageId);
   const pinnedIndex = pages.findIndex((page) => page.id === activePageId);
-  // Where a scroll asked for by the selection landed. Scroll events at that
-  // offset are its own echo, not the reader moving, so they must not re-select.
+
+  // Where a scroll asked for by the selection landed.
+  // Scroll events at that offset are its own echo, not the reader moving, so they must not re-select.
   const landedAt = useRef<number | null>(null);
   const syncFrame = useRef<number | null>(null);
+
   // Read a frame after the scroll, by which time this render's values may be stale.
   const latest = useRef({
     pages,
@@ -60,19 +67,20 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     analysisDone,
     documentId,
   });
+
   // Tagged with its document: the store's priority resets on open, but this
   // list stays mounted across documents, so an identical first list for the
   // next one must not read as already sent.
-  const sentPriority = useRef<{
-    documentId: string | null;
-    priority: number[];
-  } | null>(null);
+  const sentPriority = useRef<SentPriority | null>(null);
 
   const getItemKey = useCallback((index: number) => pages[index].id, [pages]);
 
   const estimateSize = useCallback(
-    (index: number) =>
-      renderedHeight(sizes[pages[index].sourceIndex], pageWidth),
+    (index: number) => {
+      const page = pages[index];
+      const size = sizes[page.sourceIndex];
+      return renderedHeight(size, pageWidth);
+    },
     [pages, sizes, pageWidth],
   );
 
@@ -83,6 +91,7 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
 
   function selectPageInView(instance: Virtualizer<HTMLDivElement, Element>) {
     syncFrame.current = null;
+
     const offset = instance.scrollOffset ?? 0;
 
     if (landedAt.current !== null) {
@@ -104,6 +113,7 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
   function prioritiseMounted(instance: Virtualizer<HTMLDivElement, Element>) {
     const { pages, selectedIndex, pinnedIndex, analysisDone, documentId } =
       latest.current;
+
     if (analysisDone) {
       return;
     }
@@ -119,12 +129,14 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     );
 
     const sent = sentPriority.current;
+
     if (
       sent?.documentId === documentId &&
       sameIndices(sent.priority, priority)
     ) {
       return;
     }
+
     sentPriority.current = { documentId, priority };
     dispatch(analysisPrioritised(priority));
   }
@@ -183,6 +195,7 @@ export function PageList({ stage, sizes, pageWidth }: PageListProps) {
     }
 
     const target = virtualizer.getOffsetForIndex(selectedIndex, 'start');
+
     if (!target) {
       return;
     }
