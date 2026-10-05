@@ -122,6 +122,7 @@ export function registerAnalysisListeners(
           if (cause instanceof TaskAbortError) {
             throw cause;
           }
+
           api.dispatch(
             scoreAnalysisFailed({
               documentId,

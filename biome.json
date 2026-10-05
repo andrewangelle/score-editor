@@ -22,8 +22,9 @@
       "!src/routeTree.gen.ts",
       "!.netlify",
       "!.tanstack/*",
-      "!.claude",
-      ".claude/loops/audit/**",
+      "!.claude/*.json",
+      "!.claude/worktrees",
+      "**/.claude/loops/audit/**",
       "!**/*.pdf"
     ]
   },
@@ -44,7 +45,10 @@
     "rules": {
       "preset": "recommended",
       "style": {
-        "useBlockStatements": "error",
+        "useBlockStatements": {
+          "level": "error",
+          "fix": "safe"
+        },
         "noParameterAssign": "off",
         "useAsConstAssertion": "error",
         "useDefaultParameterLast": "error",
