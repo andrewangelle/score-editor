@@ -16,7 +16,7 @@ test.describe('Unsaved changes indicator and save button', () => {
     const saveButton = page.getByRole('button', { name: 'Save a copy' });
     await expect(saveButton).toBeVisible();
 
-    const header = page.locator('header');
+    const header = page.getByTestId('PDFEditorActions');
     await expect(header).not.toContainText('unsaved changes');
 
     if (test.info().project.name === 'visual') {
@@ -28,7 +28,7 @@ test.describe('Unsaved changes indicator and save button', () => {
     appPage,
     page,
   }) => {
-    const header = page.locator('header');
+    const header = page.getByTestId('PDFEditorActions');
     await expect(header).not.toContainText('unsaved changes');
 
     await appPage.expandAnnotations();
@@ -47,7 +47,7 @@ test.describe('Unsaved changes indicator and save button', () => {
     appPage,
     page,
   }) => {
-    const header = page.locator('header');
+    const header = page.getByTestId('PDFEditorActions');
 
     await appPage.expandAnnotations();
     await page.getByRole('button', { name: 'Fingering' }).click();
