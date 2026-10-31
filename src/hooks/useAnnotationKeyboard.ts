@@ -4,6 +4,7 @@ import {
   annotationCopied,
   annotationPasted,
   annotationRedone,
+  annotationRemoved,
   annotationUndone,
   selectCanRedoAnnotation,
   selectCanUndoAnnotation,
@@ -41,6 +42,13 @@ export function useAnnotationKeyboard(pointerRef: ScorePointerRef) {
       if (event.key === 'c' && selectedId) {
         event.preventDefault();
         dispatch(annotationCopied(selectedId));
+        return;
+      }
+
+      if (event.key === 'x' && selectedId) {
+        event.preventDefault();
+        dispatch(annotationCopied(selectedId));
+        dispatch(annotationRemoved(selectedId));
         return;
       }
 
