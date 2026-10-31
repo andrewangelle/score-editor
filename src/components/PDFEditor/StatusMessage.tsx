@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { STATUS_DISMISS_MS } from '#/components/PDFEditor/PDFEditor.constants';
 import {
   STATUS_DISMISS_BUTTON_CLASS,
   STATUS_MESSAGE_CLASS,
@@ -11,6 +13,14 @@ import { useAppDispatch, useAppSelector } from '#/store/hooks';
 export function StatusMessage() {
   const dispatch = useAppDispatch();
   const statusMessage = useAppSelector(selectStatusMessage);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => dispatch(documentStatusDismissed()),
+      STATUS_DISMISS_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [dispatch]);
 
   return (
     <div className={STATUS_MESSAGE_CLASS} role="status">
