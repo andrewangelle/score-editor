@@ -122,7 +122,7 @@ test.describe('Continuous page scroll', () => {
 
     await strip.getByRole('button', { name: 'Delete page 3' }).click();
 
-    await expect(page.locator('header')).toContainText('5 pages');
+    await expect(page.getByTestId('PDFEditorActions')).toContainText('5 pages');
     await expect(appPage.currentThumbnail()).toHaveText('Page 3');
     // What was page 4 of the source now holds the third place.
     await expect(appPage.viewerPage(2)).toHaveAttribute(

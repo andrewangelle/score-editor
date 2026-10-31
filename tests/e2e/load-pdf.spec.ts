@@ -12,7 +12,7 @@ test.describe('App smoke test', () => {
   });
 
   test('loads a PDF and displays the viewer', async ({ page }) => {
-    const header = appPage.page.locator('header');
+    const header = appPage.page.getByTestId('PDFEditorActions');
     await expect(header.locator('h1')).toContainText('fixture.pdf');
     await expect(header).toContainText('6 pages');
 
