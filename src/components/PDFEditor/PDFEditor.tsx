@@ -32,7 +32,8 @@ export function PDFEditor() {
           {error}
         </p>
       )}
-      {statusMessage && <StatusMessage />}
+      {/* Keyed so a replacement message restarts the dismiss timer. */}
+      {statusMessage && <StatusMessage key={statusMessage} />}
 
       <main className="flex min-h-0 flex-1">
         {/* Center panel and document viewer */}

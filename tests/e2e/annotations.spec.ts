@@ -287,6 +287,38 @@ test.describe('Annotation clipboard and undo/redo', () => {
     await expect(page.getByRole('button', { name: 'dolce' })).toHaveCount(2);
   });
 
+  test('cut and paste a performance note', async ({ appPage, page }) => {
+    await page.getByRole('button', { name: 'Performance' }).click();
+    await appPage.clickOnPage(0.3, 0.3);
+    await page.getByPlaceholder('Performance note').fill('dolce');
+    await page.keyboard.press('Enter');
+
+    expect(await appPage.getAnnotationCount()).toBe(1);
+
+    await page.getByRole('button', { name: 'Performance' }).click();
+
+    await page.locator('button[title*="Tap to select"]').click();
+    const selected = page.locator('button[title*="Cmd/Ctrl+X to cut"]');
+    await expect(selected).toHaveClass(/ring-2/);
+
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${mod}+x`);
+
+    expect(await appPage.getAnnotationCount()).toBe(0);
+
+    const canvas = await appPage.selectedCanvas();
+    const box = await canvas.boundingBox();
+    if (!box) {
+      throw new Error('Canvas not visible');
+    }
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+
+    await page.keyboard.press(`${mod}+v`);
+
+    expect(await appPage.getAnnotationCount()).toBe(1);
+    await expect(page.getByRole('button', { name: 'dolce' })).toHaveCount(1);
+  });
+
   test('recolors a selected annotation', async ({ appPage, page }) => {
     await page.getByRole('button', { name: 'Fingering' }).click();
     await page.getByRole('button', { name: '3', exact: true }).click();

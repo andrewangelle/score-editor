@@ -15,3 +15,4 @@ export const SAVE_COPY_AS = 'Save a copy as';
 export const UNDO = 'Undo';
 export const UNDO_MARK = 'Undo mark';
 export const REDO_MARK = 'Redo mark';
+export const STATUS_DISMISS_MS = 4000;
